@@ -1,4 +1,4 @@
-"""Inicio: tarjeta de Dinero configurable (total / una cuenta / varias) y resumen de los últimos 7 días de ejercicio."""
+"""Inicio: tarjeta de Ejercicio (círculos de los últimos 7 días) y tarjeta con los botones Gasto / Ingreso / Mover."""
 import os, sys, tempfile, json
 from datetime import date, timedelta
 from pathlib import Path
@@ -30,107 +30,72 @@ try:
             q.evaluate("""async (js) => { const st = await import('/js/state.js'); const ut = await import('/js/util.js'); const db = await import('/js/db.js');
               await (new Function('st', 'ut', 'db', 'return (async () => {' + js + '})()'))(st, ut, db); st.hooks.render(); }""", js)
             q.wait_for_timeout(80)
-        money = lambda: q.locator('.tile-money').inner_text()
-        def reveal():
-            if q.locator('.tile-money .eye').get_attribute('aria-pressed')=='false': q.click('.tile-money .eye'); q.wait_for_timeout(80)
-        def cfg(): q.click('.tile-money .cog'); q.wait_for_timeout(100)
-        def save(): dlg.locator('button.primary').click(); q.wait_for_timeout(120)
+        gym = lambda: q.locator('.tile:has-text("Ejercicio")')
+        dots = lambda: gym().locator('.tile-dots i')
+        on = lambda: [i for i, c in enumerate(dots().evaluate_all('l => l.map(e => e.className)')) if c == 'on']
+        is_open = lambda: q.evaluate("document.querySelector('#dlg').open")
 
-        # ---- Inicio sin Pomodoro y con el nuevo orden
-        check('sin tarjeta de Pomodoro; Hábitos y Pagos siguen en la fila de tarjetas', q.locator('.tile:has-text("Pomodoro")').count()==0 and q.locator('.tiles .tile').count()==2)
+        # ---- disposición: cuatro tarjetas de media pantalla; ya no hay tarjeta de dinero con saldo
+        boxes = q.evaluate("""() => [...document.querySelectorAll('.tiles > *')].map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; })""")
+        check('cuatro tarjetas en dos filas de dos, cada una de media pantalla', len(boxes)==4 and boxes[0][1]==boxes[1][1] and boxes[2][1]==boxes[3][1] and boxes[2][1]>boxes[0][1] and all(150<w<190 for _, _, w in boxes), boxes)
+        check('Inicio ya no tiene tarjeta de dinero (ni ojo ni ajustes)', q.locator('.tile-money, [data-act=home-eye], [data-act=home-money-cfg]').count()==0 and 'Q ••••' not in q.locator('.home').inner_text())
+        check('la tarjeta de Ejercicio y la de botones comparten fila', 'ejercicio' in q.locator('.tiles > *').nth(2).inner_text().lower() and q.locator('.tiles > *').nth(3).get_attribute('class')=='tile-acts')
 
-        # ---- dinero: total, una cuenta, varias
-        seed("""const mk = (id, name, type, cats) => ({ id, name, type, limit: 0, order: 1, cats });
-          const as = [mk('a1', 'Banco', 'normal', [{ id: 'c1', name: 'Comida', balance: 1000 }, { id: 'c2', name: 'Ahorro', balance: 500 }]),
-                      mk('a2', 'Efectivo', 'normal', [{ id: 'c3', name: 'Bolsillo', balance: 200 }]),
-                      mk('a3', 'Visa', 'credit', [{ id: 'c4', name: 'Deuda', balance: -300 }])];
-          for (const a of as) { st.S.accounts.push(a); await st.saveAccount(a); }""")
-        reveal()
-        check('por omisión: total neto de todas las cuentas (dinero menos deuda de tarjetas)', 'Q1,400.00' in money() and 'Total de tus cuentas' in money(), money())
-        check('la tarjeta de dinero ocupa todo el ancho', q.locator('.tile-money').bounding_box()['width']>340, q.locator('.tile-money').bounding_box())
-        check('el botón de ajustes mide al menos 44 px', q.locator('.tile-money .cog').bounding_box()['height']>=44 and q.locator('.tile-money .cog').bounding_box()['width']>=44)
-        cfg()
-        check('el diálogo ofrece total y las cuentas en orden alfabético, con la tarjeta marcada como tal', dlg.locator('[name=mode]:checked').get_attribute('value')=='total' and dlg.locator('[name=acc]').count()==3 and dlg.locator('.acc-pick').inner_text().replace('\n',' ').startswith('Banco Efectivo Visa (tarjeta)'), dlg.locator('.acc-pick').inner_text())
-        dlg.locator('[name=acc][value=a2]').check()
-        check('marcar una cuenta cambia solo a «Solo las cuentas que elija»', dlg.locator('[name=mode]:checked').get_attribute('value')=='accounts')
-        save()
-        check('una sola cuenta: su saldo y su nombre (sin desglose)', 'Q200.00' in money() and 'Efectivo' in money() and 'Total' not in money() and q.locator('.money-lines').count()==0, money())
-        cfg(); dlg.locator('[name=acc][value=a1]').check(); save()
-        m = money()
-        check('varias cuentas: suma, «2 cuentas» y una línea por cuenta', 'Q1,700.00' in m and '2 cuentas' in m and q.locator('.money-lines .kv').count()==2 and 'Q1,500.00' in q.locator('.money-lines').inner_text(), m)
-        cfg(); dlg.locator('[name=acc][value=a3]').check(); save()
-        check('una tarjeta suma su deuda (negativa)', 'Q1,400.00' in money() and '3 cuentas' in money(), money())
-        q.click('.tile-money .eye'); q.wait_for_timeout(80)
-        check('oculto: ni el total ni el desglose muestran cifras', '1,' not in money() and money().count('Q ••••')==4 and q.locator('.tile-money .eye').get_attribute('aria-pressed')=='false', money())
-        reveal()
-        q.screenshot(path=OUT+'inicio_dinero.png', full_page=True)
-        cfg(); dlg.locator('[name=acc]').evaluate_all('l => l.forEach(i => { i.checked = false; })'); dlg.locator('[name=mode][value=accounts]').check(); dlg.locator('button.primary').click(); q.wait_for_timeout(120)
-        check('«solo las que elija» sin ninguna cuenta no se guarda (diálogo abierto y aviso)', q.evaluate("document.querySelector('#dlg').open") and 'al menos una' in q.locator('#toast').inner_text())
-        dlg.locator('[name=mode][value=total]').check(); save()
-        check('volver a «total»', 'Total de tus cuentas' in money() and 'Q1,400.00' in money())
-        # la elección se conserva (y la cuenta elegida se ve tras recargar, con el dinero otra vez oculto)
-        cfg(); dlg.locator('[name=acc][value=a1]').check(); save()
-        q.reload(); q.wait_for_selector('#view .home')
-        check('al recargar se conserva la elección, y el dinero vuelve a estar oculto', 'Banco' in money() and 'Q ••••' in money() and '1,500' not in money(), money())
-        data = q.evaluate("import('/js/state.js').then(m => m.S.settings.homeMoney)")
-        check('se guarda en los ajustes (viaja en el respaldo)', data=={'mode':'accounts','ids':['a1']}, data)
-        # cuenta borrada: la elección se corrige sola
-        seed("""st.S.accounts = st.S.accounts.filter(a => a.id !== 'a1'); st.bump(); await db.commit({ remove: { accounts: ['a1'] } });""")
-        reveal()
-        check('si se borra la única cuenta elegida, vuelve al total', 'Total de tus cuentas' in money() and '−Q100.00' in money(), money())
-        # ajustes raros: no rompen Inicio
-        seed("""st.S.settings.homeMoney = { mode: 'accounts', ids: 'x' };""")
-        check('ids inválidos: total', 'Total de tus cuentas' in money())
-        seed("""st.S.settings.homeMoney = 7;""")
-        check('ajuste que no es un objeto: total, sin errores', 'Total de tus cuentas' in money() and q.locator('.home').count()==1)
-        seed("""st.S.settings.homeMoney = { mode: 'accounts', ids: ['a2', 'no-existe', 5] };""")
-        reveal()
-        check('ids con cuentas inexistentes: solo cuenta la que existe', 'Efectivo' in money() and 'Q200.00' in money(), money())
+        # ---- botones de dinero
+        acts = q.locator('.tile-acts .btn')
+        check('tres botones: Gasto, Ingreso y Mover', [t.strip() for t in acts.all_inner_texts()]==['Gasto','Ingreso','Mover'], acts.all_inner_texts())
+        check('cada botón mide al menos 44 px de alto', all(acts.nth(i).bounding_box()['height']>=44 for i in range(3)))
+        for i, lab in enumerate(['Gasto','Ingreso','Mover dinero']):
+            acts.nth(i).click(); q.wait_for_timeout(100)
+            check(f'«{lab}» sin cuentas avisa en vez de abrir un formulario roto', not is_open() and 'cuenta' in q.locator('#toast').inner_text(), q.locator('#toast').inner_text())
+        seed("""const a = { id: 'a1', name: 'Banco', type: 'normal', limit: 0, order: 1, cats: [{ id: 'c1', name: 'Comida', balance: 500 }, { id: 'c2', name: 'Ahorro', balance: 100 }] }; st.S.accounts.push(a); await st.saveAccount(a);""")
+        for i, lab in enumerate(['Gasto','Ingreso','Mover dinero']):
+            acts.nth(i).click(); q.wait_for_timeout(120)
+            check(f'«{lab}» abre su formulario sobre Inicio', is_open() and lab.lower() in dlg.locator('h2').inner_text().lower() and q.locator('#topbar h1').inner_text()=='Inicio', dlg.locator('h2').inner_text() if is_open() else 'cerrado')
+            dlg.locator('#cancel').click(); q.wait_for_timeout(80)
+        acts.nth(1).click(); q.wait_for_timeout(100)
+        dlg.locator('[name=amount]').fill('250'); dlg.locator('button.primary').click(); q.wait_for_timeout(200)
+        saldo = q.evaluate("import('/js/state.js').then(m => m.S.accounts[0].cats.reduce((t, c) => t + c.balance, 0))")
+        check('registrar un ingreso desde Inicio cambia el saldo (850) y se queda en Inicio', saldo==850 and q.locator('#topbar h1').inner_text()=='Inicio', saldo)
 
         # ---- ejercicio: sin datos
-        ex = lambda: q.locator('.home-sec')
-        check('sin entrenamientos: invitación a registrar el primero', 'Registrar tu primer entrenamiento' in ex().inner_text() and ex().locator('.xrow').count()==0)
-        q.click('[data-act=home-gym]'); q.wait_for_timeout(100)
-        check('esa invitación abre Gimnasio › Entrenar', q.locator('#topbar h1').inner_text()=='Gimnasio' and 'on' in q.locator('[data-act=gym-sub][data-sub=train]').get_attribute('class'))
+        check('sin entrenamientos: 0/7, siete círculos apagados y un texto claro', '0/7' in gym().inner_text().replace('\n','') and dots().count()==7 and on()==[] and 'Sin entrenamientos' in gym().inner_text(), gym().inner_text())
+        gym().click(); q.wait_for_timeout(100)
+        check('tocarla sin datos abre Gimnasio › Entrenar', q.locator('#topbar h1').inner_text()=='Gimnasio' and 'on' in q.locator('[data-act=gym-sub][data-sub=train]').get_attribute('class'))
         go('home')
 
-        # ---- ejercicio: 9 días distintos (+ 2 entrenamientos el mismo día)
-        seed(f"""const set = (w, r) => ({{ weight: w, reps: r, done: true, at: 5 }});
-          const wk = (id, name, date, exs) => ({{ id, name, routineId: null, color: 'mauve', date, t: Date.parse(date + 'T10:00:00'), end: Date.parse(date + 'T11:00:00'),
-            exercises: exs.map((sets, i) => ({{ id: id + i, name: 'Ej ' + i, sets }})) }});
-          const ws = [wk('w0', 'Pecho', '{D(0)}', [[set(60, 10), set(60, 10)], [set(20, 12)]]),
-                      wk('w0b', 'Cardio', '{D(0)}', [[set(0, 30)]]),
-                      wk('w1', 'Pierna', '{D(-1)}', [[set(100, 5)]]),
-                      wk('w3', 'Espalda', '{D(-3)}', [[set(40, 10)]]), wk('w4', 'Hombro', '{D(-4)}', [[set(15, 10)]]),
-                      wk('w5', 'Brazo', '{D(-5)}', [[set(10, 10)]]), wk('w6', 'Core', '{D(-6)}', [[set(0, 20)]]),
-                      wk('w8', 'Séptimo día', '{D(-8)}', [[set(10, 10)]]), wk('w9', 'Muy viejo', '{D(-9)}', [[set(10, 10)]])];
+        # ---- ejercicio: con entrenamientos (el último círculo es hoy)
+        seed(f"""const set = {{ weight: 20, reps: 10, done: true, at: 5 }};
+          const wk = (id, name, date) => ({{ id, name, routineId: null, color: 'mauve', date, t: Date.parse(date + 'T10:00:00'), end: Date.parse(date + 'T11:00:00'), exercises: [{{ id: id + 'e', name: 'Ej', sets: [set] }}] }});
+          const ws = [wk('w0', 'Pecho', '{D(0)}'), wk('w0b', 'Cardio', '{D(0)}'), wk('w2', 'Pierna', '{D(-2)}'), wk('w5', 'Espalda', '{D(-5)}'), wk('w6', 'Brazo', '{D(-6)}'), wk('w7', 'Fuera de rango', '{D(-7)}'), wk('w30', 'Viejo', '{D(-30)}')];
           ws.forEach(w => st.S.workouts.push(w)); await db.commit({{ put: {{ workouts: ws }} }});""")
-        rows = ex().locator('.xrow')
-        check('muestra los últimos 7 días CON ejercicio (no los últimos 7 del calendario), el más reciente primero', rows.count()==7 and 'Muy viejo' not in ex().inner_text() and 'Séptimo día' in rows.nth(6).inner_text(), rows.count())
-        t0 = rows.nth(0).inner_text().replace('\n',' ')
-        check('un día con dos entrenamientos se junta en una fila: nombres, ejercicios, series y volumen', 'Hoy' in t0 and 'Pecho + Cardio' in t0 and '3 ejercicios' in t0 and '4 series' in t0 and '1,440 kg' in t0, t0)
-        check('«Ayer» y los demás días con su fecha', 'Ayer' in rows.nth(1).inner_text() and 'Pierna' in rows.nth(1).inner_text() and '1 ejercicio · 1 serie · 500 kg' in rows.nth(1).inner_text().replace('\n',' '), rows.nth(1).inner_text())
-        check('los días sin ejercicio no aparecen (saltan de hace 1 a hace 3 días)', 'Espalda' in rows.nth(2).inner_text() and 'Pierna' in rows.nth(1).inner_text())
-        check('cada fila mide al menos 44 px', rows.nth(0).bounding_box()['height']>=44)
-        check('la tarjeta va después de Dinero', q.evaluate("""() => { const m = document.querySelector('.tile-money'), e = document.querySelector('.home-sec'); return !!(m.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING); }"""))
+        check('con color los días entrenados de los últimos 7 (hace 6, 5, 2 días y hoy) y no los demás', on()==[0,1,4,6], on())
+        check('el conteo es de días, no de entrenamientos (4/7) y dice cuándo fue el último', '4/7' in gym().inner_text().replace('\n','') and 'Último: hoy' in gym().inner_text(), gym().inner_text())
+        check('los círculos con color se distinguen de los apagados', q.evaluate("""() => { const c = [...document.querySelectorAll('.tile-dots i')].map(e => getComputedStyle(e).backgroundColor); return c[6] !== c[5] && c[0] === c[6]; }"""))
+        check('son círculos pequeños (≤ 14 px)', dots().first.bounding_box()['width']<=14 and dots().first.bounding_box()['height']<=14)
+        gb = gym().bounding_box()
+        check('la tarjeta mide al menos 100 px de alto y sus círculos caben dentro', gb['height']>=100 and all(dots().nth(i).bounding_box()['x']+dots().nth(i).bounding_box()['width']<=gb['x']+gb['width'] for i in range(7)), gb)
+        q.screenshot(path=OUT+'inicio_tarjetas.png', full_page=True)
         for f in ('system', 'jetbrains'):
             q.evaluate(f"document.documentElement.dataset.font='{f}'"); q.wait_for_timeout(80)
             check(f'sin desborde horizontal en 390 px ({f})', q.evaluate('document.documentElement.scrollWidth')<=390, q.evaluate('document.documentElement.scrollWidth'))
-        q.screenshot(path=OUT+'inicio_ejercicio_jb.png', full_page=True)
+            gb = gym().bounding_box()
+            check(f'los círculos caben en la tarjeta ({f})', all(dots().nth(i).bounding_box()['x']+dots().nth(i).bounding_box()['width']<=gb['x']+gb['width'] for i in range(7)))
+        q.screenshot(path=OUT+'inicio_tarjetas_jb.png', full_page=True)
         q.evaluate("document.documentElement.dataset.font='system'")
-        rows.nth(1).click(); q.wait_for_timeout(100)
-        check('tocar una fila abre Gimnasio › Historial', q.locator('#topbar h1').inner_text()=='Gimnasio' and 'on' in q.locator('[data-act=gym-sub][data-sub=history]').get_attribute('class') and q.locator('.list-card').count()>0)
+        gym().click(); q.wait_for_timeout(100)
+        check('tocarla con datos abre Gimnasio › Historial', q.locator('#topbar h1').inner_text()=='Gimnasio' and 'on' in q.locator('[data-act=gym-sub][data-sub=history]').get_attribute('class') and q.locator('.list-card').count()>0)
         go('home')
 
-        # ---- entrenamiento en curso arriba
-        seed("""const w = { id: 'live', name: 'Pecho hoy', routineId: null, color: 'mauve', date: ut.today(), t: Date.now(), exercises: [{ id: 'e1', name: 'Press', sets: [{ weight: 50, reps: 10, done: true, at: 1 }, { weight: 50, reps: 10, done: false }, { weight: 50, reps: 10, done: false }] }] };
+        # ---- último hace 2 días, y un entrenamiento en curso
+        seed("""st.S.workouts = st.S.workouts.filter(w => w.id !== 'w0' && w.id !== 'w0b'); await db.commit({ remove: { workouts: ['w0', 'w0b'] } });""")
+        check('si el último fue hace 2 días: «Último: hace 2 días» y hoy apagado', 'Último: hace 2 días' in gym().inner_text() and 6 not in on(), (gym().inner_text(), on()))
+        seed("""const w = { id: 'live', name: 'Pecho hoy', routineId: null, color: 'mauve', date: ut.today(), t: Date.now(), exercises: [{ id: 'e1', name: 'Press', sets: [{ weight: 50, reps: 10, done: false }] }] };
           st.S.workouts.push(w); await db.commit({ put: { workouts: [w] } });""")
-        live = ex().locator('.xrow.live')
-        check('el entrenamiento en curso aparece primero con su avance, sin contarse como día hecho', live.count()==1 and 'live' in ex().locator('.xrow').nth(0).get_attribute('class') and '1/3 series' in live.inner_text() and ex().locator('.xrow').count()==8 and 'Hoy' in ex().locator('.xrow').nth(1).inner_text(), live.inner_text())
-        live.click(); q.wait_for_timeout(100)
-        check('tocarlo abre Gimnasio › Entrenar', 'on' in q.locator('[data-act=gym-sub][data-sub=train]').get_attribute('class') and q.locator('.gx').count()==1)
+        check('con un entrenamiento en curso: «Entrenando ahora» (aún no cuenta como día entrenado)', 'Entrenando ahora' in gym().inner_text() and 6 not in on(), (gym().inner_text(), on()))
+        gym().click(); q.wait_for_timeout(100)
+        check('y tocarla abre el entrenamiento', q.locator('.gx').count()==1 and 'on' in q.locator('[data-act=gym-sub][data-sub=train]').get_attribute('class'))
         go('home')
-
         check('sin errores de consola', errs==[], errs)
         print('errors:', errs); b.close()
 finally:

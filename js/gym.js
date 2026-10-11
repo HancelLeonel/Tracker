@@ -161,24 +161,15 @@ export function sanitizeWorkouts(list) {
   return out;
 }
 
-// Resumen para Inicio: el entrenamiento en curso (si hay) y los últimos `n` días en que hubo ejercicio, el más reciente primero.
-// Si un día tuvo varios entrenamientos se juntan en una sola fila.
+// Resumen para Inicio: los últimos `n` días (el último es hoy) con si hubo un entrenamiento terminado ese día, la fecha del último
+// entrenamiento y el que está en curso (si hay).
 export function homeInfo(n = 7) {
-  const byDate = new Map();
-  for (const w of finished()) {
-    const d = byDate.get(w.date) ?? { date: w.date, names: [], exercises: 0, sets: 0, vol: 0 };
-    const s = summary(w);
-    if (!d.names.includes(w.name)) d.names.push(w.name);
-    d.exercises += w.exercises.length;
-    d.sets += s.sets;
-    d.vol += s.vol;
-    byDate.set(w.date, d);
-  }
+  const t = today(), trained = new Set(finished().map(w => w.date));
+  const days = Array.from({ length: n }, (_, i) => { const date = addDays(t, i - (n - 1)); return { date, on: trained.has(date) }; });
   const w = active(), sets = w?.exercises.flatMap(e => e.sets) ?? [];
   return {
-    unit: cfg().unit,
-    live: w ? { name: w.name, done: sets.filter(s => s.done).length, total: sets.length } : null,
-    days: [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, n),
+    days, count: days.filter(d => d.on).length, last: [...trained].sort().at(-1) ?? null,
+    live: w ? { name: w.name, done: sets.filter(x => x.done).length, total: sets.length } : null,
   };
 }
 

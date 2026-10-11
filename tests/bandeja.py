@@ -117,20 +117,6 @@ try:
         check('el manifiesto declara el destino de «Compartir»', man.get('share_target', {}).get('params', {}).get('text')=='text' and man['share_target']['method']=='GET')
         q2.close()
 
-        # ---- tarjeta de dinero
-        go('home')
-        check('sin cuentas no hay tarjeta de dinero', q.locator('.tile-money').count()==0)
-        seed("""const a = { id: 'a1', name: 'Banco', type: 'normal', limit: 0, order: 1, cats: [{ id: 'c1', name: 'Comida', balance: 1234.5 }] }; st.S.accounts.push(a); await st.saveAccount(a);""")
-        check('el dinero arranca oculto', 'Q ••••' in q.locator('.tile-money').inner_text() and '1,234' not in q.locator('.tile-money').inner_text())
-        q.click('.tile-money .eye'); q.wait_for_timeout(80)
-        check('el ojo lo muestra', 'Q1,234.50' in q.locator('.tile-money').inner_text() and q.locator('.tile-money .eye').get_attribute('aria-pressed')=='true')
-        q.click('.tile-money .eye'); q.wait_for_timeout(80)
-        check('y lo vuelve a ocultar', 'Q ••••' in q.locator('.tile-money').inner_text())
-        q.reload(); q.wait_for_selector('#view .home')
-        check('al reabrir la app vuelve a estar oculto', 'Q ••••' in q.locator('.tile-money').inner_text())
-        q.click('.tile-money .tile-main'); q.wait_for_timeout(100)
-        check('tocar la tarjeta abre Finanzas', q.locator('#topbar h1').inner_text()=='Finanzas')
-
         # ---- Inicio ya no trae tarjeta de Pomodoro (ahora hay un resumen de ejercicio; ver inicio_resumen.py)
         go('home')
         check('Inicio no tiene tarjeta de Pomodoro', q.locator('.tile:has-text("Pomodoro")').count()==0)

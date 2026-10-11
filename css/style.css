@@ -484,11 +484,6 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
 .trows .qn:first-child { border-top: 0; }
 .qn:active { background: var(--surface0); }
 .qn-text { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow-wrap: anywhere; white-space: pre-wrap; }
-.tile-money { position: relative; display: block; padding: 0; }
-.tile-money .tile-main { display: grid; gap: 8px; align-content: start; width: 100%; min-height: 108px; padding: 14px; text-align: left; color: inherit; border-radius: var(--radius); }
-.tile-money .tile-main:active { background: var(--surface0); }
-.tile-money .eye, .tile-money .cog { position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; }
-.tile-money .eye:active, .tile-money .cog:active { background: var(--surface1); }
 
 /* Listas: orden, fijar y agenda */
 .sortbar { display: flex; align-items: center; gap: 10px; }
@@ -544,17 +539,8 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
 .spark.few { gap: 6px; }
 .spark.few .col { flex: 0 1 44px; }
 
-/* Inicio: dinero con cuentas elegidas y resumen de ejercicio */
-.tile-money .cog { right: 46px; }
-.home-sec { display: grid; gap: 10px; }
-.money-lines { display: grid; gap: 4px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line); font-size: .9rem; font-variant-numeric: tabular-nums; }
-.acc-pick { display: grid; gap: 4px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--crust); max-height: 40dvh; overflow-y: auto; }
-.acc-pick .check { min-height: 44px; }
-.xrow { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 4px; text-align: left; color: inherit; border-top: 1px solid var(--line); }
-.card-rows > .xrow:first-child { border-top: 0; }
-.xrow:active { background: var(--surface0); }
-.xr-d { display: grid; }
-.xr-d small, .xr-m small { font-size: .78rem; color: var(--subtext0); overflow-wrap: anywhere; }
-.xr-m { display: grid; gap: 1px; min-width: 0; }
-.xr-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.xrow.live .xr-d b { color: var(--accent); }
+/* Inicio: tarjeta de ejercicio (círculos de los últimos 7 días) y acciones de dinero */
+.tile-dots { margin-top: auto; gap: 6px; }
+.tile-dots i { width: 12px; height: 12px; }
+.tile-acts { display: grid; gap: 6px; align-content: center; padding: 10px; background: var(--mantle); border: 1px solid var(--line); border-radius: var(--radius); }
+.tile-acts .btn { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; }

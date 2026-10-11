@@ -9,7 +9,6 @@ export const S = {
   settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {}, listSort: 'recent', font: 'system' },
   report: { kind: 'q', ref: today() },
   guide: { ref: today() }, // quincena que se ve en la guía de transferencias
-  hideMoney: true,     // en Inicio el dinero total arranca oculto cada vez que se abre la app
   noteGroup: null,     // grupo de notas abierto (null = vista general)
   noteSearch: '', noteTag: '', noteLimit: 40,
   gymSub: 'train',     // train | routines | history | progress
