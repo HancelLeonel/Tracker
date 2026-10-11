@@ -26,7 +26,9 @@ No hay Node. Para validar cualquier cambio de interfaz se usa Playwright (Chromi
 | `js/plan.js` | Guía de transferencias por quincena |
 | `js/home.js` | Pantalla de inicio (la predeterminada, `S.tab = 'home'`): saludo, fecha y frases |
 | `js/notes.js` | Notas: grupos con campos propios (`FIELD_TYPES`), notas, búsqueda y etiquetas |
+| `js/aviso.js` | Sonido (`alarm`, `prepAudio`), vibración y pantalla encendida (`keepAwake(dueño, on)`), compartidos por Pomodoro y Gimnasio |
 | `js/pomodoro.js` | Temporizador Pomodoro (fases, aviso, Wake Lock) y pantalla completa negra (`#pomo-full`) |
+| `js/gym.js` | Gimnasio: rutinas, entrenamiento en curso, descanso entre series, historial y progreso |
 | `js/bills.js` · `reports.js` · `purchases.js` · `habits.js` · `lists.js` · `data.js` | Pagos pendientes · reportes · compras · hábitos · listas y plantillas · respaldo/ajustes |
 | `sw.js` | Service worker (network-first con respaldo offline) |
 
@@ -45,7 +47,7 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - Las listas largas se paginan (30 en movimientos, 40 en compras). No pintes listas completas.
 
 **Datos y compatibilidad**
-- Base `mi-quincena` v6 (nombre interno heredado, **no lo renombres**: perdería datos guardados). Si añades un store o cambias esquema, sube la versión en `db.js` y migra en `onupgradeneeded`.
+- Base `mi-quincena` v7 (nombre interno heredado, **no lo renombres**: perdería datos guardados). Si añades un store o cambias esquema, sube la versión en `db.js` y migra en `onupgradeneeded`.
 - Si añades campos a movimientos/cuentas/pagos/compras, actualiza `validateImport` y `buildExport` en [data.js](js/data.js). Los respaldos con `app: 'mi-quincena'` (nombre anterior) y `version: 2` se siguen aceptando.
 - Los archivos adjuntos son Blobs en el store `files`; los registros guardan solo ids. `gcFiles()` borra los huérfanos: no los dejes referenciados desde un lugar que `gcFiles` no revise.
 - Fechas como `'YYYY-MM-DD'` en hora local (helpers de `util.js`); nunca `toISOString()` para fechas de usuario.
@@ -81,7 +83,7 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - El campo de agregar es un `<form data-noform>` (`app.js` evita su envío) y tras agregar `S.focusNew` devuelve el foco al campo en el repintado.
 
 **Inicio** ([home.js](js/home.js))
-- La app abre en `S.tab = 'home'`. Inicio muestra: fecha (overline) y saludo, la frase, el botón **«Nuevo gasto»** (`data-act="new-exp"`, reutiliza `expenseForm`), el campo de **nota rápida** (módulo [inbox.js](js/inbox.js)), cuatro tarjetas (**Hábitos** de hoy, **Pagos** —`billsSummary()` en `bills.js`—, **Dinero** —saldo neto de `totals()`, oculto por defecto en cada apertura con `S.hideMoney`; el ojo es `home-eye`— y **Pomodoro** —`homeInfo()`; el contador en vivo usa `data-pomo-clock` y `refresh()` repinta Inicio—), la **Bandeja** (`S.inbox`) y **«Tareas de hoy»** (`todayTasks()`/`taskRow()` en `lists.js`: elementos pendientes de listas activas con `due <= hoy`; la casilla usa `agenda-toggle`, que fija `doneAt`, y el texto `agenda-open`). Son solo lecturas; no guardes estado nuevo ahí. Las pruebas que asumen Finanzas deben navegar con el menú (`#tabs [data-tab=money]`) tras cargar/recargar; la espera de carga es `#view .home`, no `#view .card`.
+- La app abre en `S.tab = 'home'`. Inicio muestra: fecha (overline) y saludo, la frase, el botón **«Nuevo gasto»** (`data-act="new-exp"`, reutiliza `expenseForm`), el campo de **nota rápida** (módulo [inbox.js](js/inbox.js)), dos tarjetas (**Hábitos** de hoy y **Pagos** —`billsSummary()` en `bills.js`—), **Dinero** a todo el ancho (saldo neto de `totals()` o solo las cuentas elegidas en `S.settings.homeMoney = { mode: 'total'|'accounts', ids }`, que **`moneyCfg()` corrige al leer**: cuentas borradas o valores raros → total; oculto por defecto en cada apertura con `S.hideMoney`; el ojo es `home-eye` y el botón de ajustes `home-money-cfg`; una tarjeta de crédito suma su deuda), **Ejercicio** (`homeInfo()` de `gym.js`: últimos 7 **días con** entrenamiento terminado —no del calendario—, los del mismo día juntos, y el entrenamiento en curso arriba; las filas abren el Gimnasio con `home-gym`), la **Bandeja** (`S.inbox`) y **«Tareas de hoy»** (`todayTasks()`/`taskRow()` en `lists.js`: elementos pendientes de listas activas con `due <= hoy`; la casilla usa `agenda-toggle`, que fija `doneAt`, y el texto `agenda-open`). Son solo lecturas; no guardes estado nuevo ahí. Las pruebas que asumen Finanzas deben navegar con el menú (`#tabs [data-tab=money]`) tras cargar/recargar; la espera de carga es `#view .home`, no `#view .card`.
 - La frase **no** se elige en `homeView()` (se repinta con cada acción, y cambiaría al abrir el menú): se elige con `nextQuote()` al iniciar, al elegir la pestaña Inicio, al tocar la frase y en `visibilitychange`. Es una bolsa mezclada (sin repetir hasta agotar `QUOTES`).
 
 **Notas** ([notes.js](js/notes.js))
@@ -97,8 +99,18 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - La cuenta se **deriva de `run.endsAt`** (hora absoluta), nunca de un contador: sobrevive a temporizadores atrasados, recargas y app cerrada. El `setInterval` solo repinta `[data-pomo-clock]`/`[data-pomo-bar]` (no hace `render()` completo salvo al cambiar de fase) y se detiene solo cuando no hay `endsAt`.
 - `resume()` (al iniciar o importar) continúa el temporizador, o si terminó con la app cerrada avanza **sin sonar**. La vibración solo se intenta tras un toque (`navigator.userActivation`): Chrome la bloquea y deja un error en consola si no.
 - La pantalla completa es un `<div id="pomo-full">` fuera de `#view` (sobrevive a los repintados) con `data-act="pomo-exit"`; solo debe contener el contador (la prueba lo exige). Mantiene Wake Lock mientras corre.
-- Gimnasio es una pestaña **vacía a propósito** (`EMPTY` en `app.js`); no hay pestaña de Tareas: las tareas se llevan con Listas. Cuando se desarrolle Gimnasio, pasar a su propio módulo y añadirlo a `SHELL` y a los `modulepreload`.
+- No hay pestaña de Tareas: las tareas se llevan con Listas.
 - Los avisos con la pantalla bloqueada no son posibles como PWA (sin servidor push); el diseño asume que la pantalla se queda encendida (Wake Lock). No se contempla una versión APK.
+
+**Gimnasio** ([gym.js](js/gym.js))
+- Stores `routines` (plantillas: `exercises: [{ name, sets, reps, weight, rest? }]`) y `workouts` (`exercises: [{ id, name, rest?, sets: [{ reps, weight, done, at? }] }]`). Empezar una rutina **copia** (como Listas); un `workout` sin `end` está en curso y **solo puede haber uno** (`active()`; el import deja el más reciente y cierra los demás). Al terminar se **quitan las series sin marcar** y los ejercicios que quedan vacíos.
+- El descanso vive en `S.settings.gym` (`cfg: { unit: 'kg'|'lb', rest }`, `rest: { endsAt, total }`) y, como en el Pomodoro, **se deriva de `endsAt`**; `cfg()` y `rest()` corrigen cualquier valor inválido al leerlos. `resume()` (en `init()` y al importar) continúa o, si terminó con la app cerrada, lo quita **sin sonar**. El `setInterval` solo repinta `[data-rest-clock]`/`[data-rest-bar]`.
+- **Pantalla encendida compartida**: `keepAwake('pomodoro'|'gym', on)` guarda quién la necesita y la suelta cuando ya nadie. No uses `navigator.wakeLock` directo.
+- Los campos de peso y repeticiones se despachan por `data-change` (`gym-w`/`gym-r`) y **devuelven `false` para que `app.js` no repinte**: si repintara, la casilla de marcar que se toca justo después se perdería. `gym-set` además lee los valores de la fila al marcar. Los ejercicios se identifican por nombre normalizado (`key()`): de ahí salen «Última vez», récords y Progreso (`progressMap()`).
+- `sanitizeRoutines`/`sanitizeWorkouts` (usadas por `validateImport`) acotan series, repeticiones y pesos. **Si añades un campo a rutinas o entrenamientos, actualiza ambas.**
+
+**Hojas inferiores y teclado**
+- `index.html` declara `interactive-widget=resizes-content` en el viewport: sin eso Chrome en Android solo encoge el viewport *visual* y el teclado tapa la hoja anclada abajo. Con él, `max-height: 92dvh` sigue el área visible y la hoja hace scroll. `ui.js` además acerca al centro el campo que recibe el foco. No se puede probar el teclado real en Chromium de escritorio: `tests/gimnasio.py` solo comprueba que el viewport lo declare.
 
 **Compartir respaldo**
 - `navigator.share` solo acepta ciertos tipos de archivo y **gasta el permiso en el primer intento** (no se puede reintentar). Por eso se comparte como `text/plain` (`.json.txt`) y, ante cualquier fallo distinto de `AbortError` (o si no hay soporte), el respaldo se **descarga** y se avisa el motivo. El importador acepta `.json` y `.txt`. Se usa Chrome en Android; las pruebas simulan Web Share.
@@ -137,10 +149,12 @@ Estado: probado en Chromium de escritorio con teléfono simulado; **falta valida
 - ✅ Carrusel de hábitos con el dedo: probado en Android.
 - ✅ Calendario de fechas límite en Listas: probado en Android.
 - ✅ Copiar en Notas: probado en Android.
-- ⬜ Pomodoro (pantalla completa negra, Wake Lock, sonido y vibración), selector de fuente JetBrains Mono (que se vea bien en 390 px y que cargue sin conexión), hojas inferiores con el teclado abierto y el *safe-area*, nota rápida con teclado en Inicio, **orden manual y fijado de listas con el dedo**, *Web Share Target* («Compartir» → Tracker; requiere reinstalar la PWA en Chrome) y el arranque tras actualizar la base de datos (v6: cerrar antes las demás ventanas). Para ver el icono y el *splash* nuevos hay que desinstalar y reinstalar.
+- ✅ Probado en Android: Pomodoro, fuente JetBrains Mono, nota rápida, orden manual y fijado de listas, *Web Share Target* y arranque tras actualizar la base.
+- ⬜ **Hojas inferiores con el teclado abierto**: el teclado las tapaba; se corrigió con `interactive-widget=resizes-content` (ver arriba) y **falta confirmarlo en el teléfono**. Cierra las demás ventanas de Tracker antes de abrir la versión nueva (base v7).
+- ⬜ **Gimnasio** completo en el teléfono: descanso con sonido y vibración, pantalla encendida, escribir pesos con el teclado numérico y marcar series con el dedo. Para ver el icono y el *splash* nuevos hay que desinstalar y reinstalar.
 
 **Siguiente en el menú**
-- **Gimnasio** (hoy vacío): rutinas como plantillas (mismo patrón que Listas), series × repeticiones × peso, historial y progreso, y descanso programable entre series reutilizando el núcleo del Pomodoro (hora de fin guardada, tono, vibración, Wake Lock). Será IndexedDB v7.
+- Nada fijo. Ideas para Gimnasio: editar un entrenamiento ya terminado, reordenar ejercicios, una tarjeta en Inicio con el entrenamiento en curso, notas por serie.
 
 **Ideas opcionales**
 - Tema claro automático (descartado por ahora; las variables CSS ya lo permitirían).

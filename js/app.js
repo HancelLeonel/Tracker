@@ -12,6 +12,7 @@ import * as lists from './lists.js';
 import * as home from './home.js';
 import * as inbox from './inbox.js';
 import * as pomodoro from './pomodoro.js';
+import * as gym from './gym.js';
 import * as notes from './notes.js';
 import * as data from './data.js';
 import { esc } from './util.js';
@@ -22,8 +23,6 @@ const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], plan: ['new-line', '
 
 const TABS = [['home', 'Inicio', 'home'], ['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'],
   ['pomodoro', 'Pomodoro', 'timer'], ['gym', 'Gimnasio', 'dumbbell'], ['notes', 'Notas', 'note'], ['data', 'Configuración', 'data']];
-// Secciones aún sin contenido: título (para la barra superior) y mensaje.
-const EMPTY = { gym: 'Gimnasio' };
 
 const menuOpen = open => {
   document.body.classList.toggle('menu-open', open);
@@ -84,9 +83,9 @@ function render() {
       top.innerHTML = topbar('Notas', ['new-ngroup', 'Nuevo grupo']);
       view.innerHTML = notes.notesHome();
     }
-  } else if (EMPTY[S.tab]) {
-    top.innerHTML = topbar(EMPTY[S.tab]);
-    view.innerHTML = '<div class="card empty"><p>Esta sección está vacía por ahora.</p></div>';
+  } else if (S.tab === 'gym') {
+    top.innerHTML = topbar('Gimnasio', S.gymSub === 'routines' ? ['new-routine', 'Nueva rutina'] : null);
+    view.innerHTML = gym.gymView();
   } else if (S.tab === 'purchases') {
     top.innerHTML = topbar('Compras', ['new-purchase', 'Nueva compra']);
     view.innerHTML = purchases.purchasesView();
@@ -104,7 +103,7 @@ const actions = {
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
   'open-file': el => openFile(el.dataset.id),
-  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...notes.actions, ...data.actions,
+  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...gym.actions, ...notes.actions, ...data.actions,
 };
 
 document.addEventListener('click', async e => {
@@ -117,10 +116,11 @@ document.addEventListener('click', async e => {
   if (!isOpen()) render();
 });
 
-const changes = { ...data.changes, ...lists.changes };
+const changes = { ...data.changes, ...lists.changes, ...gym.changes };
 document.addEventListener('change', async e => {
   const fn = changes[e.target.dataset.change];
-  if (fn) { await fn(e.target); render(); }
+  // Un cambio que devuelve false se guarda sin repintar (los campos de peso y repeticiones del Gimnasio).
+  if (fn && (await fn(e.target)) !== false) render();
 });
 
 // Las búsquedas (compras, notas) solo repintan su lista para no perder el foco del campo.
@@ -147,7 +147,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') menuOpen(fal
 
 $('#file').addEventListener('change', async e => {
   const f = e.target.files[0];
-  if (f) { await data.onFilePicked(f); applyFont(S.settings.font); pomodoro.resume(); render(); }
+  if (f) { await data.onFilePicked(f); applyFont(S.settings.font); pomodoro.resume(); gym.resume(); render(); }
 });
 
 // La actualización de la base de datos espera mientras otra ventana con la versión anterior siga abierta.
@@ -190,6 +190,7 @@ async function receiveShared() {
   try {
     render();
     pomodoro.resume(); // si el temporizador estaba corriendo al cerrar la app, sigue o avanza
+    gym.resume();      // y lo mismo con el descanso entre series
   } catch (err) {
     console.error(err);
     return fatal('Tracker no pudo mostrar la pantalla.', err);

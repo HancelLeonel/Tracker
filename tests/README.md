@@ -33,9 +33,11 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | `habitos.py` | Hábitos: iconos, carrusel de momentos del día, filas compactas, marcar días anteriores, reordenar, persistencia, exportar/importar y respaldos antiguos |
 | `inicio.py` | Inicio: pantalla predeterminada, saludo y fecha, frase que cambia cada vez que se muestra sin repetirse hasta agotarlas |
 | `pomodoro.py` | Menú con las pestañas nuevas, secciones vacías y Pomodoro: configuración, iniciar/pausar, ciclo con descanso largo, saltar/reiniciar, pantalla completa negra, inicio automático, persistencia y respaldo (reloj simulado) |
+| `gimnasio.py` | Gimnasio: base v7, rutinas (formato de texto), entrenamiento en curso (series con peso y repeticiones, récords, «Última vez»), descanso entre series con reloj simulado (±15 s, saltar, sonido, recarga con la app cerrada), historial, progreso, respaldo y saneo de datos raros |
 | `notas.py` | Notas: grupos con campos propios (ejemplos, tipos de campo, configurar/reordenar/quitar campos), notas, búsqueda, etiquetas, copiar, enlaces seguros, paginación, exportar/importar y saneo de respaldos raros |
 | `arranque.py` | Que la app nunca se quede muda en el logo: base bloqueada por otra ventana, otra ventana que actualiza la base, módulo que no carga (aviso con botones) y dato dañado en Inicio |
-| `bandeja.py` | Inicio: notas rápidas (anotar, editar, archivar como nota o en una lista, eliminar, «Ver más»), recibir lo compartido, tarjetas de dinero (oculto/ojo) y de Pomodoro (contador en vivo) |
+| `bandeja.py` | Inicio: notas rápidas (anotar, editar, archivar como nota o en una lista, eliminar, «Ver más»), recibir lo compartido, tarjeta de dinero (oculto/ojo) y que ya no hay tarjeta de Pomodoro |
+| `inicio_resumen.py` | Inicio: tarjeta de Dinero configurable (total, una cuenta o varias, con el ojo, valores raros y cuentas borradas) y resumen de los últimos 7 días de ejercicio (días juntos, en curso, abrir el Gimnasio) |
 | `listas_orden.py` | Listas: orden recientes/por fecha/manual, fijar, ordenar pendientes por fecha, agenda, fechas relativas en plantillas y saneo al importar |
 | `sw.py` | Service worker: con red lenta abre con la copia en ~3 s; sin copia espera a la red |
 | `listas.py` | Listas y plantillas: crear desde plantilla, marcar (lo hecho baja al final, con fecha), fechas límite y vencidas, editar elementos, finalizar y archivo (restaurar), migración, aviso «Ya toca», guardar lista como plantilla, exportar/importar y saneo de fechas |

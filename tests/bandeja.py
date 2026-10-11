@@ -131,20 +131,10 @@ try:
         q.click('.tile-money .tile-main'); q.wait_for_timeout(100)
         check('tocar la tarjeta abre Finanzas', q.locator('#topbar h1').inner_text()=='Finanzas')
 
-        # ---- tarjeta de Pomodoro
+        # ---- Inicio ya no trae tarjeta de Pomodoro (ahora hay un resumen de ejercicio; ver inicio_resumen.py)
         go('home')
-        pt = q.locator('.tile:has-text("Pomodoro")')
-        check('Pomodoro: pomodoros de hoy cuando está detenido', '0' in pt.inner_text() and 'pomodoros hoy' in pt.inner_text() and pt.locator('[data-pomo-clock]').count()==0, pt.inner_text())
-        go('pomodoro'); q.click('[data-act=pomo-toggle]'); q.wait_for_timeout(1300)
-        go('home')
-        pt = q.locator('.tile:has-text("Pomodoro")')
-        check('corriendo: muestra el contador en vivo y la fase', pt.locator('[data-pomo-clock]').count()==1 and pt.locator('[data-pomo-clock]').inner_text().startswith('24:') and 'Trabajo' in pt.inner_text(), pt.inner_text())
-        t1 = pt.locator('[data-pomo-clock]').inner_text(); q.wait_for_timeout(2300)
-        check('el contador de Inicio avanza solo', pt.locator('[data-pomo-clock]').inner_text() != t1)
-        q.click('.tile:has-text("Pomodoro")'); q.wait_for_timeout(100)
-        check('tocar la tarjeta abre Pomodoro', q.locator('#topbar h1').inner_text()=='Pomodoro')
-        q.click('[data-act=pomo-toggle]')
-        go('home'); q.screenshot(path=OUT+'home3.png', full_page=True)
+        check('Inicio no tiene tarjeta de Pomodoro', q.locator('.tile:has-text("Pomodoro")').count()==0)
+        q.screenshot(path=OUT+'home3.png', full_page=True)
         check('sin errores de consola', errs==[], errs)
         print('errors:', errs); b.close()
 finally:

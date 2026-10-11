@@ -487,8 +487,8 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
 .tile-money { position: relative; display: block; padding: 0; }
 .tile-money .tile-main { display: grid; gap: 8px; align-content: start; width: 100%; min-height: 108px; padding: 14px; text-align: left; color: inherit; border-radius: var(--radius); }
 .tile-money .tile-main:active { background: var(--surface0); }
-.tile-money .eye { position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; }
-.tile-money .eye:active { background: var(--surface1); }
+.tile-money .eye, .tile-money .cog { position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; }
+.tile-money .eye:active, .tile-money .cog:active { background: var(--surface1); }
 
 /* Listas: orden, fijar y agenda */
 .sortbar { display: flex; align-items: center; gap: 10px; }
@@ -512,3 +512,49 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
 .fo-sample { flex: none; width: 5.2rem; font-size: 1.15rem; font-weight: 600; }
 .fo-name { display: grid; gap: 2px; font-size: 1rem; }
 .fo-name small { font-size: .8rem; }
+
+/* Gimnasio: entrenamiento en curso, descanso e historial */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gym-top { display: grid; gap: 4px; }
+.gym-top .bar i { background: var(--c); }
+.gym-top .bar { margin: 8px 0 0; }
+.rest-bar { position: sticky; top: 61px; z-index: 4; display: grid; gap: 8px; border-color: var(--accent); box-shadow: 0 8px 24px #000a; }
+.rest-bar .bar { margin: 0; }
+.rest-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.rest-clock { font-size: 2rem; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.rest-tools { display: flex; gap: 8px; }
+.rest-tools .btn { flex: 1; min-height: 44px; }
+.gx { display: grid; gap: 8px; }
+.gx-h { display: flex; align-items: center; gap: 8px; }
+.gx-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 1.05rem; }
+.gx-prev { font-size: .8rem; overflow-wrap: anywhere; }
+.gx-cols, .gx-set { display: grid; grid-template-columns: 1.6rem 1fr 1rem 1fr 44px; align-items: center; gap: 6px; }
+.gx-cols small { text-align: center; font-size: .72rem; }
+.gx-n { text-align: center; color: var(--subtext0); font-variant-numeric: tabular-nums; }
+.gx-x { text-align: center; color: var(--subtext0); }
+.gx-set input { min-width: 0; padding: 10px 4px; text-align: center; font-variant-numeric: tabular-nums; }
+.gx-set.done input { color: var(--subtext0); }
+.set-chk { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--surface0); }
+.set-chk .i { stroke: var(--overlay1); }
+.set-chk.on { background: var(--c, var(--accent)); }
+.set-chk.on .i { stroke: var(--accent-ink); stroke-width: 2.4; }
+.gx-add { justify-self: start; }
+.gx-done { display: grid; gap: 4px; }
+.gx-done ol { margin: 0; padding-left: 1.4rem; color: var(--subtext1); font-variant-numeric: tabular-nums; }
+.spark.few { gap: 6px; }
+.spark.few .col { flex: 0 1 44px; }
+
+/* Inicio: dinero con cuentas elegidas y resumen de ejercicio */
+.tile-money .cog { right: 46px; }
+.home-sec { display: grid; gap: 10px; }
+.money-lines { display: grid; gap: 4px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.acc-pick { display: grid; gap: 4px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--crust); max-height: 40dvh; overflow-y: auto; }
+.acc-pick .check { min-height: 44px; }
+.xrow { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 4px; text-align: left; color: inherit; border-top: 1px solid var(--line); }
+.card-rows > .xrow:first-child { border-top: 0; }
+.xrow:active { background: var(--surface0); }
+.xr-d { display: grid; }
+.xr-d small, .xr-m small { font-size: .78rem; color: var(--subtext0); overflow-wrap: anywhere; }
+.xr-m { display: grid; gap: 1px; min-width: 0; }
+.xr-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xrow.live .xr-d b { color: var(--accent); }

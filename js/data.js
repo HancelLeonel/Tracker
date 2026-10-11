@@ -6,6 +6,7 @@ import { icon, HABIT_ICONS, NOTE_ICONS } from './icons.js';
 import { COLORS, SLOT_KEYS } from './habits.js';
 import { FREQS as TPL_FREQS } from './lists.js';
 import { FIELD_TYPES } from './notes.js';
+import { sanitizeRoutines, sanitizeWorkouts } from './gym.js';
 import { fileSize } from './ui.js';
 
 const APP_ID = 'tracker';
@@ -38,7 +39,7 @@ export function dataView() {
       <h3>Respaldo</h3>
       <p class="muted">Los datos viven solo en este teléfono. Exporta un respaldo de vez en cuando; si borras los datos del navegador se pierden.</p>
       <div class="kv"><span class="muted">Último respaldo</span><span>${last}</span></div>
-      <div class="kv"><span class="muted">Contenido</span><span>${pl(S.accounts.length, 'cuenta')} · ${pl(S.moves.length, 'movimiento')} · ${pl(S.habits.length, 'hábito')} · ${pl(S.lists.length, 'lista')} · ${pl(S.notes.length, 'nota')}</span></div>
+      <div class="kv"><span class="muted">Contenido</span><span>${pl(S.accounts.length, 'cuenta')} · ${pl(S.moves.length, 'movimiento')} · ${pl(S.habits.length, 'hábito')} · ${pl(S.lists.length, 'lista')} · ${pl(S.notes.length, 'nota')} · ${pl(S.workouts.filter(w => w.end).length, 'entrenamiento')}</span></div>
       <div class="kv"><span class="muted">Adjuntos</span><span>${filesInfo}</span></div>
       <label class="check"><input type="checkbox" data-change="include-files" ${S.settings.includeFiles ? 'checked' : ''}>
         <span>Incluir archivos adjuntos<small>Hace el respaldo más pesado. Sin esto solo se guardan los datos.</small></span></label>
@@ -85,7 +86,7 @@ async function buildExport() {
   const data = {
     app: APP_ID, version: VERSION, exportedAt: new Date().toISOString(), includesFiles: withFiles,
     settings: S.settings, habits: S.habits, accounts: S.accounts, moves: S.moves, plan: S.plan, bills: S.bills, purchases: S.purchases,
-    templates: S.templates, lists: S.lists, noteGroups: S.noteGroups, notes: S.notes, inbox: S.inbox,
+    templates: S.templates, lists: S.lists, noteGroups: S.noteGroups, notes: S.notes, inbox: S.inbox, routines: S.routines, workouts: S.workouts,
   };
   if (withFiles) {
     const recs = await db.getAll('files');
@@ -257,17 +258,19 @@ function validateImport(d) {
     if (!q?.id || typeof q.text !== 'string') bad('Hay una nota rápida inválida en el archivo.');
     return { id: String(q.id), text: q.text, t: Number(q.t) || 0 };
   });
+  const routines = sanitizeRoutines(arr(d.routines, 'rutinas'));
+  const workouts = sanitizeWorkouts(arr(d.workouts, 'entrenamientos'));
   const settings = { ...S.settings, ...(d.settings ?? {}) };
   if (!Array.isArray(settings.types)) settings.types = S.settings.types;
   if (!['system', 'jetbrains'].includes(settings.font)) settings.font = 'system';
-  return { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, settings, files: d.files };
+  return { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, settings, files: d.files };
 }
 
 async function doImport(file) {
   try {
     const data = validateImport(JSON.parse(await file.text()));
     const withFiles = Array.isArray(data.files);
-    const msg = `Se reemplazarán TODOS los datos actuales por los del archivo (${data.accounts.length} cuentas, ${data.moves.length} movimientos, ${data.habits.length} hábitos, ${data.purchases.length} compras, ${data.templates.length} plantillas, ${data.lists.length} listas, ${data.notes.length} notas, ${data.inbox.length} notas rápidas). ` +
+    const msg = `Se reemplazarán TODOS los datos actuales por los del archivo (${data.accounts.length} cuentas, ${data.moves.length} movimientos, ${data.habits.length} hábitos, ${data.purchases.length} compras, ${data.templates.length} plantillas, ${data.lists.length} listas, ${data.notes.length} notas, ${data.inbox.length} notas rápidas, ${data.routines.length} rutinas, ${data.workouts.length} entrenamientos). ` +
       (withFiles ? `Incluye ${data.files.length} archivos adjuntos. ` : 'El respaldo no trae adjuntos: se conservan los que ya tienes en este teléfono. ') + '¿Continuar?';
     if (!confirm(msg)) return;
     if (withFiles) {
@@ -292,9 +295,9 @@ export const actions = {
   'new-kind': () => kindForm(),
   'edit-kind': el => kindForm(S.settings.types.find(t => t.id === el.dataset.id)),
   async wipe() {
-    if (!confirm('Se borrarán todas las cuentas, movimientos, hábitos, pagos, compras, plantillas, listas, notas, notas rápidas y adjuntos de este dispositivo. ¿Continuar?')) return;
+    if (!confirm('Se borrarán todas las cuentas, movimientos, hábitos, pagos, compras, plantillas, listas, notas, notas rápidas, rutinas, entrenamientos y adjuntos de este dispositivo. ¿Continuar?')) return;
     if (!confirm('¿Seguro? Si no tienes un respaldo exportado no podrás recuperarlos.')) return;
-    await db.replaceAll({ habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], files: [], settings: S.settings });
+    await db.replaceAll({ habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [], files: [], settings: S.settings });
     await loadState();
     toast('Datos borrados');
   },

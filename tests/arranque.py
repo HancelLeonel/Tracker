@@ -37,7 +37,7 @@ try:
         a = ctx.new_page(); a.goto(URL); a.wait_for_selector('#view .home'); a.evaluate('window.__marca = 1')
         c = ctx.new_page(); c.goto(URL + 'icons/icon.svg')
         t0 = time.time()
-        c.evaluate("() => new Promise((res, rej) => { const q = indexedDB.open('mi-quincena', 7); q.onsuccess = () => { q.result.close(); res(); }; q.onblocked = () => rej(new Error('bloqueada')); q.onerror = () => rej(q.error); })")
+        c.evaluate("() => new Promise((res, rej) => { const q = indexedDB.open('mi-quincena', 8); q.onsuccess = () => { q.result.close(); res(); }; q.onblocked = () => rej(new Error('bloqueada')); q.onerror = () => rej(q.error); })")
         check('otra ventana puede actualizar la base: esta cierra su conexión (no la bloquea)', time.time() - t0 < 5)
         a.wait_for_timeout(1500)
         check('y se recarga sola', a.evaluate('window.__marca') is None)

@@ -1,9 +1,10 @@
-import { esc, today, fmtDate, daysBetween, money } from './util.js';
-import { S, totals } from './state.js';
+import { esc, today, fmtDate, parseYmd, daysBetween, money, sum, toast } from './util.js';
+import { S, totals, saveSettings, isCredit } from './state.js';
+import { modal } from './ui.js';
 import { icon } from './icons.js';
 import { billsSummary } from './bills.js';
 import { todayTasks, taskRow } from './lists.js';
-import { homeInfo } from './pomodoro.js';
+import { homeInfo as gymInfo } from './gym.js';
 import { quickNoteForm, inboxSection, restoreFocus as restoreQuick } from './inbox.js';
 
 // Frases con autoría documentada (obras, discursos o tradición). Se evitaron las de atribución dudosa.
@@ -87,24 +88,79 @@ function billsTile() {
   return `<button class="tile" data-act="home-bills"><span class="overline">Pagos</span>${body}</button>`;
 }
 
-// Tarjeta «Dinero»: el saldo neto de Finanzas, oculto de entrada en cada apertura (el ojo lo muestra).
+// Tarjeta «Dinero»: el saldo neto de Finanzas (total) o solo el de las cuentas elegidas, oculto de entrada en cada apertura
+// (el ojo lo muestra). La elección vive en `S.settings.homeMoney = { mode: 'total'|'accounts', ids }`; se corrige al leerla
+// (cuentas que ya no existen, valores raros) para que un respaldo manipulado no rompa Inicio.
+const accBalance = a => sum(a.cats, c => c.balance);
+function moneyCfg() {
+  const c = S.settings.homeMoney;
+  const ids = Array.isArray(c?.ids) ? c.ids.filter(id => S.accounts.some(a => a.id === id)) : [];
+  return { mode: c?.mode === 'accounts' && ids.length ? 'accounts' : 'total', ids };
+}
+
 function moneyTile() {
   if (!S.accounts.length) return '';
-  const hidden = S.hideMoney;
+  const hidden = S.hideMoney, cfg = moneyCfg();
+  const show = v => (hidden ? 'Q ••••' : esc(money(v)));
+  const sel = cfg.mode === 'accounts' ? S.accounts.filter(a => cfg.ids.includes(a.id)) : [];
+  const amount = sel.length ? sum(sel, accBalance) : totals().net;
+  const label = !sel.length ? 'Total de tus cuentas' : sel.length === 1 ? sel[0].name : `${sel.length} cuentas`;
   return `
     <div class="tile tile-money">
       <button class="tile-main" data-act="home-money"><span class="overline">Dinero</span>
-        <b class="tile-n tile-txt">${hidden ? 'Q ••••' : esc(money(totals().net))}</b></button>
+        <b class="tile-n tile-txt">${show(amount)}</b><small>${esc(label)}</small>
+        ${sel.length > 1 ? `<span class="money-lines">${sel.map(a => `<span class="kv"><span class="muted">${esc(a.name)}</span><span>${show(accBalance(a))}</span></span>`).join('')}</span>` : ''}</button>
+      <button class="cog" data-act="home-money-cfg" aria-label="Elegir qué cuentas mostrar">${icon('sliders')}</button>
       <button class="eye" data-act="home-eye" aria-pressed="${!hidden}" aria-label="${hidden ? 'Mostrar' : 'Ocultar'} el dinero">${icon(hidden ? 'eyeoff' : 'eye')}</button>
     </div>`;
 }
 
-// Tarjeta «Pomodoro»: los de hoy o, si está corriendo, el contador en vivo.
-function pomoTile() {
-  const p = homeInfo();
-  return `<button class="tile" data-act="tab" data-tab="pomodoro"><span class="overline">Pomodoro</span>
-    ${p.running ? `<b class="tile-n" data-pomo-clock>${p.clock}</b><small>${esc(p.phase)}</small>`
-      : `<b class="tile-n">${p.today}</b><small>${pl(p.today, 'pomodoro')} hoy</small>`}</button>`;
+function moneyForm() {
+  const c = moneyCfg();
+  modal('Tarjeta de dinero', `
+    <label class="check"><input type="radio" name="mode" value="total" ${c.mode === 'total' ? 'checked' : ''}><span>Total de todas tus cuentas<small>Tu dinero en cuentas menos lo que debes en tarjetas.</small></span></label>
+    <label class="check"><input type="radio" name="mode" value="accounts" ${c.mode === 'accounts' ? 'checked' : ''}><span>Solo las cuentas que elija<small>Una o varias; se suman.</small></span></label>
+    <div class="acc-pick">${S.accounts.map(a => `
+      <label class="check"><input type="checkbox" name="acc" value="${esc(a.id)}" ${c.ids.includes(a.id) ? 'checked' : ''}><span>${esc(a.name)}${isCredit(a) ? ' <small>(tarjeta)</small>' : ''}</span></label>`).join('')}</div>`, {
+    afterOpen(f) {
+      // Marcar una cuenta ya implica «solo las que elija».
+      f.querySelectorAll('[name=acc]').forEach(i => i.addEventListener('change', () => { if (f.querySelector('[name=acc]:checked')) f.elements.mode.value = 'accounts'; }));
+    },
+    async onSubmit(fd) {
+      const ids = fd.getAll('acc');
+      if (fd.get('mode') === 'accounts' && !ids.length) { toast('Elige al menos una cuenta'); return false; }
+      S.settings.homeMoney = { mode: fd.get('mode') === 'accounts' ? 'accounts' : 'total', ids };
+      await saveSettings();
+    },
+  });
+}
+
+// Tarjeta «Ejercicio»: los últimos 7 días en que entrenaste (y el entrenamiento en curso, arriba). Tocar una fila abre el Gimnasio.
+const dayLabel = d => {
+  const n = daysBetween(d, today());
+  if (n === 0) return 'Hoy';
+  if (n === 1) return 'Ayer';
+  const w = parseYmd(d).toLocaleDateString('es-GT', { weekday: 'short' }).replace(/\.$/, '');
+  return w.charAt(0).toUpperCase() + w.slice(1);
+};
+function gymTile() {
+  const g = gymInfo();
+  const live = g.live ? `
+    <button class="xrow live" data-act="home-gym" data-sub="train">
+      <span class="xr-d"><b>Ahora</b><small>En curso</small></span>
+      <span class="xr-m"><span class="xr-t">${esc(g.live.name)}</span><small>${g.live.done}/${g.live.total} series</small></span>
+    </button>` : '';
+  const rows = g.days.map(d => `
+    <button class="xrow" data-act="home-gym" data-sub="history">
+      <span class="xr-d"><b>${esc(dayLabel(d.date))}</b><small>${esc(fmtDate(d.date))}</small></span>
+      <span class="xr-m"><span class="xr-t">${esc(d.names.join(' + '))}</span><small>${pl(d.exercises, 'ejercicio')} · ${pl(d.sets, 'serie')} · ${Math.round(d.vol).toLocaleString('en-US')} ${g.unit}</small></span>
+    </button>`).join('');
+  return `
+    <section class="home-sec">
+      <h3 class="overline">Ejercicio</h3>
+      ${live || rows ? `<div class="trows card-rows">${live}${rows}</div>`
+        : `<button class="btn ghost block" data-act="home-gym" data-sub="train">${icon('dumbbell')} Registrar tu primer entrenamiento</button>`}
+    </section>`;
 }
 
 // «Tareas de hoy»: elementos de las listas con fecha límite de hoy o vencida; la casilla las marca como hechas.
@@ -136,7 +192,9 @@ export function homeView() {
       </button>
       <button class="btn primary block quick-exp" data-act="new-exp">${icon('plus')} Nuevo gasto</button>
       ${safe(quickNoteForm)}
-      <div class="tiles">${safe(habitsTile)}${safe(billsTile)}${safe(moneyTile)}${safe(pomoTile)}</div>
+      <div class="tiles">${safe(habitsTile)}${safe(billsTile)}</div>
+      ${safe(moneyTile)}
+      ${safe(gymTile)}
       ${safe(inboxSection)}
       ${safe(tasksSection)}
     </section>`;
@@ -149,5 +207,7 @@ export const actions = {
   'home-quote': () => nextQuote(),
   'home-eye': () => { S.hideMoney = !S.hideMoney; },
   'home-money': () => { S.tab = 'money'; S.sub = 'accounts'; window.scrollTo(0, 0); },
+  'home-money-cfg': () => moneyForm(),
+  'home-gym': el => { S.tab = 'gym'; S.gymSub = el.dataset.sub; S.gymLimit = 30; window.scrollTo(0, 0); },
   'home-bills': () => { S.tab = 'money'; S.sub = 'bills'; window.scrollTo(0, 0); },
 };

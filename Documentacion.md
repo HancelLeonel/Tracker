@@ -7,7 +7,7 @@
 - **Hábitos**: seguimiento diario con rachas, iconos, momentos del día y orden propio.
 - **Pomodoro**: temporizador de trabajo y descansos con modo de pantalla completa en negro.
 - **Notas**: grupos de notas con **campos propios** (enlaces guardados, comandos, libros…), cada uno adaptable a lo que necesites.
-- **Gimnasio**: sección reservada en el menú, todavía vacía. (Las tareas se llevan con **Listas**.)
+- **Gimnasio**: rutinas, entrenamiento en curso con descanso entre series, historial y progreso por ejercicio. (Las tareas se llevan con **Listas**.)
 - **Listas**: listas de tareas o compras que se crean a partir de **plantillas** reutilizables (el súper quincenal, la limpieza semanal…).
 - **Compras**: registro buscable de lo que vale la pena recordar (con garantía y facturas).
 - **Configuración**: apariencia (fuente), respaldo (exportar/importar), tipos de gasto y borrado de datos.
@@ -76,7 +76,9 @@ js/
   purchases.js          Registro de compras
   home.js               Inicio: saludo, frase, gasto rápido y lo pendiente de hoy
   habits.js             Hábitos (iconos, momentos del día, orden)
+  aviso.js              Sonido, vibración y pantalla encendida (los usan Pomodoro y Gimnasio)
   pomodoro.js           Temporizador Pomodoro y pantalla completa negra
+  gym.js                Gimnasio: rutinas, entrenamientos, descanso, historial y progreso
   notes.js              Notas: grupos con campos propios
   lists.js              Listas y plantillas
   data.js               Exportar, importar, tipos de gasto, borrado total
@@ -197,7 +199,9 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 - Una **frase célebre** con su autor, compacta.
 - El botón **Nuevo gasto**: abre el formulario de gasto sobre Inicio, sin ir a Finanzas (si aún no hay cuentas con categorías, avisa).
 - Un campo de **nota rápida**: escribes algo al vuelo (por ejemplo en medio de una conversación) y Enter la guarda en la **Bandeja**; el campo queda listo para otra.
-- Cuatro tarjetas: **Hábitos** (cuántos llevas hoy, p. ej. «2/5», con barra), **Pagos** (solo muestra información si hay pagos **vencidos** —cuántos, en rojo— o que **vencen en los próximos 3 días** —el más cercano: «Vence hoy», «Vence mañana», «Vence el 14 oct»—; si no, dice «No hay pagos cercanos»), **Dinero** (el saldo total de tus cuentas, **oculto por defecto** en cada apertura: el ojo lo muestra o lo oculta; solo aparece si ya tienes cuentas) y **Pomodoro** (los de hoy o, si está corriendo, el contador en vivo y la fase). Tocar una tarjeta lleva a su pantalla.
+- Dos tarjetas: **Hábitos** (cuántos llevas hoy, p. ej. «2/5», con barra) y **Pagos** (solo muestra información si hay pagos **vencidos** —cuántos, en rojo— o que **vencen en los próximos 3 días** —el más cercano: «Vence hoy», «Vence mañana», «Vence el 14 oct»—; si no, dice «No hay pagos cercanos»). Tocar una tarjeta lleva a su pantalla.
+- La tarjeta de **Dinero** (a todo el ancho; solo aparece si ya tienes cuentas) está **oculta por defecto** en cada apertura: el ojo la muestra o la oculta. El botón de ajustes (a la izquierda del ojo) elige qué muestra: **el total** de todas tus cuentas (dinero menos deuda de tarjetas), **una cuenta** o **varias** (se suman y debajo se desglosa cada una). Las tarjetas de crédito se pueden elegir y aportan su deuda. La elección se guarda y viaja en el respaldo; si borras una cuenta elegida, deja de contarse (y si era la única, vuelve al total). Tocar la tarjeta abre Finanzas.
+- **Ejercicio**: los **últimos 7 días en que entrenaste** (no los últimos 7 del calendario: los días sin ejercicio no cuentan), el más reciente primero, con el nombre del entrenamiento, ejercicios, series y volumen. Si un día tuvo varios entrenamientos se juntan en una fila. Un entrenamiento **en curso** aparece arriba («Ahora», con sus series marcadas). Tocar una fila abre el historial del Gimnasio; tocar el que está en curso, el entrenamiento. Sin datos, invita a registrar el primero.
 - La **Bandeja**: tus notas rápidas pendientes, la más nueva primero (5 y «Ver N más»). Tocar una abre un diálogo para **editarla**, **archivarla como nota** de un grupo de Notas (el enlace se guarda en el campo de enlace del grupo y el resto del texto en su primer campo de texto; si el grupo no tiene dónde guardarlo, avisa), **agregarla a una lista** como elemento adicional, o **eliminarla**. Los enlaces o textos que **compartas desde otra app** («Compartir» → Tracker, tras reinstalar la app instalada) también caen aquí.
 - **Tareas de hoy**: los elementos de tus listas activas con **fecha límite de hoy o ya vencida**, el más atrasado primero, con el nombre de su lista. La casilla de la izquierda la **marca como hecha** sin salir de Inicio; tocar el texto abre la lista. Se muestran 6 y un enlace «Ver N más en Listas». Sin pendientes dice «Nada pendiente para hoy».
 
@@ -206,7 +210,7 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 
 ### Pomodoro
 
-**Menú → Pomodoro.** Un temporizador sencillo con fases de **Trabajo**, **Descanso corto** y **Descanso largo**.
+**Menú → Pomodoro.** (Ya no tiene tarjeta en Inicio.) Un temporizador sencillo con fases de **Trabajo**, **Descanso corto** y **Descanso largo**.
 
 - **Controles**: el botón grande inicia o pausa; a los lados, **reiniciar** la fase actual y **saltar** a la siguiente (saltar un pomodoro de trabajo no lo cuenta). Debajo de la cuenta se ve el avance de la fase y «Hoy: N pomodoros».
 - **Configurar**: minutos de trabajo (por defecto 25), descanso corto (5) y descanso largo (15), cuántos pomodoros hay antes del descanso largo (4) y, opcionalmente, **iniciar la siguiente fase automáticamente**. Si el temporizador está corriendo, los cambios se aplican desde la fase siguiente. La configuración se guarda en los ajustes y viaja en el respaldo.
@@ -228,7 +232,18 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 
 ### Gimnasio
 
-Está en el menú pero **vacía por ahora** (muestra «Esta sección está vacía por ahora»); se irá desarrollando después.
+**Menú → Gimnasio.** Cuatro secciones:
+
+- **Entrenar**: sin entrenamiento en curso muestra el resumen (entrenamientos de la semana —empieza el lunes—, volumen y cuándo fue el último), «Entrenamiento libre» y tus rutinas con el botón **Empezar**. Con uno en curso muestra cada ejercicio con sus series: **peso × repeticiones** y una casilla para marcar la serie. Debajo de cada ejercicio dice «Última vez» con lo que hiciste. Al terminar, **solo se guardan las series marcadas**.
+- **Rutinas**: son las plantillas, igual que en Listas: al empezar una se **copia** al entrenamiento y después son independientes (editar o borrar la rutina no toca lo ya entrenado). Se escriben **una línea por ejercicio**: `Press de banca 4x10 @60 /90` = 4 series de 10 repeticiones con peso 60 y 90 s de descanso (el peso y el descanso son opcionales; sin series ni repeticiones se usa 3×10). Desde un entrenamiento del historial se puede «Guardar como rutina».
+- **Historial**: entrenamientos terminados, del más reciente al más antiguo (de 30 en 30). Tocar uno muestra sus series y permite eliminarlo.
+- **Progreso**: un ejercicio por tarjeta (alfabético; «Press de banca» y «press de banca» cuentan como el mismo). El detalle muestra la mejor serie, una gráfica del peso máximo por sesión (o de repeticiones, si nunca usaste peso) y las últimas sesiones.
+
+**Peso inicial de cada serie**: el de la rutina si lo trae; si no, el de la misma serie la última vez que hiciste ese ejercicio. Si superas el peso máximo que habías levantado en un ejercicio, aparece el aviso «Nuevo récord».
+
+**Descanso entre series**: al marcar una serie empieza una cuenta regresiva (la fijada bajo la barra superior) con **−15 s**, **+15 s** y **Saltar**. Al terminar suena y vibra; mientras corre, la pantalla se mantiene encendida (igual que el Pomodoro, y por la misma razón: como PWA no se puede avisar con la pantalla bloqueada). La hora de fin se guarda, así que sobrevive a recargar la página; si terminó con la app cerrada, desaparece sin sonar. El tiempo sale de **Configurar** (predeterminado 90 s; 0 = sin descanso) y cada ejercicio puede tener el suyo (`/90` en la rutina, o el lápiz del ejercicio). Ese mismo botón elige la unidad: **kg** o **lb** (solo cambia la etiqueta, no convierte lo ya guardado).
+
+Solo puede haber **un entrenamiento en curso**; se puede cerrar la app y seguirlo después. Si es necesario se puede «Descartar» entero.
 
 ### Listas y plantillas
 
@@ -352,7 +367,7 @@ En **Configuración**:
 
 ## 5. Modelo de datos
 
-Base de datos IndexedDB versión 6 (la 4 agregó `templates` y `lists`, la 5 `noteGroups` y `notes`, la 6 `inbox`; se migra sola). Su nombre interno sigue siendo `mi-quincena` (el de antes de llamarse Tracker) para no perder los datos ya guardados.
+Base de datos IndexedDB versión 7 (la 4 agregó `templates` y `lists`, la 5 `noteGroups` y `notes`, la 6 `inbox`, la 7 `routines` y `workouts`; se migra sola). Su nombre interno sigue siendo `mi-quincena` (el de antes de llamarse Tracker) para no perder los datos ya guardados.
 
 | Store | Contenido |
 |---|---|
@@ -367,15 +382,17 @@ Base de datos IndexedDB versión 6 (la 4 agregó `templates` y `lists`, la 5 `no
 | `noteGroups` | `{ id, name, color, icon, fields: [{ id, name, type: 'text'｜'long'｜'code'｜'url'｜'number'｜'date'｜'choice'｜'check'｜'rating', list?, options? }] }` |
 | `inbox` | `{ id, text, t }`: notas rápidas pendientes de archivar |
 | `notes` | `{ id, group, title, values: { [idDelCampo]: texto｜número｜true }, tags: [], created, updated }` (marcas de tiempo en ms). Solo se guardan los campos con valor |
+| `routines` | `{ id, name, color, exercises: [{ name, sets, reps, weight, rest? }] }` (`rest` en segundos; `weight` 0 = sin peso) |
+| `workouts` | `{ id, name, routineId?, color, date, t, end?, exercises: [{ id, name, rest?, sets: [{ reps, weight, done, at? }] }] }`. Sin `end` = en curso (solo uno). `at` = hora (ms) en que se marcó la serie; la duración se deriva de la última |
 | `files` | `{ id, blob, mime, name, size }` |
-| `meta` | `{ k: 'settings', v: { lastExport, includeFiles, types, leftover, lastKind } }` |
+| `meta` | `{ k: 'settings', v: { lastExport, includeFiles, types, leftover, lastKind, pomo?, gym? } }` (`gym` = `{ cfg: { unit, rest }, rest: { endsAt, total } }`) |
 
 **Detalles de diseño**
 
 - Un gasto con tarjeta lleva `card`; sus `parts` indican la categoría apartada, pero **no modifican su saldo**: solo suma deuda a la tarjeta.
 - Lo apartado por tarjeta **no se guarda**: se deriva del historial (`cardPending` en [state.js](js/state.js)). Las compras suman a su categoría y los pagos restan primero de la categoría desde la que se paga y luego de las mayores. Por eso editar o borrar siempre cuadra.
 - Un gasto repartido guarda varias entradas en `parts`.
-- Los respaldos se exportan con `version: 3`. También se aceptan los de la versión 2 y los que no traen `templates`, `lists`, `noteGroups` ni `notes`. Al importar, los grupos y notas se **sanean**: tipo de campo desconocido pasa a texto, icono o color inválido se corrige, los valores que no sean texto, número o sí/no se descartan y las notas cuyo grupo no existe se omiten.
+- Los respaldos se exportan con `version: 3`. También se aceptan los de la versión 2 y los que no traen `templates`, `lists`, `noteGroups`, `notes`, `routines` ni `workouts`. Al importar, los grupos y notas se **sanean**: tipo de campo desconocido pasa a texto, icono o color inválido se corrige, los valores que no sean texto, número o sí/no se descartan y las notas cuyo grupo no existe se omiten.
 
 ### Formato del respaldo
 
@@ -386,7 +403,7 @@ Base de datos IndexedDB versión 6 (la 4 agregó `templates` y `lists`, la 5 `no
   "exportedAt": "2026-10-10T18:00:00.000Z",
   "includesFiles": false,
   "settings": {}, "habits": [], "accounts": [], "moves": [],
-  "plan": [], "bills": [], "purchases": [], "templates": [], "lists": [], "noteGroups": [], "notes": [], "inbox": [],
+  "plan": [], "bills": [], "purchases": [], "templates": [], "lists": [], "noteGroups": [], "notes": [], "inbox": [], "routines": [], "workouts": [],
   "files": [{ "id": "…", "mime": "image/jpeg", "name": "…", "data": "data:…;base64,…" }]
 }
 ```

@@ -2,6 +2,7 @@ import { $, today, toast } from './util.js';
 import { S, hooks, saveSettings } from './state.js';
 import { modal } from './ui.js';
 import { icon } from './icons.js';
+import { prepAudio, alarm, keepAwake } from './aviso.js';
 
 // Estado guardado en los ajustes (viaja en el respaldo):
 //   cfg -> minutos de cada fase, pomodoros antes del descanso largo y si la siguiente fase arranca sola
@@ -34,41 +35,8 @@ const doneToday = () => (P().day?.date === today() ? P().day.n : 0);
 const pad = n => String(n).padStart(2, '0');
 const fmt = t => { const s = Math.ceil(t / 1000); return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; };
 
-// ---------- avisos: sonido y vibración ----------
-let audio = null;
-// El navegador solo deja sonar el audio si el contexto se crea tras un toque: se prepara al iniciar.
-const prepAudio = () => { try { audio ??= new (window.AudioContext || window.webkitAudioContext)(); audio.resume?.(); } catch { /* sin audio */ } };
-function alarm() {
-  // Chrome bloquea vibrar antes del primer toque en la página (y deja un error en consola).
-  if (navigator.userActivation?.hasBeenActive ?? true) navigator.vibrate?.([250, 120, 250, 120, 500]);
-  if (!audio) return;
-  const t0 = audio.currentTime;
-  [0, 0.28, 0.56].forEach(d => {
-    const o = audio.createOscillator(), g = audio.createGain();
-    o.frequency.value = 880;
-    g.gain.setValueAtTime(0.0001, t0 + d);
-    g.gain.exponentialRampToValueAtTime(0.4, t0 + d + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.22);
-    o.connect(g).connect(audio.destination);
-    o.start(t0 + d);
-    o.stop(t0 + d + 0.25);
-  });
-}
-
-// ---------- pantalla encendida mientras corre ----------
-// Sin esto Android apaga la pantalla y puede congelar la página, y el aviso no sonaría a tiempo.
-let lock = null;
-async function holdScreen(on) {
-  try {
-    if (on && !lock && 'wakeLock' in navigator) {
-      lock = await navigator.wakeLock.request('screen');
-      lock.addEventListener('release', () => { lock = null; });
-    } else if (!on && lock) {
-      await lock.release();
-      lock = null;
-    }
-  } catch { /* el navegador puede negarlo (batería baja, pestaña oculta) */ }
-}
+// El sonido, la vibración y la pantalla encendida son los mismos que usa el descanso del Gimnasio (aviso.js).
+const holdScreen = on => keepAwake('pomodoro', on);
 
 // ---------- cuenta regresiva ----------
 let timer = null;
@@ -117,7 +85,7 @@ async function finish(sound = true) {
 async function refresh(save = true) {
   if (running()) { startTick(); holdScreen(true); } else { stopTick(); holdScreen(false); }
   if (save) await saveSettings();
-  if ((S.tab === 'pomodoro' || S.tab === 'home') && !$('#dlg[open]')) hooks.render(); else paint();
+  if (S.tab === 'pomodoro' && !$('#dlg[open]')) hooks.render(); else paint();
 }
 
 // Al abrir la app (o importar un respaldo): si estaba corriendo, sigue; si terminó mientras estaba cerrada, avanza.
@@ -168,11 +136,6 @@ function exitFull() {
 // Salir con el gesto del sistema (atrás) también cierra el aviso negro.
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) exitFull(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') exitFull(); });
-
-// Resumen para Inicio: pomodoros de hoy y, si está corriendo, la fase y el tiempo (el reloj se actualiza solo con data-pomo-clock).
-export function homeInfo() {
-  return { today: doneToday(), running: running(), phase: PHASES[run().phase][0], clock: fmt(remaining()) };
-}
 
 // ---------- vista ----------
 export function pomodoroView() {
