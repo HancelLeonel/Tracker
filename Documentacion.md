@@ -10,7 +10,7 @@
 - **Gimnasio**: sección reservada en el menú, todavía vacía. (Las tareas se llevan con **Listas**.)
 - **Listas**: listas de tareas o compras que se crean a partir de **plantillas** reutilizables (el súper quincenal, la limpieza semanal…).
 - **Compras**: registro buscable de lo que vale la pena recordar (con garantía y facturas).
-- **Datos**: respaldo (exportar/importar) y ajustes.
+- **Configuración**: apariencia (fuente), respaldo (exportar/importar), tipos de gasto y borrado de datos.
 
 Todo funciona sin conexión y los datos se guardan **solo en el teléfono** (IndexedDB). Tema oscuro **Grafito** (neutros casi negros y un solo acento suave), moneda en quetzales (`Q`).
 
@@ -45,12 +45,12 @@ Todas las rutas son relativas, así que funciona bajo el subpath `/<repo>/`.
 
 ### Actualizar la app instalada
 
-La app se actualiza sola al abrirla con conexión. Lo que **no** se actualiza solo es el **nombre y el icono de la pantalla de inicio ni la pantalla de carga del sistema** (el *splash* de Android): se toman del manifiesto en el momento de instalar. Si cambias el nombre o el icono, hay que **desinstalar la app del teléfono y volver a instalarla** (Brave, en particular, no actualiza los accesos directos instalados). Mientras la app arranca también se muestra una pantalla de carga propia con el logo y el nombre actuales.
+La app se actualiza sola al abrirla con conexión. Lo que **no** se actualiza solo es el **nombre y el icono de la pantalla de inicio ni la pantalla de carga del sistema** (el *splash* de Android): se toman del manifiesto en el momento de instalar. Si cambias el nombre o el icono, hay que **desinstalar la app del teléfono y volver a instalarla** (el navegador no actualiza los accesos directos ya instalados). Mientras la app arranca también se muestra una pantalla de carga propia con el logo y el nombre actuales.
 
 
 **Si la app se queda en el logo.** Lo más común tras una actualización que cambia la base de datos: otra ventana de Tracker (otra pestaña, o la app instalada en segundo plano) sigue abierta con la versión anterior y **impide actualizar la base**. La app lo detecta y muestra «Tracker está abierto en otra ventana con una versión anterior»; basta cerrar esa otra ventana (en recientes, quitar la app) y la nueva abre sola. Si el arranque falla por otra causa, a los 10 segundos aparece «Tracker no pudo iniciar» con el detalle del error y dos botones: **Reintentar** y **Actualizar la app** (borra la caché y el service worker; los datos no se tocan). Desde esta versión, además, una ventana nueva ya no queda bloqueada por una más reciente: la vieja cierra su conexión y se recarga sola.
 
-El service worker usa *network-first*: con conexión siempre descarga la versión nueva y sin conexión usa la copia guardada. Si añades un archivo `.js` nuevo, agrégalo a la lista `SHELL` de [sw.js](sw.js) para que también funcione offline.
+El service worker usa *network-first*: con conexión siempre descarga la versión nueva y sin conexión usa la copia guardada. Si la red está **lenta** (la apertura tarda más de 3 s) y hay copia, la app abre con la copia guardada y se actualiza en segundo plano para la próxima vez. Si añades un archivo `.js` nuevo, agrégalo a la lista `SHELL` de [sw.js](sw.js) para que también funcione offline.
 
 ---
 
@@ -107,7 +107,7 @@ Cada gasto lleva:
 | **Categoría apartada** | De qué dinero salió (Efectivo / Comida) |
 | Nota, fecha, adjuntos | Opcionales (la fecha por defecto es hoy) |
 
-Por ejemplo: de Comida salen Q80, pero se usaron para una suscripción → categoría apartada *Comida*, tipo de gasto *Suscripciones*. Los tipos de gasto se administran en **Datos → Tipos de gasto** o se crean al vuelo con «＋ Nuevo tipo…».
+Por ejemplo: de Comida salen Q80, pero se usaron para una suscripción → categoría apartada *Comida*, tipo de gasto *Suscripciones*. Los tipos de gasto se administran en **Configuración → Tipos de gasto** o se crean al vuelo con «＋ Nuevo tipo…».
 
 ### Tarjetas de crédito
 
@@ -196,7 +196,9 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 - La **fecha** y un **saludo** según la hora («Buenos días» hasta las 12, «Buenas tardes» hasta las 19, «Buenas noches» después).
 - Una **frase célebre** con su autor, compacta.
 - El botón **Nuevo gasto**: abre el formulario de gasto sobre Inicio, sin ir a Finanzas (si aún no hay cuentas con categorías, avisa).
-- Dos tarjetas: **Hábitos** (cuántos llevas hoy, p. ej. «2/5», con barra; toca para ir a Hábitos) y **Pagos** (cuántos están **vencidos** en rojo, o el próximo por vencer —«Vence mañana», «Vence el 15 oct»—, o «Al día»; toca para ir a Finanzas › Pagos).
+- Un campo de **nota rápida**: escribes algo al vuelo (por ejemplo en medio de una conversación) y Enter la guarda en la **Bandeja**; el campo queda listo para otra.
+- Cuatro tarjetas: **Hábitos** (cuántos llevas hoy, p. ej. «2/5», con barra), **Pagos** (solo muestra información si hay pagos **vencidos** —cuántos, en rojo— o que **vencen en los próximos 3 días** —el más cercano: «Vence hoy», «Vence mañana», «Vence el 14 oct»—; si no, dice «No hay pagos cercanos»), **Dinero** (el saldo total de tus cuentas, **oculto por defecto** en cada apertura: el ojo lo muestra o lo oculta; solo aparece si ya tienes cuentas) y **Pomodoro** (los de hoy o, si está corriendo, el contador en vivo y la fase). Tocar una tarjeta lleva a su pantalla.
+- La **Bandeja**: tus notas rápidas pendientes, la más nueva primero (5 y «Ver N más»). Tocar una abre un diálogo para **editarla**, **archivarla como nota** de un grupo de Notas (el enlace se guarda en el campo de enlace del grupo y el resto del texto en su primer campo de texto; si el grupo no tiene dónde guardarlo, avisa), **agregarla a una lista** como elemento adicional, o **eliminarla**. Los enlaces o textos que **compartas desde otra app** («Compartir» → Tracker, tras reinstalar la app instalada) también caen aquí.
 - **Tareas de hoy**: los elementos de tus listas activas con **fecha límite de hoy o ya vencida**, el más atrasado primero, con el nombre de su lista. La casilla de la izquierda la **marca como hecha** sin salir de Inicio; tocar el texto abre la lista. Se muestran 6 y un enlace «Ver N más en Listas». Sin pendientes dice «Nada pendiente para hoy».
 
 - **La frase cambia cada vez que se muestra la pantalla**: al abrir la app, al volver a Inicio desde otra herramienta y al regresar a la app desde segundo plano. También cambia **tocando la frase** (no hay botón visible, para mantener la pantalla limpia). Abrir o cerrar el menú no la cambia.
@@ -220,7 +222,7 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 - **Grupo nuevo (+)**: nombre, icono y color. Puedes **empezar con un ejemplo** (Enlaces, Comandos, Libros o Notas libres), que rellena todo y se puede cambiar después, o con un grupo en blanco.
 - **Campos**: toda nota tiene un **título** y los campos que definas. Tipos: **texto corto**, **texto largo**, **código o comando** (letra monoespaciada y botón **Copiar**), **enlace**, **número**, **fecha**, **opciones** (una lista que tú escribes separada por comas, p. ej. «Por leer, Leyendo, Leído»), **casilla** (sí/no) y **calificación** (1 a 5 estrellas; tocar la misma estrella otra vez la quita). Cada campo puede marcarse **«En la lista»** para verlo debajo del título sin abrir la nota.
 - **Configurar el grupo** (botón de ajustes junto al buscador): cambia nombre, icono y color, y **agrega, renombra, reordena (↑ ↓), cambia de tipo o quita campos**. Quitar un campo borra ese dato de las notas del grupo; cambiar el tipo conserva los datos. Borrar el grupo borra también sus notas (se avisa cuántas).
-- **Dentro de un grupo**: buscador (título, campos y etiquetas, sin importar mayúsculas ni tildes), **etiquetas** (se escriben separadas por coma en la nota y aparecen como filtros arriba; tocar una filtra y otra vez quita el filtro) y las notas de la más reciente a la más antigua, de 40 en 40 con «Ver más».
+- **Dentro de un grupo**: buscador (título, campos y etiquetas, sin importar mayúsculas ni tildes), **etiquetas** (se escriben separadas por coma en la nota y aparecen como filtros arriba; tocar una filtra y otra vez quita el filtro) y las notas, de 40 en 40 con «Ver más». El orden se elige en la configuración del grupo: **más recientes primero** (por defecto) o **alfabético por título**.
 - **Acciones rápidas en la lista**: si la nota tiene un campo de enlace, un botón la **abre** en una pestaña nueva; si no, y tiene un campo de código, un botón **copia** el comando. Tocar la nota abre el detalle con todo y el botón **Editar**.
 - **Seguridad**: solo se abren enlaces `http://` y `https://`; algo como `javascript:…` se guarda como texto y nunca se vuelve clicable. Un enlace escrito sin esquema («ejemplo.com/pagina») se guarda con `https://`.
 
@@ -237,6 +239,9 @@ Pensado para lo que repites cada cierto tiempo (el súper cada 15 días, tareas 
 - **Lo hecho baja al final**: al marcar un elemento pasa al final de su sección (los encabezados `#` y «Adicionales» son secciones), tachado y con «Hecho el 11 oct»; los pendientes conservan su orden. Si lo desmarcas vuelve a su lugar. El orden guardado no cambia.
 - **Fechas**: cada elemento pendiente tiene un **icono de calendario** a la derecha: tocarlo abre el selector de fecha y fija una **fecha límite**. Debajo del texto se ve «Vence el 16 oct (en 5 días)», «Vence mañana», «Vence hoy» o «Venció el 8 oct (hace 3 días)» en rojo. Al marcar un elemento se **registra el día en que se hizo**. En la vista general, cada lista muestra cuántas tareas están **vencidas** o la **próxima** fecha.
 - **Editar** (botón junto al avance): permite cambiar el **texto y la fecha** de un elemento con el lápiz (ahí también hay «Quitar fecha»), o quitarlo con la X; la plantilla no cambia. El lápiz de la barra superior cambia el nombre de la lista, la elimina o la **guarda como plantilla**: abre el formulario de plantilla con los elementos fijos de la lista (sin los adicionales) para que lo ajustes y guardes.
+- **Orden de las listas**: arriba de las tarjetas hay tres modos: **Recientes**, **Por fecha** (por la próxima fecha límite pendiente: las vencidas primero, las que no tienen fecha al final) y **Manual** (flechas ↑ ↓ en cada tarjeta; la primera vez parte del orden que veías y una lista nueva queda arriba). El modo elegido se recuerda. Con el **pin** de cada tarjeta (o «Fijar arriba» en las opciones de la lista) fijas listas: siempre van primero y se ordenan entre ellas con el modo elegido. En las opciones de una lista, **«Ordenar los pendientes por fecha límite»** pone primero los elementos con fecha, de la más próxima a la más lejana.
+- **Agenda**: la pestaña **Agenda** junta las tareas pendientes con fecha de todas tus listas, agrupadas en **Vencidas**, **Hoy**, **Mañana**, **Esta semana** y **Más adelante**; la casilla las marca como hechas y tocar el texto abre su lista.
+- **Fechas relativas en plantillas**: termina una línea de la plantilla con `@3` y ese elemento vencerá **3 días después de crear la lista** (`@0` = el mismo día).
 - **Finalizar y archivo**: cuando todos los elementos están marcados aparece el botón **Finalizar lista**. Al tocarlo la lista se **archiva** con la fecha de hoy y se vuelve a la vista general. Si antes de finalizar agregas un elemento nuevo, el botón desaparece hasta que lo marques. Las listas archivadas están en la pestaña **Archivo** (con su contador), de la más reciente a la más antigua, de 10 en 10; se pueden abrir (solo lectura, con sus fechas) y **Restaurar** para volver a editarlas. Las listas que ya estaban completas antes de existir esta función se archivaron solas una única vez.
 - **Ya toca**: si la plantilla tiene periodo y ya pasó desde la última lista creada con ella, en **Listas** aparece un aviso con el botón **Crear lista**; en **Plantillas** se muestra «Toca en N días» o «Ya toca». Sin listas previas no hay aviso.
 
@@ -328,9 +333,13 @@ Cada cuenta tiene un botón con una flecha para **ocultar o mostrar sus categor�
 4. ¿Ya tienes una lista armada? Lápiz → **Guardar como plantilla**.
 5. La próxima vez, vuelve a crear la lista desde la misma plantilla. Para cambiar lo fijo, edita la plantilla (las listas ya creadas no cambian).
 
+### Apariencia
+
+**Menú → Configuración → Apariencia → Fuente.** Dos opciones: **Predeterminada del sistema** (la que trae tu teléfono; en Android normalmente Roboto) y **JetBrains Mono** (monoespaciada, pensada para código y números). Cada opción se muestra con su propia letra. La elección se aplica a toda la app, se recuerda y viaja en el respaldo. La fuente JetBrains Mono viene **dentro de la app** (carpeta `fonts/`, licencia SIL OFL), así que funciona sin conexión. Con ella el texto es más ancho, por lo que el tamaño base se reduce un poco. Los bloques de código de Notas siempre usan JetBrains Mono.
+
 ### Respaldo
 
-En **Datos**:
+En **Configuración**:
 
 - **Exportar a archivo** descarga un JSON con todo. **Compartir respaldo** lo envía a otra app (Drive, WhatsApp…). Los navegadores móviles solo permiten compartir ciertos tipos de archivo, así que se comparte como texto plano con nombre `tracker-fecha.json.txt` (la app lo importa igual). Si compartir falla o el navegador no lo permite, el respaldo se **descarga** automáticamente y se avisa el motivo; cerrar el menú de compartir no cuenta como error.
 - La casilla **Incluir archivos adjuntos** decide si el respaldo lleva también fotos y PDF. Sin ella es ligero; con ella es completo pero más pesado.
@@ -343,7 +352,7 @@ En **Datos**:
 
 ## 5. Modelo de datos
 
-Base de datos IndexedDB versión 5 (la 4 agregó `templates` y `lists`, la 5 `noteGroups` y `notes`; se migra sola). Su nombre interno sigue siendo `mi-quincena` (el de antes de llamarse Tracker) para no perder los datos ya guardados.
+Base de datos IndexedDB versión 6 (la 4 agregó `templates` y `lists`, la 5 `noteGroups` y `notes`, la 6 `inbox`; se migra sola). Su nombre interno sigue siendo `mi-quincena` (el de antes de llamarse Tracker) para no perder los datos ya guardados.
 
 | Store | Contenido |
 |---|---|
@@ -356,6 +365,7 @@ Base de datos IndexedDB versión 5 (la 4 agregó `templates` y `lists`, la 5 `no
 | `templates` | `{ id, name, color, freq: ''｜'weekly'｜'biweekly'｜'monthly', items: [{ text, head? }] }` |
 | `lists` | `{ id, name, tplId?, color, created, t, archived?, items: [{ id, text, head?, done?, doneAt?, due?, extra? }] }` (`archived`, `doneAt` y `due` son fechas `YYYY-MM-DD`; `archived` = día en que se finalizó). Una lista se copia de la plantilla al crearla; no queda ligada a ella |
 | `noteGroups` | `{ id, name, color, icon, fields: [{ id, name, type: 'text'｜'long'｜'code'｜'url'｜'number'｜'date'｜'choice'｜'check'｜'rating', list?, options? }] }` |
+| `inbox` | `{ id, text, t }`: notas rápidas pendientes de archivar |
 | `notes` | `{ id, group, title, values: { [idDelCampo]: texto｜número｜true }, tags: [], created, updated }` (marcas de tiempo en ms). Solo se guardan los campos con valor |
 | `files` | `{ id, blob, mime, name, size }` |
 | `meta` | `{ k: 'settings', v: { lastExport, includeFiles, types, leftover, lastKind } }` |
@@ -376,7 +386,7 @@ Base de datos IndexedDB versión 5 (la 4 agregó `templates` y `lists`, la 5 `no
   "exportedAt": "2026-10-10T18:00:00.000Z",
   "includesFiles": false,
   "settings": {}, "habits": [], "accounts": [], "moves": [],
-  "plan": [], "bills": [], "purchases": [], "templates": [], "lists": [], "noteGroups": [], "notes": [],
+  "plan": [], "bills": [], "purchases": [], "templates": [], "lists": [], "noteGroups": [], "notes": [], "inbox": [],
   "files": [{ "id": "…", "mime": "image/jpeg", "name": "…", "data": "data:…;base64,…" }]
 }
 ```

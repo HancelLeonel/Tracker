@@ -13,6 +13,14 @@ const urls = [];
 dlg.addEventListener('close', () => urls.splice(0).forEach(u => URL.revokeObjectURL(u)));
 viewer.addEventListener('close', () => { viewer.innerHTML = ''; });
 
+// Fuente de la interfaz: 'system' (la del teléfono) o 'jetbrains' (JetBrains Mono, incluida en fonts/). También se guarda en
+// localStorage para aplicarla desde el primer pintado (index.html), antes de que carguen los datos.
+export function applyFont(name) {
+  const f = name === 'jetbrains' ? 'jetbrains' : 'system';
+  document.documentElement.dataset.font = f;
+  try { localStorage.setItem('tracker-font', f); } catch { /* sin almacenamiento local: se aplica al abrir con los ajustes */ }
+}
+
 export const isOpen = () => dlg.open || viewer.open;
 
 // onSubmit puede devolver false para mantener el diálogo abierto.

@@ -37,7 +37,7 @@ try:
         a = ctx.new_page(); a.goto(URL); a.wait_for_selector('#view .home'); a.evaluate('window.__marca = 1')
         c = ctx.new_page(); c.goto(URL + 'icons/icon.svg')
         t0 = time.time()
-        c.evaluate("() => new Promise((res, rej) => { const q = indexedDB.open('mi-quincena', 6); q.onsuccess = () => { q.result.close(); res(); }; q.onblocked = () => rej(new Error('bloqueada')); q.onerror = () => rej(q.error); })")
+        c.evaluate("() => new Promise((res, rej) => { const q = indexedDB.open('mi-quincena', 7); q.onsuccess = () => { q.result.close(); res(); }; q.onblocked = () => rej(new Error('bloqueada')); q.onerror = () => rej(q.error); })")
         check('otra ventana puede actualizar la base: esta cierra su conexión (no la bloquea)', time.time() - t0 < 5)
         a.wait_for_timeout(1500)
         check('y se recarga sola', a.evaluate('window.__marca') is None)
@@ -56,16 +56,23 @@ try:
         check('«Actualizar la app» borra las cachés', 'tracker-prueba' not in keys, keys)
         ctx.close()
 
-        # ---- 4) un dato raro en los pagos no impide que abra Inicio
+        # ---- 4) datos dañados: un pago roto se omite; un hábito roto no impide abrir Inicio
         ctx = b.new_context(viewport={'width':390,'height':800})
-        pg = ctx.new_page(); logs = []; errs = []
-        pg.on('console', lambda m: logs.append(m.text) if m.type == 'error' else None)
+        pg = ctx.new_page(); errlogs = []; warns = []; errs = []
+        pg.on('console', lambda m: (errlogs if m.type == 'error' else warns if m.type == 'warning' else []).append(m.text))
         pg.on('pageerror', lambda e: errs.append(str(e)))
         pg.goto(URL); pg.wait_for_selector('#view .home')
         pg.evaluate("""async () => { const db = await import('/js/db.js'); await db.commit({ put: { bills: [{ id: 'x', title: 'Dato raro', freq: 'monthly', day: 5, start: 5, active: true, paid: {} }] } }); }""")
         pg.reload(); pg.wait_for_selector('#view .home', timeout=8000)
-        check('con un pago dañado Inicio abre igual (omite esa tarjeta)', pg.locator('.home').count()==1 and pg.locator('.tile').count()==1 and pg.locator('.quick-exp').count()==1, pg.locator('.tile').count())
-        check('el problema queda registrado en consola y no es un error de página', len(logs) >= 1 and errs == [], (logs, errs))
+        check('con un pago dañado Inicio abre igual y su tarjeta de pagos sigue', pg.locator('.home').count()==1 and pg.locator('.tile:has-text("Pagos")').count()==1)
+        check('el pago dañado se omite con un aviso (no un error)', any('Pago con datos dañados' in w for w in warns) and errs == [], (warns, errs))
+        pg.click('[data-act=menu-open]'); pg.click('#tabs [data-tab=money]'); pg.wait_for_timeout(300)
+        pg.click('[data-act=sub][data-sub=bills]'); pg.wait_for_timeout(200)
+        check('y Finanzas › Pagos también abre con ese pago dañado', pg.locator('#topbar h1').inner_text()=='Pagos' and errs == [], errs)
+        pg.evaluate("""async () => { const db = await import('/js/db.js'); await db.commit({ put: { habits: [{ id: 'h', name: 'Roto', color: 'blue', dates: null, order: 1 }] } }); }""")
+        pg.reload(); pg.wait_for_selector('#view .home', timeout=8000)
+        check('con un hábito dañado Inicio abre igual: omite solo esa tarjeta', pg.locator('.home').count()==1 and pg.locator('.tile:has-text("Hábitos")').count()==0 and pg.locator('.tile:has-text("Pagos")').count()==1 and pg.locator('.quick-exp').count()==1, pg.locator('.tile').count())
+        check('el problema queda registrado en consola y no es un error de página', len(errlogs) >= 1 and errs == [], (errlogs, errs))
         ctx.close()
         b.close()
 finally:

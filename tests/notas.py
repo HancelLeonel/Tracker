@@ -176,7 +176,14 @@ try:
         check('«Ver más» muestra el resto (47 en total)', len(rows())==47 and page.locator('[data-act=more-notes]').count()==0, len(rows()))
         page.fill('#nsearch', 'masiva 07'); page.wait_for_timeout(60)
         check('la búsqueda recorre todas, no solo las visibles', len(rows())==1)
-        page.fill('#nsearch', '')
+        page.fill('#nsearch', ''); page.wait_for_timeout(60)
+        check('por defecto, la más reciente primero (la editada al principio)', rows()[:3]==['Docs de Playwright', 'Malicioso <img src=x onerror=window.__x=1>', 'Masiva 44'], rows()[:3])
+        page.click('[data-act=edit-ngroup]'); page.wait_for_timeout(80); dlg.locator('[name=sort]').select_option('alpha'); save()
+        check('orden alfabético por título (sin importar mayúsculas ni tildes)', rows()[:3]==['Docs de Playwright', 'Malicioso <img src=x onerror=window.__x=1>', 'Masiva 00'], rows()[:3])
+        page.click('[data-act=edit-ngroup]'); page.wait_for_timeout(80)
+        check('la configuración recuerda el orden elegido', dlg.locator('[name=sort]').input_value()=='alpha')
+        dlg.locator('[name=sort]').select_option('recent'); save()
+        check('y se puede volver a «más recientes»', rows()[2]=='Masiva 44', rows()[:3])
 
         # ---- exportar / borrar todo / importar
         go('data')

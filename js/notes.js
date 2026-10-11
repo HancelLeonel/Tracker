@@ -118,7 +118,7 @@ function visible(g) {
       const hay = norm([n.title, ...n.tags, ...fieldsOf(g).map(fl => (has(fl, val(n, fl)) ? short(fl, val(n, fl)) + ' ' + (fl.type === 'long' || fl.type === 'code' ? val(n, fl) : '') : ''))].join(' '));
       return terms.every(t => hay.includes(t));
     })
-    .sort((a, b) => b.updated - a.updated);
+    .sort(g.sort === 'alpha' ? (a, b) => a.title.localeCompare(b.title, 'es', { sensitivity: 'base', numeric: true }) : (a, b) => b.updated - a.updated);
 }
 
 function noteRow(g, n) {
@@ -266,6 +266,9 @@ function groupForm(g) {
     ${g ? '' : `<label>Empezar con
       <select name="preset"><option value="">Grupo en blanco</option>${PRESETS.map(p => `<option value="${p[0]}">${p[1]}</option>`).join('')}</select></label>`}
     <label>Nombre del grupo <input name="name" required maxlength="40" value="${esc(st.name)}" placeholder="Ej. Enlaces, Comandos, Libros…"></label>
+    <label>Orden de las notas
+      <select name="sort"><option value="recent" ${g?.sort === 'alpha' ? '' : 'selected'}>Más recientes primero</option>
+        <option value="alpha" ${g?.sort === 'alpha' ? 'selected' : ''}>Alfabético por título</option></select></label>
     <div><small class="muted">Icono</small>
       <div class="icon-grid" role="radiogroup" aria-label="Icono">
         ${NOTE_ICONS.map(n => `<label><input type="radio" name="icon" value="${n}" ${n === ic ? 'checked' : ''} aria-label="${n}"><span>${icon(n)}</span></label>`).join('')}
@@ -336,10 +339,11 @@ function groupForm(g) {
       if (fields.some(x => !x.name)) { alert('Todos los campos necesitan un nombre.'); return false; }
       if (fields.some(x => x.type === 'choice' && !x.options.length)) { alert('Escribe las opciones de cada campo de tipo «Opciones».'); return false; }
       const clean = fields.map(({ id, name: nm, type, list, options }) => ({ id, name: nm, type, ...(list ? { list: true } : {}), ...(type === 'choice' ? { options } : {}) }));
-      const data = { name, color: fd.get('color'), icon: fd.get('icon'), fields: clean };
+      const data = { name, color: fd.get('color'), icon: fd.get('icon'), fields: clean, ...(fd.get('sort') === 'alpha' ? { sort: 'alpha' } : {}) };
       if (g) {
         // Los datos de los campos que se quitaron se borran de las notas.
         const gone = fieldsOf(g).filter(old => !clean.some(x => x.id === old.id)).map(x => x.id);
+        delete g.sort;
         Object.assign(g, data);
         const touched = gone.length ? groupNotes(g).filter(n => gone.some(id => id in n.values)) : [];
         touched.forEach(n => gone.forEach(id => delete n.values[id]));

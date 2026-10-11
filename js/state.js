@@ -4,11 +4,12 @@ import { r2, sum, uid, today, byName } from './util.js';
 export const S = {
   tab: 'home',     // pantalla predeterminada: Inicio
   sub: 'accounts', // accounts | plan | bills | reports
-  habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [],
+  habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [],
   files: new Map(), // id -> { mime, name, size } (el contenido se lee bajo demanda)
-  settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {} },
+  settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {}, listSort: 'recent', font: 'system' },
   report: { kind: 'q', ref: today() },
   guide: { ref: today() }, // quincena que se ve en la guía de transferencias
+  hideMoney: true,     // en Inicio el dinero total arranca oculto cada vez que se abre la app
   noteGroup: null,     // grupo de notas abierto (null = vista general)
   noteSearch: '', noteTag: '', noteLimit: 40,
   listSub: 'lists',    // lists | templates
@@ -44,8 +45,8 @@ export function sortedMoves() {
 export const DEFAULT_KINDS = ['Comida', 'Transporte', 'Servicios', 'Suscripciones', 'Salud', 'Ocio', 'Hogar', 'Otros'];
 
 export async function loadState() {
-  const [habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, files, meta] =
-    await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'files', 'meta'].map(db.getAll));
+  const [habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, files, meta] =
+    await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'files', 'meta'].map(db.getAll));
   bump();
   S.habits = habits;
   S.accounts = accounts.map(a => ({ type: 'normal', ...a }));
@@ -59,6 +60,7 @@ export async function loadState() {
   S.lists = lists;
   S.noteGroups = noteGroups.sort(byName);
   S.notes = notes;
+  S.inbox = inbox.sort((a, b) => b.t - a.t);
   if (!S.noteGroups.some(g => g.id === S.noteGroup)) S.noteGroup = null;
   if (!S.lists.some(l => l.id === S.listId)) S.listId = null;
   S.files = new Map(files.map(f => [f.id, { mime: f.mime, name: f.name, size: f.size }]));
@@ -247,6 +249,7 @@ export const saveBill = b => db.commit({ put: { bills: [b] } });
 export const savePurchase = async p => { await db.commit({ put: { purchases: [p] } }); await gcFiles(); };
 export const saveTemplate = t => { S.templates.sort(byName); return db.commit({ put: { templates: [t] } }); };
 export const saveNoteGroup = g => { S.noteGroups.sort(byName); return db.commit({ put: { noteGroups: [g] } }); };
+export const saveInbox = q => db.commit({ put: { inbox: [q] } });
 export const saveNote = n => db.commit({ put: { notes: [n] } });
 // Una lista está completa cuando todos sus elementos (sin contar encabezados) están marcados.
 export const isListDone = l => { const r = l.items.filter(i => !i.head); return r.length > 0 && r.every(i => i.done); };

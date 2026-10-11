@@ -1,7 +1,7 @@
 # Tracker
 
 PWA personal para Android: finanzas por quincena, hábitos, listas y tareas, notas, pomodoro y compras en una sola app.
-Sin build y sin dependencias (JavaScript vanilla + IndexedDB). Los datos viven en el teléfono; se respaldan desde **Datos**.
+Sin build y sin dependencias (JavaScript vanilla + IndexedDB). Los datos viven en el teléfono; se respaldan desde **Configuración**.
 
 ## Probar en local
 
@@ -22,23 +22,23 @@ las demás ventanas de Tracker antes de abrir la versión nueva (la app avisa si
 
 ## Qué incluye
 
-- **Inicio**: saludo, frase célebre, botón de gasto rápido, hábitos de hoy, pagos pendientes y tareas de hoy.
+- **Inicio**: saludo, frase célebre, gasto rápido, **notas rápidas** (bandeja para archivar después), hábitos, pagos cercanos, dinero (oculto por defecto), Pomodoro y tareas de hoy.
 - **Finanzas**: cuentas con categorías que guardan dinero real, gastos repartibles, tarjetas de crédito, **guía** de
   transferencias por quincena, **pagos** pendientes y **reportes**.
 - **Hábitos**: carrusel por momento del día, rachas, iconos y orden propio.
-- **Listas**: listas y tareas creadas desde plantillas, con fechas límite, lo hecho al final y archivo de listas finalizadas.
+- **Listas**: listas y tareas creadas desde plantillas (con fechas relativas), fechas límite, orden por fecha o manual, listas fijadas, agenda y archivo de listas finalizadas.
 - **Pomodoro**: temporizador con descansos y pantalla completa en negro (ahorra batería en AMOLED).
 - **Notas**: grupos con campos propios (enlaces, comandos, libros…), búsqueda y etiquetas.
 - **Compras**: registro buscable con garantía y facturas.
-- **Datos**: exportar/importar JSON (los adjuntos van solo si lo marcas) y ajustes.
+- **Configuración**: fuente (la del sistema o JetBrains Mono), exportar/importar JSON (los adjuntos van solo si lo marcas) y tipos de gasto.
 - **Gimnasio**: reservado en el menú, todavía vacío.
 
 Tema oscuro **Grafito** (neutros y un solo acento), pensado para móvil.
 
 ## Modelo de datos
 
-IndexedDB `mi-quincena` v5 (nombre interno heredado). Stores: `habits`, `accounts`, `moves`, `plan`, `bills`, `purchases`,
-`templates`, `lists`, `noteGroups`, `notes`, `files`, `meta`. Las categorías guardan **dinero real**, no presupuesto; editar o
+IndexedDB `mi-quincena` v6 (nombre interno heredado). Stores: `habits`, `accounts`, `moves`, `plan`, `bills`, `purchases`,
+`templates`, `lists`, `noteGroups`, `notes`, `inbox`, `files`, `meta`. Las categorías guardan **dinero real**, no presupuesto; editar o
 borrar un movimiento revierte su efecto sobre los saldos. Moneda: quetzales (`Q`). Detalle en [Documentacion.md](Documentacion.md).
 
 ## Pruebas

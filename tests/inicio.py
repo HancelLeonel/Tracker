@@ -79,7 +79,7 @@ try:
         go2('home')
 
         # ---- estado vacío de cada parte
-        check('sin datos: hábitos, pagos y tareas lo dicen con calma', 'Crea tu primer hábito' in home_txt() and 'Sin pagos registrados' in home_txt() and 'Nada pendiente para hoy' in home_txt(), home_txt())
+        check('sin datos: hábitos, pagos y tareas lo dicen con calma', 'Crea tu primer hábito' in home_txt() and 'No hay pagos cercanos' in home_txt() and 'Nada pendiente para hoy' in home_txt(), home_txt())
         check('el botón de gasto rápido está siempre visible', q.locator('.quick-exp').is_visible())
         q.click('.quick-exp'); q.wait_for_timeout(120)
         check('gasto rápido sin cuentas avisa en vez de abrir un formulario roto', not q.evaluate("document.querySelector('#dlg').open") and 'cuenta' in q.locator('#toast').inner_text())
@@ -92,15 +92,23 @@ try:
         check('tocar la tarjeta lleva a Hábitos', q.locator('#topbar h1').inner_text()=='Hábitos')
         go2('home')
 
-        # ---- pagos: ninguno por vencer -> al día; próximo; vencido
+        # ---- pagos: solo se muestran vencidos o los que vencen en los próximos 3 días
         D = lambda n: __import__('datetime').date.today().__add__(__import__('datetime').timedelta(days=n)).isoformat()
         bill = lambda id, title, n: f"const b = {{ id: '{id}', title: '{title}', amount: 100, freq: 'once', day: null, dueDate: '{D(n)}', start: '2020-01-01', card: null, active: true, paid: {{}} }}; st.S.bills.push(b); await st.saveBill(b);"
+        pt = lambda: q.locator('.tile:has-text("Pagos")')
+        check('sin pagos registrados: «No hay pagos cercanos»', 'No hay pagos cercanos' in pt().inner_text(), pt().inner_text())
         seed(bill('b1', 'Seguro', 45))
-        check('un pago a más de 30 días: «Al día»', 'Al día' in q.locator('.tile').nth(1).inner_text())
+        check('un pago a 45 días: «No hay pagos cercanos»', 'No hay pagos cercanos' in pt().inner_text() and 'Seguro' not in pt().inner_text())
         seed(bill('b2', 'Internet', 5))
-        check('próximo pago: título y fecha', 'Internet' in q.locator('.tile').nth(1).inner_text() and 'Vence el' in q.locator('.tile').nth(1).inner_text(), q.locator('.tile').nth(1).inner_text())
+        check('un pago a 5 días tampoco se muestra', 'No hay pagos cercanos' in pt().inner_text() and 'Internet' not in pt().inner_text(), pt().inner_text())
+        seed(bill('b2b', 'Cable', 4))
+        check('a 4 días todavía no', 'No hay pagos cercanos' in pt().inner_text())
+        seed(bill('b2c', 'Gimnasio mensual', 3))
+        check('a 3 días sí: título y fecha', 'Gimnasio mensual' in pt().inner_text() and 'Vence el' in pt().inner_text() and 'No hay pagos cercanos' not in pt().inner_text(), pt().inner_text())
         seed(bill('b3', 'Luz', 1))
-        check('pago de mañana: «Vence mañana»', 'Luz' in q.locator('.tile').nth(1).inner_text() and 'Vence mañana' in q.locator('.tile').nth(1).inner_text(), q.locator('.tile').nth(1).inner_text())
+        check('el más cercano manda: «Vence mañana»', 'Luz' in pt().inner_text() and 'Vence mañana' in pt().inner_text(), pt().inner_text())
+        seed(bill('b3b', 'Agua hoy', 0))
+        check('uno de hoy: «Vence hoy»', 'Agua hoy' in pt().inner_text() and 'Vence hoy' in pt().inner_text(), pt().inner_text())
         seed(bill('b4', 'Agua potable', -2))
         t = q.locator('.tile').nth(1)
         check('pago vencido: cuenta en rojo', t.locator('.tile-n.neg').inner_text().strip()=='1' and 'pago vencido' in t.inner_text(), t.inner_text())

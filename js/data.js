@@ -1,7 +1,7 @@
 import * as db from './db.js';
 import { esc, uid, today, toast, $ } from './util.js';
 import { S, loadState, saveSettings, gcFiles, sortedKinds } from './state.js';
-import { modal } from './ui.js';
+import { modal, applyFont } from './ui.js';
 import { icon, HABIT_ICONS, NOTE_ICONS } from './icons.js';
 import { COLORS, SLOT_KEYS } from './habits.js';
 import { FREQS as TPL_FREQS } from './lists.js';
@@ -21,7 +21,19 @@ export function dataView() {
   const last = S.settings.lastExport ? new Date(S.settings.lastExport).toLocaleString('es-GT', { dateStyle: 'medium', timeStyle: 'short' }) : 'nunca';
   const bytes = [...S.files.values()].reduce((t, f) => t + (f.size ?? 0), 0);
   const filesInfo = S.files.size ? `${pl(S.files.size, 'archivo')} · ${fileSize(bytes)}` : 'ninguno';
+  const font = S.settings.font === 'jetbrains' ? 'jetbrains' : 'system';
   return `
+    <section class="card stack">
+      <h3>Apariencia</h3>
+      <div class="font-opts" role="radiogroup" aria-label="Fuente">
+        <label class="font-opt"><input type="radio" name="font" value="system" data-change="font" ${font === 'system' ? 'checked' : ''}>
+          <span class="fo-sample" style="font-family:var(--font-system)">Aa 0123</span>
+          <span class="fo-name">Predeterminada del sistema<small>La que trae tu teléfono (en Android normalmente Roboto)</small></span></label>
+        <label class="font-opt"><input type="radio" name="font" value="jetbrains" data-change="font" ${font === 'jetbrains' ? 'checked' : ''}>
+          <span class="fo-sample" style="font-family:var(--font-jb)">Aa 0123</span>
+          <span class="fo-name">JetBrains Mono<small>Monoespaciada, pensada para leer código y números</small></span></label>
+      </div>
+    </section>
     <section class="card stack">
       <h3>Respaldo</h3>
       <p class="muted">Los datos viven solo en este teléfono. Exporta un respaldo de vez en cuando; si borras los datos del navegador se pierden.</p>
@@ -73,7 +85,7 @@ async function buildExport() {
   const data = {
     app: APP_ID, version: VERSION, exportedAt: new Date().toISOString(), includesFiles: withFiles,
     settings: S.settings, habits: S.habits, accounts: S.accounts, moves: S.moves, plan: S.plan, bills: S.bills, purchases: S.purchases,
-    templates: S.templates, lists: S.lists, noteGroups: S.noteGroups, notes: S.notes,
+    templates: S.templates, lists: S.lists, noteGroups: S.noteGroups, notes: S.notes, inbox: S.inbox,
   };
   if (withFiles) {
     const recs = await db.getAll('files');
@@ -204,7 +216,7 @@ function validateImport(d) {
     if (!t?.id || typeof t.name !== 'string' || !Array.isArray(t.items)) bad('Hay una plantilla inválida en el archivo.');
     return {
       id: String(t.id), name: t.name, color: COLORS.includes(t.color) ? t.color : 'mauve', freq: TPL_FREQS.some(f => f[0] === t.freq) ? t.freq : '',
-      items: t.items.filter(i => typeof i?.text === 'string').map(i => ({ text: i.text, ...(i.head ? { head: true } : {}) })),
+      items: t.items.filter(i => typeof i?.text === 'string').map(i => ({ text: i.text, ...(i.head ? { head: true } : Number.isInteger(i.dueIn) && i.dueIn >= 0 && i.dueIn <= 365 ? { dueIn: i.dueIn } : {}) })),
     };
   });
   const lists = arr(d.lists, 'listas').map(l => {
@@ -213,6 +225,7 @@ function validateImport(d) {
     return {
       id: String(l.id), name: l.name, tplId: l.tplId ? String(l.tplId) : null, color: COLORS.includes(l.color) ? l.color : 'mauve',
       created: ymdOk(l.created) ? l.created : today(), t: Number(l.t) || 0, ...(ymdOk(l.archived) ? { archived: l.archived } : {}),
+      ...(l.pinned ? { pinned: true } : {}), ...(l.sortDue ? { sortDue: true } : {}), ...(Number.isFinite(l.order) ? { order: l.order } : {}),
       items: l.items.filter(i => i?.id && typeof i.text === 'string').map(i => ({
         id: String(i.id), text: i.text,
         ...(i.head ? { head: true } : { done: !!i.done, ...(ymdOk(i.due) ? { due: i.due } : {}), ...(i.done && ymdOk(i.doneAt) ? { doneAt: i.doneAt } : {}) }),
@@ -224,6 +237,7 @@ function validateImport(d) {
     if (!g?.id || typeof g.name !== 'string' || !Array.isArray(g.fields)) bad('Hay un grupo de notas inválido en el archivo.');
     return {
       id: String(g.id), name: g.name, color: COLORS.includes(g.color) ? g.color : 'mauve', icon: NOTE_ICONS.includes(g.icon) ? g.icon : NOTE_ICONS[0],
+      ...(g.sort === 'alpha' ? { sort: 'alpha' } : {}),
       fields: g.fields.filter(f => f?.id && typeof f.name === 'string').map(f => {
         const type = FIELD_TYPES.some(t => t[0] === f.type) ? f.type : 'text';
         return { id: String(f.id), name: f.name, type, ...(f.list ? { list: true } : {}), ...(type === 'choice' ? { options: Array.isArray(f.options) ? f.options.map(String) : [] } : {}) };
@@ -239,16 +253,21 @@ function validateImport(d) {
     }
     return { id: String(n.id), group: String(n.group), title: n.title, values, tags: Array.isArray(n.tags) ? n.tags.map(String) : [], created: Number(n.created) || 0, updated: Number(n.updated) || 0 };
   }).filter(n => groupIds.has(n.group)); // una nota sin su grupo no se podría ver
+  const inbox = arr(d.inbox, 'notas rápidas').map(q => {
+    if (!q?.id || typeof q.text !== 'string') bad('Hay una nota rápida inválida en el archivo.');
+    return { id: String(q.id), text: q.text, t: Number(q.t) || 0 };
+  });
   const settings = { ...S.settings, ...(d.settings ?? {}) };
   if (!Array.isArray(settings.types)) settings.types = S.settings.types;
-  return { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, settings, files: d.files };
+  if (!['system', 'jetbrains'].includes(settings.font)) settings.font = 'system';
+  return { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, settings, files: d.files };
 }
 
 async function doImport(file) {
   try {
     const data = validateImport(JSON.parse(await file.text()));
     const withFiles = Array.isArray(data.files);
-    const msg = `Se reemplazarán TODOS los datos actuales por los del archivo (${data.accounts.length} cuentas, ${data.moves.length} movimientos, ${data.habits.length} hábitos, ${data.purchases.length} compras, ${data.templates.length} plantillas, ${data.lists.length} listas, ${data.notes.length} notas). ` +
+    const msg = `Se reemplazarán TODOS los datos actuales por los del archivo (${data.accounts.length} cuentas, ${data.moves.length} movimientos, ${data.habits.length} hábitos, ${data.purchases.length} compras, ${data.templates.length} plantillas, ${data.lists.length} listas, ${data.notes.length} notas, ${data.inbox.length} notas rápidas). ` +
       (withFiles ? `Incluye ${data.files.length} archivos adjuntos. ` : 'El respaldo no trae adjuntos: se conservan los que ya tienes en este teléfono. ') + '¿Continuar?';
     if (!confirm(msg)) return;
     if (withFiles) {
@@ -273,9 +292,9 @@ export const actions = {
   'new-kind': () => kindForm(),
   'edit-kind': el => kindForm(S.settings.types.find(t => t.id === el.dataset.id)),
   async wipe() {
-    if (!confirm('Se borrarán todas las cuentas, movimientos, hábitos, pagos, compras, plantillas, listas, notas y adjuntos de este dispositivo. ¿Continuar?')) return;
+    if (!confirm('Se borrarán todas las cuentas, movimientos, hábitos, pagos, compras, plantillas, listas, notas, notas rápidas y adjuntos de este dispositivo. ¿Continuar?')) return;
     if (!confirm('¿Seguro? Si no tienes un respaldo exportado no podrás recuperarlos.')) return;
-    await db.replaceAll({ habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], files: [], settings: S.settings });
+    await db.replaceAll({ habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], files: [], settings: S.settings });
     await loadState();
     toast('Datos borrados');
   },
@@ -285,4 +304,5 @@ export async function onFilePicked(file) { await doImport(file); }
 
 export const changes = {
   async 'include-files'(el) { S.settings.includeFiles = el.checked; await saveSettings(); },
+  async font(el) { S.settings.font = el.value === 'jetbrains' ? 'jetbrains' : 'system'; applyFont(S.settings.font); await saveSettings(); },
 };

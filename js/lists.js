@@ -1,6 +1,6 @@
 import * as db from './db.js';
 import { esc, uid, today, addDays, addMonths, daysBetween, fmtDate, fmtDateY, parseYmd, toast, $ } from './util.js';
-import { S, saveTemplate, saveList, isListDone } from './state.js';
+import { S, saveTemplate, saveList, saveSettings, isListDone } from './state.js';
 import { modal } from './ui.js';
 import { icon } from './icons.js';
 import { COLORS } from './habits.js';
@@ -35,9 +35,13 @@ function dueInfo(t) {
 }
 
 // El texto de la plantilla se edita como una línea por elemento; las que empiezan con # son encabezados de sección.
-const parseItems = text => text.split('\n').map(l => l.trim()).filter(Boolean).map(l =>
-  (l.startsWith('#') ? { text: l.replace(/^#+\s*/, ''), head: true } : { text: l })).filter(i => i.text);
-const itemsText = items => items.map(i => (i.head ? `# ${i.text}` : i.text)).join('\n');
+// Una línea que termina en « @3» vence 3 días después de crear la lista (fecha relativa).
+const parseItems = text => text.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+  if (l.startsWith('#')) return { text: l.replace(/^#+\s*/, ''), head: true };
+  const m = l.match(/^(.*?)\s+@(\d{1,3})$/);
+  return m && m[1].trim() ? { text: m[1].trim(), dueIn: +m[2] } : { text: l };
+}).filter(i => i.text);
+const itemsText = items => items.map(i => (i.head ? `# ${i.text}` : i.dueIn != null ? `${i.text} @${i.dueIn}` : i.text)).join('\n');
 
 // `seed` (solo al crear) rellena el formulario con datos de partida, por ejemplo los de una lista.
 function templateForm(t, seed) {
@@ -50,7 +54,7 @@ function templateForm(t, seed) {
     </label>
     <label>Elementos (uno por línea)
       <textarea name="items" rows="10" placeholder="# Frutas y verduras&#10;Tomate&#10;Cebolla&#10;# Lácteos&#10;Leche">${esc(itemsText(src?.items ?? []))}</textarea>
-      <small>Empieza una línea con # para separar por secciones.</small>
+      <small>Empieza una línea con # para separar por secciones. Termina una línea con @3 para que ese elemento venza 3 días después de crear la lista.</small>
     </label>
     <div><small class="muted">Color</small>
       <div class="swatches" role="radiogroup" aria-label="Color">
@@ -100,7 +104,11 @@ const defaultName = tpl => `${tpl ? tpl.name : 'Lista'} · ${fmtDate(today())}`;
 async function createList(tpl, name) {
   const l = {
     id: uid(), name: name || defaultName(tpl), tplId: tpl?.id ?? null, color: tpl?.color ?? 'mauve', created: today(), t: Date.now(),
-    items: (tpl?.items ?? []).map(i => ({ id: uid(), text: i.text, ...(i.head ? { head: true } : { done: false }) })),
+    items: (tpl?.items ?? []).map(i => ({
+      id: uid(), text: i.text,
+      ...(i.head ? { head: true } : { done: false, ...(i.dueIn != null ? { due: addDays(today(), i.dueIn) } : {}) }),
+    })),
+    order: Math.min(0, ...S.lists.map(x => x.order ?? 0)) - 1, // en orden manual, la lista nueva queda arriba
   };
   S.lists.push(l);
   await saveList(l);
@@ -131,8 +139,15 @@ function newListForm() {
 function listOptions(l) {
   modal('Opciones de la lista', `
     <label>Nombre <input name="name" required maxlength="60" value="${esc(l.name)}"></label>
+    <label class="check"><input type="checkbox" name="pinned" ${l.pinned ? 'checked' : ''}><span>Fijar arriba<small>Aparece antes que las demás en la vista de listas.</small></span></label>
+    <label class="check"><input type="checkbox" name="sortDue" ${l.sortDue ? 'checked' : ''}><span>Ordenar los pendientes por fecha límite<small>Los que tienen fecha van primero, de la más próxima a la más lejana.</small></span></label>
     <button type="button" class="btn block" data-act="list-to-tpl">${icon('copy')} Guardar como plantilla</button>`, {
-    async onSubmit(fd) { l.name = fd.get('name').trim(); await saveList(l); },
+    async onSubmit(fd) {
+      l.name = fd.get('name').trim();
+      if (fd.get('pinned')) l.pinned = true; else delete l.pinned;
+      if (fd.get('sortDue')) l.sortDue = true; else delete l.sortDue;
+      await saveList(l);
+    },
     onDelete: async () => {
       S.lists = S.lists.filter(x => x.id !== l.id);
       S.listId = null;
@@ -165,37 +180,82 @@ function dueSummary(l) {
   return `<small class="muted">Próxima: ${dshort(dated[0])}</small>`;
 }
 
-function listCard(l, archived = false) {
+const byNewest = (a, b) => b.created.localeCompare(a.created) || b.t - a.t;
+
+// Orden de la vista de listas: recientes, por la próxima fecha límite pendiente o manual. Las fijadas siempre van primero.
+const SORTS = [['recent', 'Recientes'], ['due', 'Por fecha'], ['manual', 'Manual']];
+const sortMode = () => (SORTS.some(x => x[0] === S.settings.listSort) ? S.settings.listSort : 'recent');
+const nextDue = l => real(l).filter(i => !i.done && i.due).map(i => i.due).sort()[0] ?? null;
+function comparator(mode) {
+  if (mode === 'due') return (a, b) => (nextDue(a) ?? '9999').localeCompare(nextDue(b) ?? '9999') || byNewest(a, b);
+  if (mode === 'manual') return (a, b) => (a.order ?? 1e9) - (b.order ?? 1e9) || byNewest(a, b);
+  return byNewest;
+}
+function orderedActive() {
+  const cmp = comparator(sortMode()), act = S.lists.filter(l => !l.archived);
+  return [...act.filter(l => l.pinned).sort(cmp), ...act.filter(l => !l.pinned).sort(cmp)];
+}
+
+// Da un `order` único (en el orden que se ve ahora) a las listas activas; se usa al pasar a manual y al reordenar.
+async function seedOrder(act = orderedActive()) {
+  act.forEach((l, i) => { l.order = i; });
+  await db.commit({ put: { lists: act } });
+}
+async function normalizeOrder() {
+  const orders = S.lists.filter(l => !l.archived).map(l => l.order);
+  if (orders.every(o => Number.isFinite(o)) && new Set(orders).size === orders.length) return;
+  await seedOrder();
+}
+
+async function moveList(id, dir) {
+  await normalizeOrder();
+  const l = S.lists.find(x => x.id === id);
+  const peers = orderedActive().filter(x => !!x.pinned === !!l.pinned);
+  const other = peers[peers.indexOf(l) + dir];
+  if (!other) return;
+  [l.order, other.order] = [other.order, l.order];
+  await db.commit({ put: { lists: [l, other] } });
+}
+
+function listCard(l, archived = false, pos = null) {
   const p = progress(l);
   const meta = archived ? `<small class="muted">Finalizada el ${dshort(l.archived)}</small>`
     : isDone(l) ? '<small class="pos">Lista para finalizar</small>' : dueSummary(l);
-  return `
+  const card = `
     <button class="card list-card ${archived ? 'compact' : ''}" style="--c:var(--${l.color})" data-act="open-list" data-id="${l.id}">
-      <span class="lc-top"><b>${esc(l.name)}</b><small>${p.done}/${p.total}</small></span>
+      <span class="lc-top"><b>${l.pinned ? `<span class="pin-mark">${icon('pin')}</span>` : ''}${esc(l.name)}</b><small>${p.done}/${p.total}</small></span>
       ${archived ? '' : `<span class="bar"><i style="width:${p.total ? (p.done / p.total) * 100 : 0}%"></i></span>`}
       ${meta}
     </button>`;
+  if (archived) return card;
+  const manual = sortMode() === 'manual';
+  return `<div class="list-row">${card}<div class="list-tools">
+    ${manual ? `<button class="icon sm" data-act="list-up" data-id="${l.id}" aria-label="Subir ${esc(l.name)}" ${pos?.first ? 'disabled' : ''}>${icon('up')}</button>
+      <button class="icon sm" data-act="list-down" data-id="${l.id}" aria-label="Bajar ${esc(l.name)}" ${pos?.last ? 'disabled' : ''}>${icon('down')}</button>` : ''}
+    <button class="icon sm ${l.pinned ? 'on' : ''}" data-act="list-pin" data-id="${l.id}" aria-pressed="${!!l.pinned}" aria-label="${l.pinned ? 'Quitar de fijadas' : 'Fijar'} ${esc(l.name)}">${icon('pin')}</button></div></div>`;
 }
 
-const byNewest = (a, b) => b.created.localeCompare(a.created) || b.t - a.t;
-
 function listsOverview() {
-  const active = S.lists.filter(l => !l.archived).sort(byNewest);
+  const active = orderedActive();
   const late = S.templates.filter(t => dueInfo(t)?.late);
 
-  if (!S.lists.filter(l => !l.archived).length && !late.length) {
+  if (!active.length && !late.length) {
     return `<div class="card empty"><p>No tienes listas activas.</p>
       <small>${S.templates.length ? 'Crea una a partir de una de tus plantillas o una lista vacía.' : 'Empieza creando una plantilla con lo que repites seguido, o una lista vacía.'}</small>
       <button class="btn primary" data-act="new-list">Crear una lista</button>
       ${S.templates.length ? '' : '<button class="btn" data-act="new-tpl">Crear una plantilla</button>'}</div>`;
   }
+  const peers = l => active.filter(x => !!x.pinned === !!l.pinned);
+  const mode = sortMode();
   return `
     ${late.map(t => `
       <section class="card alert due" style="--c:var(--${t.color})">
         <div><b>${esc(t.name)}</b><br><small class="warn">Ya toca (${freqOf(t)[1].toLowerCase()})</small></div>
         <button class="btn primary sm" data-act="use-tpl" data-id="${t.id}">Crear lista</button>
       </section>`).join('')}
-    ${active.map(l => listCard(l)).join('')}`;
+    ${active.length > 1 ? `<div class="sortbar"><small class="muted">Orden</small><div class="seg small" role="tablist">${SORTS.map(([k, name]) =>
+      `<button class="${k === mode ? 'on' : ''}" data-act="list-order" data-mode="${k}">${name}</button>`).join('')}</div></div>` : ''}
+    ${active.map(l => { const ps = peers(l); return listCard(l, false, { first: ps[0] === l, last: ps.at(-1) === l }); }).join('')}`;
 }
 
 // Listas finalizadas, de la más reciente a la más antigua.
@@ -207,18 +267,49 @@ function archiveView() {
     ${left > 0 ? `<button class="btn ghost block" data-act="more-lists">Ver más (${Math.min(10, left)} de ${left} restantes)</button>` : ''}`;
 }
 
+// Fila de una tarea con fecha: casilla para marcarla, y el texto abre su lista (la usan Inicio y la Agenda).
+export function taskRow(list, item) {
+  const m = metaOf(item);
+  return `
+    <div class="trow">
+      <button class="chk" data-act="agenda-toggle" data-list="${list.id}" data-id="${item.id}" aria-label="Marcar como hecha: ${esc(item.text)}"><span></span></button>
+      <button class="t-main" data-act="agenda-open" data-list="${list.id}">
+        <span class="t-text">${esc(item.text)}</span>
+        <small class="${m?.cls ?? 'muted'}">${m ? esc(m.text) + ' · ' : ''}${esc(list.name)}</small>
+      </button>
+    </div>`;
+}
+
+// Agenda: todas las tareas pendientes con fecha límite de las listas activas, agrupadas por cuándo vencen.
+function agendaView() {
+  const T = today(), tomorrow = addDays(T, 1), week = addDays(T, 7);
+  const all = S.lists.filter(l => !l.archived).flatMap(l => real(l).filter(i => !i.done && i.due).map(i => ({ list: l, item: i })))
+    .sort((a, b) => a.item.due.localeCompare(b.item.due) || a.list.created.localeCompare(b.list.created));
+  if (!all.length) {
+    return `<div class="card empty"><p>No hay tareas con fecha.</p><small>Toca el icono de calendario de un elemento de cualquier lista para ponerle una fecha límite y aquí las verás juntas.</small></div>`;
+  }
+  const buckets = [['Vencidas', e => e.item.due < T], ['Hoy', e => e.item.due === T], ['Mañana', e => e.item.due === tomorrow],
+    ['Esta semana', e => e.item.due <= week], ['Más adelante', () => true]];
+  const groups = buckets.map(() => []);
+  for (const e of all) groups[buckets.findIndex(([, test]) => test(e))].push(e);
+  return buckets.map(([name], i) => groups[i].length ? `
+    <section class="today"><h3 class="overline ${i === 0 ? 'neg' : ''}">${name} <span class="count">${groups[i].length}</span></h3>
+      <div class="trows card-rows">${groups[i].map(e => taskRow(e.list, e.item)).join('')}</div></section>` : '').join('');
+}
+
 export function listsView() {
   const archived = S.lists.filter(l => l.archived).length;
-  const seg = `<div class="seg" role="tablist">${[['lists', 'Listas'], ['templates', 'Plantillas'], ['archive', 'Archivo']].map(([k, name]) =>
+  const seg = `<div class="seg" role="tablist">${[['lists', 'Listas'], ['agenda', 'Agenda'], ['templates', 'Plantillas'], ['archive', 'Archivo']].map(([k, name]) =>
     `<button class="${k === S.listSub ? 'on' : ''}" data-act="list-sub" data-sub="${k}">${name}${k === 'archive' && archived ? ` <small>${archived}</small>` : ''}</button>`).join('')}</div>`;
-  return seg + (S.listSub === 'templates' ? templatesView() : S.listSub === 'archive' ? archiveView() : listsOverview());
+  return seg + (S.listSub === 'templates' ? templatesView() : S.listSub === 'archive' ? archiveView() : S.listSub === 'agenda' ? agendaView() : listsOverview());
 }
 
 // ---------- detalle de una lista ----------
 // Los elementos hechos bajan al final de su sección (por orden en que se marcaron); los pendientes conservan su orden.
 // El orden guardado no cambia: al desmarcar, el elemento vuelve a su lugar.
-function sink(items) {
-  const pending = items.filter(i => !i.done);
+function sink(items, byDue = false) {
+  let pending = items.filter(i => !i.done);
+  if (byDue) pending = [...pending.filter(i => i.due).sort((a, b) => a.due.localeCompare(b.due)), ...pending.filter(i => !i.due)];
   const done = items.filter(i => i.done).map((i, k) => [i, k]).sort((a, b) => (a[0].doneAt ?? '').localeCompare(b[0].doneAt ?? '') || a[1] - b[1]).map(x => x[0]);
   return [...pending, ...done];
 }
@@ -252,7 +343,7 @@ export function listDetail(l) {
   const mode = l.archived ? 'archived' : edit ? 'edit' : 'normal';
   const base = l.items.filter(i => !i.extra), extras = l.items.filter(i => i.extra);
   const body = items => sections(items).map(sec =>
-    `${sec.head ? `<h2 class="slot-h">${esc(sec.head.text)}</h2>` : ''}<div class="li-list">${sink(sec.items).map(i => itemRow(i, mode)).join('')}</div>`).join('');
+    `${sec.head ? `<h2 class="slot-h">${esc(sec.head.text)}</h2>` : ''}<div class="li-list">${sink(sec.items, l.sortDue).map(i => itemRow(i, mode)).join('')}</div>`).join('');
   const complete = isDone(l);
   return `
     <div class="slot" style="--c:var(--${l.color})">
@@ -307,6 +398,20 @@ export function todayTasks() {
 export { metaOf as dueMeta };
 
 export const actions = {
+  async 'list-order'(el) {
+    const before = orderedActive(); // lo que se ve ahora
+    S.settings.listSort = el.dataset.mode;
+    // La primera vez que se usa el modo manual arranca desde el orden que se estaba viendo; después se respeta lo que acomodaste.
+    if (el.dataset.mode === 'manual' && !S.settings.listManualSeeded) { await seedOrder(before); S.settings.listManualSeeded = true; }
+    await saveSettings();
+  },
+  async 'list-pin'(el) {
+    const l = S.lists.find(x => x.id === el.dataset.id);
+    if (l.pinned) delete l.pinned; else l.pinned = true;
+    await saveList(l);
+  },
+  'list-up': el => moveList(el.dataset.id, -1),
+  'list-down': el => moveList(el.dataset.id, 1),
   // Desde Inicio: marcar una tarea como hecha, o abrir su lista.
   async 'agenda-toggle'(el) {
     const l = S.lists.find(x => x.id === el.dataset.list), i = l?.items.find(x => x.id === el.dataset.id);

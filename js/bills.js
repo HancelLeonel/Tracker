@@ -32,10 +32,12 @@ function pending() {
   const t = today();
   const items = [];
   for (const b of S.bills) {
-    if (b.active === false) continue;
-    for (const due of occurrences(b, b.start ?? '0000-01-01', addDays(t, LOOKAHEAD))) {
-      if (!b.paid?.[due]) items.push({ bill: b, due });
-    }
+    if (b?.active === false) continue;
+    try {
+      for (const due of occurrences(b, b.start ?? '0000-01-01', addDays(t, LOOKAHEAD))) {
+        if (!b.paid?.[due]) items.push({ bill: b, due });
+      }
+    } catch (err) { console.warn('Pago con datos dañados, se omite:', b?.title, err); } // una ficha rota no debe romper Finanzas
   }
   return items.sort((a, b) => a.due.localeCompare(b.due));
 }

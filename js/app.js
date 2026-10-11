@@ -1,7 +1,7 @@
-import { $ } from './util.js';
+import { $, toast } from './util.js';
 import { icon } from './icons.js';
 import { S, hooks, loadState, gcFiles, hasNormalCats } from './state.js';
-import { isOpen, openFile } from './ui.js';
+import { isOpen, openFile, applyFont } from './ui.js';
 import * as money from './money.js';
 import * as plan from './plan.js';
 import * as bills from './bills.js';
@@ -10,6 +10,7 @@ import * as purchases from './purchases.js';
 import * as habits from './habits.js';
 import * as lists from './lists.js';
 import * as home from './home.js';
+import * as inbox from './inbox.js';
 import * as pomodoro from './pomodoro.js';
 import * as notes from './notes.js';
 import * as data from './data.js';
@@ -20,7 +21,7 @@ const SUB_TITLES = { accounts: 'Finanzas', plan: 'Guía de transferencias', bill
 const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], plan: ['new-line', 'Nueva línea'], bills: ['new-bill', 'Nuevo pago'] };
 
 const TABS = [['home', 'Inicio', 'home'], ['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'],
-  ['pomodoro', 'Pomodoro', 'timer'], ['gym', 'Gimnasio', 'dumbbell'], ['notes', 'Notas', 'note'], ['data', 'Datos', 'data']];
+  ['pomodoro', 'Pomodoro', 'timer'], ['gym', 'Gimnasio', 'dumbbell'], ['notes', 'Notas', 'note'], ['data', 'Configuración', 'data']];
 // Secciones aún sin contenido: título (para la barra superior) y mensaje.
 const EMPTY = { gym: 'Gimnasio' };
 
@@ -47,6 +48,7 @@ function render() {
   if (S.tab === 'home') {
     top.innerHTML = topbar('Inicio');
     view.innerHTML = home.homeView();
+    home.restoreQuick();
   } else if (S.tab === 'money') {
     const alerts = bills.billsAlert();
     top.innerHTML = topbar(SUB_TITLES[S.sub], SUB_ACTION[S.sub]);
@@ -89,7 +91,7 @@ function render() {
     top.innerHTML = topbar('Compras', ['new-purchase', 'Nueva compra']);
     view.innerHTML = purchases.purchasesView();
   } else {
-    top.innerHTML = topbar('Datos');
+    top.innerHTML = topbar('Configuración');
     view.innerHTML = data.dataView();
   }
   menuOpen(document.body.classList.contains('menu-open'));
@@ -102,7 +104,7 @@ const actions = {
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
   'open-file': el => openFile(el.dataset.id),
-  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...pomodoro.actions, ...notes.actions, ...data.actions,
+  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...notes.actions, ...data.actions,
 };
 
 document.addEventListener('click', async e => {
@@ -145,7 +147,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') menuOpen(fal
 
 $('#file').addEventListener('change', async e => {
   const f = e.target.files[0];
-  if (f) { await data.onFilePicked(f); pomodoro.resume(); render(); }
+  if (f) { await data.onFilePicked(f); applyFont(S.settings.font); pomodoro.resume(); render(); }
 });
 
 // La actualización de la base de datos espera mientras otra ventana con la versión anterior siga abierta.
@@ -160,9 +162,27 @@ const fatal = (msg, err) => {
     <button class="btn primary" onclick="location.reload()">Reintentar</button></div>`;
 };
 
+// Lo que se comparte desde otra app («Compartir» → Tracker) llega por la URL (Web Share Target) y cae en la bandeja de Inicio.
+async function receiveShared() {
+  const q = new URLSearchParams(location.search);
+  const parts = [];
+  for (const k of ['title', 'text', 'url']) {
+    const v = (q.get(k) ?? '').trim();
+    if (v && !parts.some(p => p.includes(v))) parts.push(v); // Android suele repetir el enlace dentro del texto
+  }
+  if (!parts.length) return;
+  history.replaceState(null, '', location.pathname); // para que recargar no la guarde otra vez
+  if (await inbox.addQuick(parts.join('\n'))) {
+    S.tab = 'home';
+    render();
+    toast('Guardado en la bandeja de Inicio');
+  }
+}
+
 (async function init() {
   try {
     await loadState();
+    applyFont(S.settings.font);
     await gcFiles();
   } catch (err) {
     return fatal('No se pudo abrir el almacenamiento local.', err);
@@ -174,6 +194,8 @@ const fatal = (msg, err) => {
     console.error(err);
     return fatal('Tracker no pudo mostrar la pantalla.', err);
   }
+
+  await receiveShared();
 
   // Pide almacenamiento persistente para que Android no lo borre por falta de espacio.
   navigator.storage?.persist?.();

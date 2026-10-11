@@ -1,8 +1,10 @@
-import { esc, today, fmtDate, daysBetween } from './util.js';
-import { S } from './state.js';
+import { esc, today, fmtDate, daysBetween, money } from './util.js';
+import { S, totals } from './state.js';
 import { icon } from './icons.js';
 import { billsSummary } from './bills.js';
-import { todayTasks, dueMeta } from './lists.js';
+import { todayTasks, taskRow } from './lists.js';
+import { homeInfo } from './pomodoro.js';
+import { quickNoteForm, inboxSection, restoreFocus as restoreQuick } from './inbox.js';
 
 // Frases con autoría documentada (obras, discursos o tradición). Se evitaron las de atribución dudosa.
 export const QUOTES = [
@@ -76,30 +78,39 @@ function habitsTile() {
 // Tarjeta «Pagos»: vencidos en rojo, o el próximo por vencer, o al día.
 function billsTile() {
   const b = billsSummary();
+  const n = b.next ? daysBetween(today(), b.next.due) : null;
   let body;
-  if (!b.total) body = '<b class="tile-n muted">—</b><small>Sin pagos registrados</small>';
-  else if (b.overdue) body = `<b class="tile-n neg">${b.overdue}</b><small class="neg">${pl(b.overdue, 'pago vencido', 'pagos vencidos')}</small>`;
-  else if (b.next) {
-    const n = daysBetween(today(), b.next.due);
+  if (b.overdue) body = `<b class="tile-n neg">${b.overdue}</b><small class="neg">${pl(b.overdue, 'pago vencido', 'pagos vencidos')}</small>`;
+  else if (n !== null && n <= 3) { // solo se muestra lo que vence en los próximos 3 días (igual que el aviso de la pestaña Pagos)
     body = `<b class="tile-n tile-txt">${esc(b.next.bill.title)}</b><small>${n === 0 ? 'Vence hoy' : n === 1 ? 'Vence mañana' : `Vence el ${fmtDate(b.next.due)}`}</small>`;
-  } else body = '<b class="tile-n pos">Al día</b><small>Nada por vencer en 30 días</small>';
+  } else body = '<b class="tile-n muted">—</b><small>No hay pagos cercanos</small>';
   return `<button class="tile" data-act="home-bills"><span class="overline">Pagos</span>${body}</button>`;
+}
+
+// Tarjeta «Dinero»: el saldo neto de Finanzas, oculto de entrada en cada apertura (el ojo lo muestra).
+function moneyTile() {
+  if (!S.accounts.length) return '';
+  const hidden = S.hideMoney;
+  return `
+    <div class="tile tile-money">
+      <button class="tile-main" data-act="home-money"><span class="overline">Dinero</span>
+        <b class="tile-n tile-txt">${hidden ? 'Q ••••' : esc(money(totals().net))}</b></button>
+      <button class="eye" data-act="home-eye" aria-pressed="${!hidden}" aria-label="${hidden ? 'Mostrar' : 'Ocultar'} el dinero">${icon(hidden ? 'eyeoff' : 'eye')}</button>
+    </div>`;
+}
+
+// Tarjeta «Pomodoro»: los de hoy o, si está corriendo, el contador en vivo.
+function pomoTile() {
+  const p = homeInfo();
+  return `<button class="tile" data-act="tab" data-tab="pomodoro"><span class="overline">Pomodoro</span>
+    ${p.running ? `<b class="tile-n" data-pomo-clock>${p.clock}</b><small>${esc(p.phase)}</small>`
+      : `<b class="tile-n">${p.today}</b><small>${pl(p.today, 'pomodoro')} hoy</small>`}</button>`;
 }
 
 // «Tareas de hoy»: elementos de las listas con fecha límite de hoy o vencida; la casilla las marca como hechas.
 function tasksSection() {
   const all = todayTasks(), shown = all.slice(0, MAX_TASKS), extra = all.length - shown.length;
-  const rows = shown.map(({ list, item }) => {
-    const m = dueMeta(item);
-    return `
-      <div class="trow">
-        <button class="chk" data-act="agenda-toggle" data-list="${list.id}" data-id="${item.id}" aria-label="Marcar como hecha: ${esc(item.text)}"><span></span></button>
-        <button class="t-main" data-act="agenda-open" data-list="${list.id}">
-          <span class="t-text">${esc(item.text)}</span>
-          <small class="${m?.cls ?? 'muted'}">${m ? esc(m.text) + ' · ' : ''}${esc(list.name)}</small>
-        </button>
-      </div>`;
-  }).join('');
+  const rows = shown.map(({ list, item }) => taskRow(list, item)).join('');
   return `
     <section class="today">
       <h3 class="overline">Tareas de hoy${all.length ? ` <span class="count">${all.length}</span>` : ''}</h3>
@@ -124,13 +135,19 @@ export function homeView() {
         <blockquote><p>${esc(text)}</p><footer>${esc(author)}</footer></blockquote>
       </button>
       <button class="btn primary block quick-exp" data-act="new-exp">${icon('plus')} Nuevo gasto</button>
-      <div class="tiles">${safe(habitsTile)}${safe(billsTile)}</div>
+      ${safe(quickNoteForm)}
+      <div class="tiles">${safe(habitsTile)}${safe(billsTile)}${safe(moneyTile)}${safe(pomoTile)}</div>
+      ${safe(inboxSection)}
       ${safe(tasksSection)}
     </section>`;
 }
 
 // Tocar la frase muestra otra (no hay botón visible para mantener la pantalla limpia).
+export { restoreQuick };
+
 export const actions = {
   'home-quote': () => nextQuote(),
+  'home-eye': () => { S.hideMoney = !S.hideMoney; },
+  'home-money': () => { S.tab = 'money'; S.sub = 'accounts'; window.scrollTo(0, 0); },
   'home-bills': () => { S.tab = 'money'; S.sub = 'bills'; window.scrollTo(0, 0); },
 };

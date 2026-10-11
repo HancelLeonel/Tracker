@@ -117,7 +117,7 @@ async function finish(sound = true) {
 async function refresh(save = true) {
   if (running()) { startTick(); holdScreen(true); } else { stopTick(); holdScreen(false); }
   if (save) await saveSettings();
-  if (S.tab === 'pomodoro' && !$('#dlg[open]')) hooks.render(); else paint();
+  if ((S.tab === 'pomodoro' || S.tab === 'home') && !$('#dlg[open]')) hooks.render(); else paint();
 }
 
 // Al abrir la app (o importar un respaldo): si estaba corriendo, sigue; si terminó mientras estaba cerrada, avanza.
@@ -168,6 +168,11 @@ function exitFull() {
 // Salir con el gesto del sistema (atrás) también cierra el aviso negro.
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) exitFull(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') exitFull(); });
+
+// Resumen para Inicio: pomodoros de hoy y, si está corriendo, la fase y el tiempo (el reloj se actualiza solo con data-pomo-clock).
+export function homeInfo() {
+  return { today: doneToday(), running: running(), phase: PHASES[run().phase][0], clock: fmt(remaining()) };
+}
 
 // ---------- vista ----------
 export function pomodoroView() {

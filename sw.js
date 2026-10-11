@@ -1,6 +1,6 @@
 // Network-first con respaldo en caché: siempre trae la versión nueva si hay red
 // y sigue funcionando sin conexión. No hace falta versionar la caché a mano.
-const CACHE = 'tracker-v9';
+const CACHE = 'tracker-v10';
 const SHELL = [
   './',
   'index.html',
@@ -21,6 +21,7 @@ const SHELL = [
   'js/home.js',
   'js/pomodoro.js',
   'js/notes.js',
+  'js/inbox.js',
   'js/data.js',
   'manifest.webmanifest',
   'icons/icon.svg',
@@ -40,17 +41,37 @@ self.addEventListener('activate', e => {
   );
 });
 
+// Red primero (siempre la versión nueva), con copia guardada de respaldo. Si la apertura tarda más de 3 s y hay copia, la app abre con
+// ella y, mientras la red siga lenta (30 s), todo lo demás sale también de la copia para no mezclar versiones; en segundo plano se
+// vuelve a descargar para dejar lista la versión nueva.
+const SLOW_MS = 3000;
+let slowUntil = 0;
+
+async function fromNet(req) {
+  // «no-cache» revalida con el servidor: sin esto, la caché HTTP de GitHub Pages (10 min) puede mezclar módulos viejos y nuevos tras publicar.
+  const res = await fetch(req, { cache: 'no-cache' });
+  if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+  return res;
+}
+const fromCache = async req => (await caches.match(req)) ?? (req.mode === 'navigate' ? caches.match('index.html') : undefined);
+
+async function respond(req) {
+  if (Date.now() < slowUntil) {
+    const cached = await caches.match(req);
+    if (cached) { fromNet(req).catch(() => {}); return cached; }
+  }
+  const net = fromNet(req);
+  if (req.mode !== 'navigate') return net.catch(async () => (await fromCache(req)) ?? Response.error());
+  net.catch(() => {}); // si la copia ya respondió, un fallo posterior de la red no debe quedar sin capturar
+  const slow = new Promise(resolve => setTimeout(async () => {
+    const c = await fromCache(req);
+    if (c) { slowUntil = Date.now() + 30000; resolve(c); }
+  }, SLOW_MS));
+  try { return await Promise.race([net, slow]); } catch { return (await fromCache(req)) ?? Response.error(); }
+}
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
-  e.respondWith(
-    // «no-cache» revalida con el servidor: sin esto, la caché HTTP de GitHub Pages (10 min) puede mezclar módulos viejos y nuevos tras publicar.
-    fetch(req, { cache: 'no-cache' })
-      .then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy));
-        return res;
-      })
-      .catch(() => caches.match(req).then(r => r || caches.match('index.html')))
-  );
+  e.respondWith(respond(req));
 });
