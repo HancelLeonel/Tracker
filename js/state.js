@@ -1,10 +1,11 @@
 import * as db from './db.js';
 import { r2, sum, uid, today, byName } from './util.js';
+import { DEFAULT_EXERCISES, exKey } from './catalogo.js';
 
 export const S = {
   tab: 'home',     // pantalla predeterminada: Inicio
   sub: 'accounts', // accounts | plan | bills | reports
-  habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [],
+  habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [], exercises: [],
   files: new Map(), // id -> { mime, name, size } (el contenido se lee bajo demanda)
   settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {}, listSort: 'recent', font: 'system' },
   report: { kind: 'q', ref: today() },
@@ -12,6 +13,7 @@ export const S = {
   noteGroup: null,     // grupo de notas abierto (null = vista general)
   noteSearch: '', noteTag: '', noteLimit: 40,
   gymSub: 'train',     // train | routines | history | progress
+  gymQuery: '',        // búsqueda en el catálogo de ejercicios
   gymLimit: 30,        // entrenamientos que muestra el historial
   listSub: 'lists',    // lists | templates
   listId: null,        // lista abierta (null = vista general)
@@ -46,8 +48,8 @@ export function sortedMoves() {
 export const DEFAULT_KINDS = ['Comida', 'Transporte', 'Servicios', 'Suscripciones', 'Salud', 'Ocio', 'Hogar', 'Otros'];
 
 export async function loadState() {
-  const [habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, files, meta] =
-    await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'files', 'meta'].map(db.getAll));
+  const [habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises, files, meta] =
+    await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'exercises', 'files', 'meta'].map(db.getAll));
   bump();
   S.habits = habits;
   S.accounts = accounts.map(a => ({ type: 'normal', ...a }));
@@ -64,6 +66,7 @@ export async function loadState() {
   S.inbox = inbox.sort((a, b) => b.t - a.t);
   S.routines = routines.sort(byName);
   S.workouts = workouts;
+  S.exercises = exercises.sort(byName);
   if (!S.noteGroups.some(g => g.id === S.noteGroup)) S.noteGroup = null;
   if (!S.lists.some(l => l.id === S.listId)) S.listId = null;
   S.files = new Map(files.map(f => [f.id, { mime: f.mime, name: f.name, size: f.size }]));
@@ -74,6 +77,7 @@ export async function loadState() {
     await saveSettings();
   }
   await archiveOldCompletedLists();
+  await seedExercises();
 }
 
 // Antes de existir «Finalizar», las listas con todo marcado se veían aparte como «Completadas». Esa vez se archivan solas
@@ -84,6 +88,26 @@ async function archiveOldCompletedLists() {
   done.forEach(l => { l.archived = l.created; });
   S.settings.listsArchiveMigrated = true;
   await db.commit({ put: { lists: done, meta: [{ k: 'settings', v: S.settings }] } });
+}
+
+// Catálogo de ejercicios: la primera vez se siembra con los de `DEFAULT_EXERCISES` y con los nombres que ya usaban las rutinas y el
+// historial (de antes del catálogo), para no perder nada. Se hace una sola vez (marca `gymCatalogSeeded`): después, lo que se
+// quite del catálogo no vuelve. Al importar un respaldo sin la marca (hecho antes del catálogo) se siembra de nuevo.
+async function seedExercises() {
+  if (S.settings.gymCatalogSeeded) return;
+  const have = new Set(S.exercises.map(e => exKey(e.name))), add = [];
+  const push = (name, group) => {
+    const k = exKey(name);
+    if (!k || have.has(k)) return;
+    have.add(k);
+    add.push({ id: uid(), name: String(name).trim().replace(/\s+/g, ' ').slice(0, 50), group });
+  };
+  DEFAULT_EXERCISES.forEach(([group, names]) => names.forEach(n => push(n, group)));
+  S.routines.forEach(r => r.exercises?.forEach(e => push(e.name, 'Otro')));
+  S.workouts.forEach(w => w.exercises?.forEach(e => push(e.name, 'Otro')));
+  S.exercises = [...S.exercises, ...add].sort(byName);
+  S.settings.gymCatalogSeeded = true;
+  await db.commit({ put: { exercises: add, meta: [{ k: 'settings', v: S.settings }] } });
 }
 
 // Los hábitos guardados antes de poder ordenarlos no tienen `order`: se les asigna uno (alfabético, una sola vez).
@@ -254,6 +278,7 @@ export const saveTemplate = t => { S.templates.sort(byName); return db.commit({ 
 export const saveNoteGroup = g => { S.noteGroups.sort(byName); return db.commit({ put: { noteGroups: [g] } }); };
 export const saveRoutine = r => { S.routines.sort(byName); return db.commit({ put: { routines: [r] } }); };
 export const saveWorkout = w => db.commit({ put: { workouts: [w] } });
+export const saveExercise = e => { S.exercises.sort(byName); return db.commit({ put: { exercises: [e] } }); };
 export const saveInbox = q => db.commit({ put: { inbox: [q] } });
 export const saveNote = n => db.commit({ put: { notes: [n] } });
 // Una lista está completa cuando todos sus elementos (sin contar encabezados) están marcados.

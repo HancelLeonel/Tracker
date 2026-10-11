@@ -137,7 +137,6 @@ export function homeView() {
       <button class="home-quote" data-act="home-quote" aria-label="Mostrar otra frase">
         <blockquote><p>${esc(text)}</p><footer>${esc(author)}</footer></blockquote>
       </button>
-      <button class="btn primary block quick-exp" data-act="new-exp">${icon('plus')} Nuevo gasto</button>
       ${safe(quickNoteForm)}
       <div class="tiles">${safe(habitsTile)}${safe(billsTile)}${safe(gymTile)}${moneyActions()}</div>
       ${safe(inboxSection)}

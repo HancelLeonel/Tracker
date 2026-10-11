@@ -1,6 +1,6 @@
 // Network-first con respaldo en caché: siempre trae la versión nueva si hay red
 // y sigue funcionando sin conexión. No hace falta versionar la caché a mano.
-const CACHE = 'tracker-v11';
+const CACHE = 'tracker-v12';
 const SHELL = [
   './',
   'index.html',
@@ -22,6 +22,7 @@ const SHELL = [
   'js/aviso.js',
   'js/pomodoro.js',
   'js/gym.js',
+  'js/catalogo.js',
   'js/notes.js',
   'js/inbox.js',
   'js/data.js',

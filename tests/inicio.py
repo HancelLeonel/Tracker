@@ -80,8 +80,8 @@ try:
 
         # ---- estado vacío de cada parte
         check('sin datos: hábitos, pagos y tareas lo dicen con calma', 'Crea tu primer hábito' in home_txt() and 'No hay pagos cercanos' in home_txt() and 'Nada pendiente para hoy' in home_txt(), home_txt())
-        check('el botón de gasto rápido está siempre visible', q.locator('.quick-exp').is_visible())
-        q.click('.quick-exp'); q.wait_for_timeout(120)
+        check('Inicio ya no tiene el botón grande de Nuevo gasto (el gasto rápido está en la tarjeta de botones)', q.locator('.quick-exp').count()==0 and q.locator('.tile-acts [data-act=new-exp]').is_visible())
+        q.click('.tile-acts [data-act=new-exp]'); q.wait_for_timeout(120)
         check('gasto rápido sin cuentas avisa en vez de abrir un formulario roto', not q.evaluate("document.querySelector('#dlg').open") and 'cuenta' in q.locator('#toast').inner_text())
 
         # ---- hábitos de hoy
@@ -145,7 +145,7 @@ try:
         # ---- gasto rápido con una cuenta
         seed("""const a = { id: 'a1', name: 'Efectivo', type: 'normal', limit: 0, order: 1, cats: [{ id: 'c1', name: 'Comida', balance: 500 }] }; st.S.accounts.push(a); await st.saveAccount(a);""")
         q0 = q.locator('.home-quote p').inner_text()
-        q.click('.quick-exp'); q.wait_for_timeout(150)
+        q.click('.tile-acts [data-act=new-exp]'); q.wait_for_timeout(150)
         check('gasto rápido abre el formulario de gasto sobre Inicio', q.evaluate("document.querySelector('#dlg').open") and 'Nuevo gasto' in q.locator('#dlg h2').inner_text())
         check('el formulario es una hoja inferior', q.evaluate("(() => { const r = document.querySelector('#dlg').getBoundingClientRect(); return Math.abs(r.bottom - innerHeight) < 2 && r.width >= innerWidth - 1; })()"))
         q.locator('#dlg [name=title]').fill('Café'); q.locator('#dlg [name=amount]').fill('25')

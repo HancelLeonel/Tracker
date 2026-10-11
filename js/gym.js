@@ -1,6 +1,7 @@
 import * as db from './db.js';
 import { $, esc, uid, today, addDays, parseYmd, daysBetween, fmtDate, fmtDateY, norm, r2, toast } from './util.js';
-import { S, hooks, saveSettings, saveRoutine, saveWorkout } from './state.js';
+import { S, hooks, saveSettings, saveRoutine, saveWorkout, saveExercise } from './state.js';
+import { GROUPS, exKey } from './catalogo.js';
 import { modal } from './ui.js';
 import { icon } from './icons.js';
 import { COLORS } from './habits.js';
@@ -16,7 +17,7 @@ const SUBS = [['train', 'Entrenar'], ['routines', 'Rutinas'], ['history', 'Histo
 
 const pl = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 const fmtN = n => String(+Number(n).toFixed(2));
-const key = name => norm(name).replace(/\s+/g, ' ').trim(); // un mismo ejercicio sin importar tildes ni mayúsculas
+const key = exKey; // un mismo ejercicio sin importar tildes ni mayúsculas
 const num = (v, lo, hi, d) => {
   const n = typeof v === 'string' && !v.trim() ? NaN : Number(v);
   return v != null && typeof v !== 'boolean' && Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
@@ -138,6 +139,12 @@ export function sanitizeRoutines(list) {
     };
   });
 }
+export function sanitizeExercises(list) {
+  const seen = new Set();
+  return list.filter(e => typeof e?.name === 'string' && e.name.trim()).map(e => ({
+    id: String(e.id ?? uid()), name: e.name.trim().replace(/\s+/g, ' ').slice(0, 50), group: GROUPS.includes(e.group) ? e.group : 'Otro',
+  })).filter(e => !seen.has(key(e.name)) && seen.add(key(e.name))); // sin nombres repetidos
+}
 export function sanitizeWorkouts(list) {
   const out = list.map(w => {
     if (!w?.id || typeof w.name !== 'string' || !Array.isArray(w.exercises)) throw new Error('Hay un entrenamiento inválido en el archivo.');
@@ -175,6 +182,7 @@ export function homeInfo(n = 7) {
 
 // ---------- vista ----------
 export function gymView() {
+  if (S.gymSub === 'catalog') return catalogView();
   const sub = SUBS.some(s => s[0] === S.gymSub) ? S.gymSub : 'train';
   const seg = `<div class="seg" role="tablist">${SUBS.map(([k, name]) =>
     `<button class="${k === sub ? 'on' : ''}" data-act="gym-sub" data-sub="${k}">${name}</button>`).join('')}</div>`;
@@ -284,12 +292,97 @@ function exerciseCard(w, e, last, c) {
 }
 
 function routinesView() {
+  const cat = `<button class="btn block" data-act="gym-catalog">${icon('list')} Catálogo de ejercicios · ${S.exercises.length}</button>`;
   if (!S.routines.length) {
-    return `<div class="card empty"><p>Aún no tienes rutinas.</p>
-      <small>Escribe los ejercicios de un día de entrenamiento (por ejemplo «Pecho y tríceps») y empiézalo cuando vayas al gimnasio.</small>
+    return `${cat}<div class="card empty"><p>Aún no tienes rutinas.</p>
+      <small>Elige del catálogo los ejercicios de un día de entrenamiento (por ejemplo «Pecho y tríceps») y empiézalo cuando vayas al gimnasio.</small>
       <button class="btn primary" data-act="new-routine">Crear la primera</button></div>`;
   }
-  return S.routines.map(routineCard).join('');
+  return cat + S.routines.map(routineCard).join('');
+}
+
+// ---------- catálogo de ejercicios ----------
+const routinesWith = name => S.routines.filter(r => r.exercises.some(e => key(e.name) === key(name)));
+
+// <select> con los ejercicios del catálogo agrupados por músculo. Si el nombre actual ya no está en el catálogo (un respaldo, una
+// rutina vieja) se ofrece igual, marcado, para no perderlo al guardar.
+function exerciseSelect(name, current = '', attrs = '') {
+  const groups = GROUPS.map(g => [g, S.exercises.filter(e => e.group === g)]).filter(x => x[1].length);
+  const inCatalog = !current || S.exercises.some(e => key(e.name) === key(current));
+  return `<select name="${name}" ${attrs}>
+    <option value="">Elige un ejercicio…</option>
+    ${inCatalog ? '' : `<option value="${esc(current)}" selected>${esc(current)} (fuera del catálogo)</option>`}
+    ${groups.map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(e =>
+      `<option value="${esc(e.name)}" ${key(e.name) === key(current) ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</optgroup>`).join('')}
+  </select>`;
+}
+
+function catalogList() {
+  const q = norm(S.gymQuery).trim();
+  const used = new Map();
+  S.routines.forEach(r => new Set(r.exercises.map(e => key(e.name))).forEach(k => used.set(k, (used.get(k) ?? 0) + 1)));
+  const out = GROUPS.map(g => [g, S.exercises.filter(e => e.group === g && (!q || norm(e.name).includes(q)))]).filter(x => x[1].length);
+  if (!out.length) return `<div class="card empty"><p>${q ? 'Ningún ejercicio coincide.' : 'El catálogo está vacío.'}</p><small>${q ? 'Prueba con otra palabra o agrégalo con el +.' : 'Agrega ejercicios con el + de arriba.'}</small></div>`;
+  return out.map(([g, list]) => `
+    <section class="today"><h3 class="overline">${esc(g)} <span class="count">${list.length}</span></h3>
+      <div class="trows card-rows">${list.map(e => {
+        const n = used.get(key(e.name)) ?? 0;
+        return `<button class="exrow" data-act="edit-ex" data-id="${e.id}"><span class="xr-t">${esc(e.name)}</span>${n ? `<small>${pl(n, 'rutina')}</small>` : ''}</button>`;
+      }).join('')}</div></section>`).join('');
+}
+
+function catalogView() {
+  return `
+    <input class="search" id="gsearch" type="search" placeholder="Buscar ejercicio…" value="${esc(S.gymQuery)}" aria-label="Buscar ejercicio" autocomplete="off">
+    <div id="gcat" class="catalog">${catalogList()}</div>`;
+}
+export function onSearch(v) {
+  S.gymQuery = v;
+  $('#gcat').innerHTML = catalogList();
+}
+
+// Cambiar el nombre de un ejercicio lo cambia también en las rutinas y el historial (se guardan por nombre).
+async function renameEverywhere(old, neu) {
+  const k = key(old), rs = [], ws = [];
+  const fix = (list, out) => list.forEach(x => {
+    let hit = false;
+    x.exercises.forEach(e => { if (key(e.name) === k) { e.name = neu; hit = true; } });
+    if (hit) out.push(x);
+  });
+  fix(S.routines, rs);
+  fix(S.workouts, ws);
+  if (rs.length || ws.length) await db.commit({ put: { routines: rs, workouts: ws } });
+}
+
+// `then(nombre)` se llama al guardar uno nuevo (por ejemplo para volver al formulario que lo pidió).
+function catalogForm(ex, then) {
+  const used = ex ? routinesWith(ex.name) : [];
+  modal(ex ? 'Editar ejercicio' : 'Nuevo ejercicio', `
+    <label>Nombre <input name="name" required maxlength="50" value="${esc(ex?.name ?? '')}" placeholder="Ej. Press de banca" autocomplete="off"></label>
+    <label>Grupo muscular
+      <select name="group">${GROUPS.map(g => `<option value="${esc(g)}" ${g === (ex?.group ?? 'Otro') ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>
+    </label>
+    ${ex ? '<small class="muted">Si cambias el nombre, también cambia en tus rutinas y en el historial.</small>' : ''}
+    ${used.length ? `<small class="muted">Está en ${used.length === 1 ? 'la rutina' : 'las rutinas'}: ${used.map(r => esc(r.name)).join(', ')}. Quítalo de ${used.length === 1 ? 'ella' : 'ellas'} para poder eliminarlo.</small>` : ''}`, {
+    async onSubmit(fd) {
+      const name = fd.get('name').trim().replace(/\s+/g, ' ');
+      if (!name) return false;
+      if (S.exercises.some(e => e !== ex && key(e.name) === key(name))) { toast('Ya existe un ejercicio con ese nombre'); return false; }
+      const group = GROUPS.includes(fd.get('group')) ? fd.get('group') : 'Otro';
+      if (ex) {
+        const old = ex.name;
+        Object.assign(ex, { name, group });
+        if (old !== name) await renameEverywhere(old, name);
+      } else S.exercises.push(ex = { id: uid(), name, group });
+      await saveExercise(ex);
+      if (then) setTimeout(() => then(ex.name), 0); // después de que este diálogo se cierre
+    },
+    onDelete: ex && !used.length ? async () => {
+      S.exercises = S.exercises.filter(x => x.id !== ex.id);
+      await db.commit({ remove: { exercises: [ex.id] } });
+    } : undefined,
+    confirmText: '¿Eliminar este ejercicio del catálogo? Tu historial lo conserva.',
+  });
 }
 
 function workoutCard(w) {
@@ -362,35 +455,68 @@ function workoutDetail(w) {
 }
 
 // ---------- formularios ----------
-const RE = /^(.*?)\s+(\d{1,2})\s*[x×*]\s*(\d{1,3})(?:\s+@\s*(\d+(?:[.,]\d+)?))?(?:\s+\/\s*(\d{1,4}))?$/i;
-// Una línea por ejercicio: «Press de banca 4x10 @60 /90» = 4 series de 10 con 60 de peso y 90 s de descanso (peso y descanso opcionales).
-const parseExercises = text => text.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
-  const m = l.match(RE);
-  if (!m || !m[1].trim()) return { name: l.slice(0, 50), sets: 3, reps: 10, weight: 0 };
-  return {
-    name: m[1].trim().slice(0, 50), sets: Math.round(num(m[2], 1, 20, 3)), reps: Math.round(num(m[3], 0, 999, 10)),
-    weight: m[4] ? r2(num(m[4].replace(',', '.'), 0, 9999, 0)) : 0, ...(m[5] != null ? { rest: Math.round(num(m[5], 0, 600, 0)) } : {}),
-  };
-});
-const exercisesText = list => list.map(e => `${e.name} ${e.sets}x${e.reps}${e.weight > 0 ? ` @${fmtN(e.weight)}` : ''}${e.rest != null ? ` /${e.rest}` : ''}`).join('\n');
-
+// Editor de rutina por filas: cada ejercicio se elige del catálogo y lleva series, repeticiones, peso y descanso (opcionales los dos últimos).
 // `seed` (solo al crear) rellena el formulario, por ejemplo con un entrenamiento ya hecho.
 function routineForm(r, seed) {
-  const src = r ?? seed, color = src?.color ?? 'mauve';
+  const src = r ?? seed, color = src?.color ?? 'mauve', unit = cfg().unit;
+  const blank = () => ({ name: '', sets: 3, reps: 10, weight: 0 });
+  const rows = (src?.exercises?.length ? src.exercises : [blank()]).map(e => ({ ...e }));
   modal(r ? 'Editar rutina' : 'Nueva rutina', `
     <label>Nombre <input name="name" required maxlength="40" value="${esc(src?.name ?? '')}" placeholder="Ej. Pecho y tríceps, Pierna…"></label>
-    <label>Ejercicios (uno por línea)
-      <textarea name="exercises" rows="8" required placeholder="Press de banca 4x10 @60&#10;Fondos 3x12&#10;Sentadilla 4x8 @80 /120">${esc(exercisesText(src?.exercises ?? []))}</textarea>
-      <small>Nombre, series × repeticiones y, si quieres, @peso y /descanso en segundos. Sin series ni repeticiones se usa 3×10.</small>
-    </label>
+    <div><small class="muted">Ejercicios</small>
+      ${S.exercises.length ? '' : '<p class="muted note">Tu catálogo está vacío: agrega ejercicios en Rutinas › Catálogo de ejercicios.</p>'}
+      <div id="rx" class="fields-ed"></div>
+      <button type="button" class="btn sm" id="rx-add">${icon('plus')} Agregar ejercicio</button></div>
     <div><small class="muted">Color</small>
       <div class="swatches" role="radiogroup" aria-label="Color">
         ${COLORS.map(c => `<label><input type="radio" name="color" value="${c}" ${c === color ? 'checked' : ''}><span style="--c:var(--${c})"></span></label>`).join('')}
       </div>
     </div>`, {
+    afterOpen(form) {
+      const box = form.querySelector('#rx');
+      const paint = () => {
+        box.innerHTML = rows.map((e, i) => `
+          <div class="frow rx" data-i="${i}">
+            ${exerciseSelect('ex', e.name, `required data-k="name" aria-label="Ejercicio ${i + 1}"`)}
+            <div class="rx-nums">
+              <label>Series <input data-k="sets" type="number" inputmode="numeric" min="1" max="20" required value="${e.sets}"></label>
+              <label>Reps <input data-k="reps" type="number" inputmode="numeric" min="0" max="999" required value="${e.reps}"></label>
+              <label>Peso (${unit}) <input data-k="weight" type="number" inputmode="decimal" step="any" min="0" max="9999" placeholder="0" value="${e.weight ? fmtN(e.weight) : ''}"></label>
+              <label>Desc. (s) <input data-k="rest" type="number" inputmode="numeric" min="0" max="600" placeholder="${cfg().rest}" value="${e.rest ?? ''}"></label>
+            </div>
+            <div class="frow-tools"><span class="spacer"></span>
+              <button type="button" class="icon sm" data-mv="-1" aria-label="Subir ejercicio ${i + 1}" ${i === 0 ? 'disabled' : ''}>${icon('up')}</button>
+              <button type="button" class="icon sm" data-mv="1" aria-label="Bajar ejercicio ${i + 1}" ${i === rows.length - 1 ? 'disabled' : ''}>${icon('down')}</button>
+              <button type="button" class="icon sm" data-rm aria-label="Quitar ejercicio ${i + 1}">${icon('close')}</button>
+            </div>
+          </div>`).join('');
+      };
+      const sync = e => {
+        const k = e.target.dataset.k, i = +e.target.closest('.rx')?.dataset.i;
+        if (!k || Number.isNaN(i)) return;
+        const row = rows[i], v = e.target.value;
+        if (k === 'name') row.name = v;
+        else if (k === 'rest') { if (v === '') delete row.rest; else row.rest = Math.round(num(v, 0, 600, 0)); }
+        else if (k === 'weight') row.weight = r2(num(v, 0, 9999, 0));
+        else row[k] = Math.round(num(v, k === 'sets' ? 1 : 0, k === 'sets' ? 20 : 999, row[k]));
+      };
+      box.addEventListener('input', sync);
+      box.addEventListener('change', sync);
+      box.addEventListener('click', e => {
+        const row = e.target.closest('.rx'), b = e.target.closest('button');
+        if (!row || !b) return;
+        const i = +row.dataset.i;
+        if (b.dataset.mv) {
+          const j = i + +b.dataset.mv;
+          if (rows[j]) { [rows[i], rows[j]] = [rows[j], rows[i]]; paint(); }
+        } else if ('rm' in b.dataset) { rows.splice(i, 1); paint(); }
+      });
+      form.querySelector('#rx-add').onclick = () => { rows.push(blank()); paint(); box.querySelector('.rx:last-child select')?.focus(); };
+      paint();
+    },
     async onSubmit(fd) {
-      const exercises = parseExercises(fd.get('exercises'));
-      if (!exercises.length) return false;
+      if (!rows.length || rows.some(e => !e.name)) { toast('Elige un ejercicio en cada fila'); return false; }
+      const exercises = rows.map(e => ({ name: e.name, sets: e.sets, reps: e.reps, weight: e.weight || 0, ...(e.rest != null ? { rest: e.rest } : {}) }));
       const data = { name: fd.get('name').trim(), color: fd.get('color'), exercises };
       if (r) Object.assign(r, data); else S.routines.push(r = { id: uid(), ...data });
       await saveRoutine(r);
@@ -421,14 +547,6 @@ function configForm() {
   });
 }
 
-// Nombres de ejercicios conocidos (rutinas e historial) para sugerirlos al escribir.
-function knownNames() {
-  const seen = new Map();
-  S.routines.forEach(r => r.exercises.forEach(e => seen.set(key(e.name), e.name)));
-  progressMap().forEach((p, k) => seen.set(k, p.name));
-  return [...seen.values()].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
-}
-
 function newExercise(e, prog) {
   const last = prog.get(key(e.name))?.sessions.at(-1)?.sets ?? [];
   return {
@@ -437,18 +555,19 @@ function newExercise(e, prog) {
   };
 }
 
-function addExerciseForm(w) {
+function addExerciseForm(w, preset = '') {
   modal('Agregar ejercicio', `
-    <label>Nombre <input name="name" required maxlength="50" list="gym-names" autocomplete="off"></label>
-    <datalist id="gym-names">${knownNames().map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
+    <label>Ejercicio ${exerciseSelect('name', preset, 'required')}</label>
     <div class="two">
       <label>Series <input name="sets" type="number" inputmode="numeric" min="1" max="20" required value="3"></label>
       <label>Repeticiones <input name="reps" type="number" inputmode="numeric" min="0" max="999" required value="10"></label>
     </div>
-    <small class="muted">El peso se completa con el de la última vez que hiciste este ejercicio.</small>`, {
+    <small class="muted">El peso se completa con el de la última vez que hiciste este ejercicio.</small>
+    <button type="button" class="btn sm" id="new-ex">${icon('plus')} Crear un ejercicio nuevo en el catálogo</button>`, {
     submit: 'Agregar',
+    afterOpen: f => { f.querySelector('#new-ex').onclick = () => catalogForm(null, name => addExerciseForm(w, name)); },
     async onSubmit(fd) {
-      const name = fd.get('name').trim();
+      const name = fd.get('name');
       if (!name) return false;
       w.exercises.push(newExercise({ name, sets: Math.round(num(fd.get('sets'), 1, 20, 3)), reps: Math.round(num(fd.get('reps'), 0, 999, 10)), weight: 0 }, progressMap()));
       await saveWorkout(w);
@@ -458,13 +577,13 @@ function addExerciseForm(w) {
 
 function exerciseOptions(w, e) {
   modal('Ejercicio', `
-    <label>Nombre <input name="name" required maxlength="50" value="${esc(e.name)}"></label>
+    <label>Ejercicio ${exerciseSelect('name', e.name, 'required')}</label>
     <label>Series <input name="sets" type="number" inputmode="numeric" min="1" max="20" required value="${e.sets.length}"></label>
     <label>Descanso entre series (segundos)
       <input name="rest" type="number" inputmode="numeric" min="0" max="600" placeholder="${cfg().rest} (el predeterminado)" value="${e.rest ?? ''}">
     </label>`, {
     async onSubmit(fd) {
-      const name = fd.get('name').trim();
+      const name = fd.get('name');
       if (!name) return false;
       e.name = name;
       const rest = fd.get('rest').trim();
@@ -520,6 +639,9 @@ export const actions = {
   'gym-sub': el => { S.gymSub = el.dataset.sub; S.gymLimit = 30; },
   'gym-more': () => { S.gymLimit += 30; },
   'gym-cfg': () => configForm(),
+  'gym-catalog': () => { S.gymSub = 'catalog'; S.gymQuery = ''; window.scrollTo(0, 0); },
+  'new-ex': () => catalogForm(null),
+  'edit-ex': el => catalogForm(S.exercises.find(x => x.id === el.dataset.id)),
   'new-routine': () => { S.gymSub = 'routines'; routineForm(); },
   'edit-routine': el => routineForm(S.routines.find(r => r.id === el.dataset.id)),
   'start-routine': el => startWorkout(S.routines.find(r => r.id === el.dataset.id)),

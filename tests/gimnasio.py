@@ -47,13 +47,22 @@ try:
             if weight is not None: row.locator('input').nth(0).fill(str(weight))
             if reps is not None: row.locator('input').nth(1).fill(str(reps))
             row.locator('.set-chk').click(); page.wait_for_timeout(80)
-        def routine(name, lines):
-            page.click('[data-act=new-routine] >> nth=0'); dlg.locator('[name=name]').fill(name); dlg.locator('[name=exercises]').fill(lines); save()
+        def routine(name, exs):  # exs: (ejercicio del catálogo, series, repeticiones, peso, descanso)
+            page.click('[data-act=new-routine] >> nth=0'); dlg.locator('[name=name]').fill(name)
+            for i, (ex, sets, reps, weight, rest) in enumerate(exs):
+                if i: dlg.locator('#rx-add').click()
+                row = dlg.locator('.rx').nth(i)
+                row.locator('select').select_option(ex)
+                row.locator('[data-k=sets]').fill(str(sets)); row.locator('[data-k=reps]').fill(str(reps))
+                if weight: row.locator('[data-k=weight]').fill(str(weight))
+                if rest is not None: row.locator('[data-k=rest]').fill(str(rest))
+            save()
+        rx_rows = lambda: dlg.locator('.rx').evaluate_all("l => l.map(r => [r.querySelector('select').value, ...[...r.querySelectorAll('input')].map(i => i.value)])")
 
         # ---- base v7 y viewport que deja subir la hoja con el teclado
         v = page.evaluate("""async () => { const db = await new Promise(r => { const q = indexedDB.open('mi-quincena'); q.onsuccess = () => r(q.result); });
           return { v: db.version, s: [...db.objectStoreNames] }; }""")
-        check('la base es v7 y tiene los almacenes routines y workouts', v['v']==7 and 'routines' in v['s'] and 'workouts' in v['s'], v)
+        check('la base es v8 y tiene los almacenes routines, workouts y exercises', v['v']==8 and all(x in v['s'] for x in ('routines','workouts','exercises')), v)
         check('el viewport usa interactive-widget=resizes-content (el teclado no tapa las hojas)', 'interactive-widget=resizes-content' in page.locator('meta[name=viewport]').get_attribute('content'))
 
         # ---- vacío
@@ -72,14 +81,14 @@ try:
 
         # ---- rutinas
         gsub('routines'); check('con la sección Rutinas el + de la barra crea rutinas', page.locator('#topbar [data-act=new-routine]').count()==1)
-        routine('Pecho', 'Press de banca 4x10 @60 /45\nFondos 3x12\nCurl de bíceps')
+        routine('Pecho', [('Press de banca', 4, 10, 60, 45), ('Fondos en paralelas', 3, 12, None, None), ('Curl con barra', 3, 10, None, None)])
         c = page.locator('.habit').first.inner_text()
         check('tarjeta de rutina: 3 ejercicios y 10 series', 'Pecho' in c and '3 ejercicios' in c and '10 series' in c and 'Press de banca' in c, c)
         page.click('[data-act=edit-routine]')
-        check('al editar, el texto se normaliza', dlg.locator('[name=exercises]').input_value()=='Press de banca 4x10 @60 /45\nFondos 3x12\nCurl de bíceps 3x10', dlg.locator('[name=exercises]').input_value())
+        check('al editar, cada fila trae su ejercicio, series, repeticiones, peso y descanso', rx_rows()==[['Press de banca','4','10','60','45'],['Fondos en paralelas','3','12','',''],['Curl con barra','3','10','','']], rx_rows())
         dlg.locator('#cancel').click(); page.wait_for_timeout(80)
-        page.click('[data-act=new-routine] >> nth=0'); dlg.locator('[name=name]').fill('Vacía'); dlg.locator('[name=exercises]').fill('   \n  '); dlg.locator('button.primary').click(); page.wait_for_timeout(100)
-        check('una rutina sin ejercicios no se guarda (el diálogo sigue abierto)', page.evaluate("document.querySelector('#dlg').open") and page.locator('.habit').count()==1)
+        page.click('[data-act=new-routine] >> nth=0'); dlg.locator('[name=name]').fill('Vacía'); dlg.locator('button.primary').click(); page.wait_for_timeout(100)
+        check('una rutina con una fila sin ejercicio elegido no se guarda (el diálogo sigue abierto)', page.evaluate("document.querySelector('#dlg').open") and page.locator('.habit').count()==1)
         dlg.locator('#cancel').click(); page.wait_for_timeout(80)
 
         # ---- empezar: se copia la rutina
@@ -119,14 +128,14 @@ try:
         card(2).locator('[data-act=gym-add-set]').click(); page.wait_for_timeout(80)
         check('«+ Serie» agrega una serie copiando la anterior', rows(2).count()==4 and rows(2).nth(3).locator('input').evaluate_all('l => l.map(i => i.value)')==rows(2).nth(2).locator('input').evaluate_all('l => l.map(i => i.value)'), rows(2).count())
         card(2).locator('[data-act=gym-ex-opts]').click()
-        dlg.locator('[name=name]').fill('Curl con barra'); dlg.locator('[name=sets]').fill('2'); dlg.locator('[name=rest]').fill('0'); save()
-        check('opciones: renombrar, bajar a 2 series y sin descanso', page.locator('.gx-name').nth(2).inner_text()=='Curl con barra' and rows(2).count()==2)
+        dlg.locator('[name=name]').select_option('Curl martillo'); dlg.locator('[name=sets]').fill('2'); dlg.locator('[name=rest]').fill('0'); save()
+        check('opciones: renombrar, bajar a 2 series y sin descanso', page.locator('.gx-name').nth(2).inner_text()=='Curl martillo' and rows(2).count()==2)
         page.click('[data-act=gym-rest-skip]'); page.wait_for_timeout(60)
         mark(2, 1); check('con descanso 0 no empieza el descanso', rest() is None, rest())
         page.click('[data-act=gym-add-ex]')
-        check('el formulario de ejercicio sugiere los nombres conocidos', dlg.locator('#gym-names option').count()>=3)
-        dlg.locator('[name=name]').fill('Press inclinado'); dlg.locator('[name=sets]').fill('2'); dlg.locator('[name=reps]').fill('12'); save()
-        check('agregar un ejercicio al entrenamiento', page.locator('.gx').count()==4 and page.locator('.gx-name').nth(3).inner_text()=='Press inclinado' and rows(3).count()==2)
+        check('el ejercicio se elige del catálogo (lista, sin texto libre)', dlg.locator('select[name=name] option').count()>=60 and dlg.locator('input[name=name]').count()==0)
+        dlg.locator('[name=name]').select_option('Press de banca inclinado'); dlg.locator('[name=sets]').fill('2'); dlg.locator('[name=reps]').fill('12'); save()
+        check('agregar un ejercicio al entrenamiento', page.locator('.gx').count()==4 and page.locator('.gx-name').nth(3).inner_text()=='Press de banca inclinado' and rows(3).count()==2)
         card(3).locator('[data-act=gym-ex-opts]').click(); dlg.locator('#del').click(); page.wait_for_timeout(120)
         check('quitar un ejercicio', page.locator('.gx').count()==3)
 
@@ -166,7 +175,7 @@ try:
         gsub('history'); page.locator('.list-card').first.click(); page.wait_for_timeout(100)
         check('detalle del entrenamiento con sus series', 'Press de banca' in dlg.inner_text() and '70 lb × 10' in dlg.inner_text())
         dlg.locator('[data-act=workout-to-routine]').click(); page.wait_for_timeout(100)
-        check('«Guardar como rutina» abre el formulario con los ejercicios', dlg.locator('[name=exercises]').input_value().startswith('Press de banca 1x10 @70'), dlg.locator('[name=exercises]').input_value())
+        check('«Guardar como rutina» abre el formulario con los ejercicios', rx_rows()[0]==['Press de banca','1','10','70',''], rx_rows())
         dlg.locator('[name=name]').fill('Pecho copia'); save()
         gsub('routines'); check('la nueva rutina aparece', page.locator('.habit').count()==2)
         gsub('history'); page.locator('.list-card').first.click(); page.wait_for_timeout(100); dlg.locator('#del').click(); page.wait_for_timeout(150)
@@ -193,6 +202,7 @@ try:
         go('data')
         with page.expect_download() as dl: page.click('[data-act=export]')
         data = json.load(open(dl.value.path()))
+        check('el respaldo incluye el catálogo', len(data['exercises'])>=60 and data['settings'].get('gymCatalogSeeded') is True)
         check('el respaldo incluye rutinas, entrenamientos y la configuración', len(data['routines'])==2 and len(data['workouts'])==1 and data['settings']['gym']['cfg']['unit']=='lb', (len(data['routines']), len(data['workouts'])))
         check('Configuración cuenta los entrenamientos', '1 entrenamiento' in txt())
         page.click('[data-act=wipe]'); page.wait_for_timeout(300)
@@ -247,7 +257,7 @@ try:
         qd = q.locator('#dlg')
         def go2(tab): q.click('[data-act=menu-open]'); q.click(f'#tabs [data-tab={tab}]'); q.wait_for_timeout(80)
         go2('gym'); q.click('[data-act=start-empty]'); q.wait_for_timeout(80)
-        q.click('[data-act=gym-add-ex]'); qd.locator('[name=name]').fill('Dominadas'); qd.locator('[name=sets]').fill('2'); qd.locator('button.primary').click(); q.wait_for_timeout(120)
+        q.click('[data-act=gym-add-ex]'); qd.locator('[name=name]').select_option('Dominadas'); qd.locator('[name=sets]').fill('2'); qd.locator('button.primary').click(); q.wait_for_timeout(120)
         q.locator('.set-chk').first.click(); q.wait_for_timeout(1300)
         c1 = q.locator('[data-rest-clock]').first.inner_text().strip()
         q.reload(); q.wait_for_selector('#view .home'); go2('gym')

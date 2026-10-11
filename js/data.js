@@ -6,7 +6,7 @@ import { icon, HABIT_ICONS, NOTE_ICONS } from './icons.js';
 import { COLORS, SLOT_KEYS } from './habits.js';
 import { FREQS as TPL_FREQS } from './lists.js';
 import { FIELD_TYPES } from './notes.js';
-import { sanitizeRoutines, sanitizeWorkouts } from './gym.js';
+import { sanitizeRoutines, sanitizeWorkouts, sanitizeExercises } from './gym.js';
 import { fileSize } from './ui.js';
 
 const APP_ID = 'tracker';
@@ -86,7 +86,7 @@ async function buildExport() {
   const data = {
     app: APP_ID, version: VERSION, exportedAt: new Date().toISOString(), includesFiles: withFiles,
     settings: S.settings, habits: S.habits, accounts: S.accounts, moves: S.moves, plan: S.plan, bills: S.bills, purchases: S.purchases,
-    templates: S.templates, lists: S.lists, noteGroups: S.noteGroups, notes: S.notes, inbox: S.inbox, routines: S.routines, workouts: S.workouts,
+    templates: S.templates, lists: S.lists, noteGroups: S.noteGroups, notes: S.notes, inbox: S.inbox, routines: S.routines, workouts: S.workouts, exercises: S.exercises,
   };
   if (withFiles) {
     const recs = await db.getAll('files');
@@ -260,10 +260,13 @@ function validateImport(d) {
   });
   const routines = sanitizeRoutines(arr(d.routines, 'rutinas'));
   const workouts = sanitizeWorkouts(arr(d.workouts, 'entrenamientos'));
+  const exercises = sanitizeExercises(arr(d.exercises, 'catálogo de ejercicios'));
   const settings = { ...S.settings, ...(d.settings ?? {}) };
+  // La marca del catálogo solo vale si viene en el respaldo: uno anterior al catálogo no la trae y debe sembrarse al cargar.
+  if (!d.settings?.gymCatalogSeeded) delete settings.gymCatalogSeeded;
   if (!Array.isArray(settings.types)) settings.types = S.settings.types;
   if (!['system', 'jetbrains'].includes(settings.font)) settings.font = 'system';
-  return { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, settings, files: d.files };
+  return { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises, settings, files: d.files };
 }
 
 async function doImport(file) {
@@ -280,6 +283,7 @@ async function doImport(file) {
       }));
     }
     await db.replaceAll(data);
+    delete S.settings.gymCatalogSeeded; // loadState mezcla los ajustes en memoria con los guardados: que mande el respaldo
     await loadState();
     await gcFiles();
     toast('Datos importados');
@@ -297,7 +301,8 @@ export const actions = {
   async wipe() {
     if (!confirm('Se borrarán todas las cuentas, movimientos, hábitos, pagos, compras, plantillas, listas, notas, notas rápidas, rutinas, entrenamientos y adjuntos de este dispositivo. ¿Continuar?')) return;
     if (!confirm('¿Seguro? Si no tienes un respaldo exportado no podrás recuperarlos.')) return;
-    await db.replaceAll({ habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [], files: [], settings: S.settings });
+    delete S.settings.gymCatalogSeeded; // el catálogo vuelve a sembrarse con los ejercicios iniciales
+    await db.replaceAll({ habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [], exercises: [], files: [], settings: S.settings });
     await loadState();
     toast('Datos borrados');
   },

@@ -84,7 +84,10 @@ function render() {
       view.innerHTML = notes.notesHome();
     }
   } else if (S.tab === 'gym') {
-    top.innerHTML = topbar('Gimnasio', S.gymSub === 'routines' ? ['new-routine', 'Nueva rutina'] : null);
+    top.innerHTML = S.gymSub === 'catalog'
+      ? `<button class="icon" data-act="gym-sub" data-sub="routines" aria-label="Volver a las rutinas">${icon('left')}</button><h1>Catálogo de ejercicios</h1>
+        <button class="icon" data-act="new-ex" aria-label="Nuevo ejercicio">${icon('plus')}</button>`
+      : topbar('Gimnasio', S.gymSub === 'routines' ? ['new-routine', 'Nueva rutina'] : null);
     view.innerHTML = gym.gymView();
   } else if (S.tab === 'purchases') {
     top.innerHTML = topbar('Compras', ['new-purchase', 'Nueva compra']);
@@ -126,6 +129,7 @@ document.addEventListener('change', async e => {
 // Las búsquedas (compras, notas) solo repintan su lista para no perder el foco del campo.
 document.addEventListener('input', e => {
   if (e.target.id === 'nsearch') return notes.onSearch(e.target.value);
+  if (e.target.id === 'gsearch') return gym.onSearch(e.target.value);
   if (e.target.id !== 'psearch') return;
   S.search = e.target.value;
   S.purchaseLimit = 40;

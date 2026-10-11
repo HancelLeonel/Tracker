@@ -375,7 +375,6 @@ button.li:active { background: var(--surface0); }
 .home-quote p { font-size: 1.08rem; line-height: 1.45; text-wrap: pretty; }
 .home-quote footer { margin-top: 8px; color: var(--subtext0); font-size: .85rem; }
 .home-quote footer::before { content: '— '; }
-.quick-exp { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 14px; font-size: 1rem; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .tile { display: grid; gap: 8px; align-content: start; min-height: 108px; padding: 14px; text-align: left; color: inherit; background: var(--mantle); border: 1px solid var(--line); border-radius: var(--radius); }
 .tile:active { background: var(--surface0); }
@@ -544,3 +543,16 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
 .tile-dots i { width: 12px; height: 12px; }
 .tile-acts { display: grid; gap: 6px; align-content: center; padding: 10px; background: var(--mantle); border: 1px solid var(--line); border-radius: var(--radius); }
 .tile-acts .btn { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; }
+
+/* Gimnasio: catálogo de ejercicios y editor de rutina por filas */
+.catalog { display: grid; gap: 16px; }
+.exrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 48px; padding: 8px 4px; text-align: left; color: inherit; border-top: 1px solid var(--line); }
+.card-rows > .exrow:first-child { border-top: 0; }
+.exrow:active { background: var(--surface0); }
+.exrow .xr-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exrow small { flex: none; }
+.frow-tools .spacer { flex: 1; }
+.rx select { width: 100%; }
+.rx-nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.rx-nums label { font-size: .72rem; gap: 4px; }
+.rx-nums input { padding: 10px 4px; text-align: center; }

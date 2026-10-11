@@ -37,6 +37,7 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | `notas.py` | Notas: grupos con campos propios (ejemplos, tipos de campo, configurar/reordenar/quitar campos), notas, búsqueda, etiquetas, copiar, enlaces seguros, paginación, exportar/importar y saneo de respaldos raros |
 | `arranque.py` | Que la app nunca se quede muda en el logo: base bloqueada por otra ventana, otra ventana que actualiza la base, módulo que no carga (aviso con botones) y dato dañado en Inicio |
 | `bandeja.py` | Inicio: notas rápidas (anotar, editar, archivar como nota o en una lista, eliminar, «Ver más»), recibir lo compartido, y que Inicio ya no tiene tarjeta de Pomodoro |
+| `catalogo.py` | Catálogo de ejercicios: siembra única, selección sin texto libre (rutinas, entrenamiento y opciones), búsqueda, alta/edición/baja, nombres repetidos, renombrar en cascada, baja bloqueada si está en una rutina, ejercicio fuera del catálogo, respaldo, migración de respaldos viejos y saneo |
 | `inicio_resumen.py` | Inicio: cuatro tarjetas de media pantalla, botones Gasto/Ingreso/Mover (sin cuentas avisan; con cuentas abren su formulario y registran) y tarjeta de Ejercicio (círculos de los últimos 7 días, conteo, último, en curso, abrir el Gimnasio) |
 | `listas_orden.py` | Listas: orden recientes/por fecha/manual, fijar, ordenar pendientes por fecha, agenda, fechas relativas en plantillas y saneo al importar |
 | `sw.py` | Service worker: con red lenta abre con la copia en ~3 s; sin copia espera a la red |
