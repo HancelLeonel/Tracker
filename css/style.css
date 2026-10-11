@@ -316,3 +316,28 @@ button.li:active { background: var(--surface0); }
 .li-t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .li.done .li-t { color: var(--subtext0); text-decoration: line-through; }
 .li.editing .icon { flex: none; }
+
+/* Hábitos: carrusel de momentos del día y filas compactas */
+.slot-pills { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; background: var(--mantle); border: 1px solid var(--surface0); border-radius: 14px; }
+.slot-pills button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 6px 4px; border-radius: 10px; color: var(--subtext0); font-size: .85rem; }
+.slot-pills button.on { background: var(--surface0); color: var(--mauve); font-weight: 700; }
+.slot-pills .i { width: 1.15rem; height: 1.15rem; }
+.slot-pills button.on .i { stroke: var(--mauve); }
+.hcar { position: relative; display: flex; align-items: flex-start; gap: 12px; min-width: 0; margin: 0 -16px; padding: 0 16px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 16px; scrollbar-width: none; overscroll-behavior-x: contain; }
+.hcar::-webkit-scrollbar { display: none; }
+.slot-card { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; padding: 8px 12px; }
+.slot-card .slot-h { margin: 4px 2px 6px; }
+.hrow { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--surface0); }
+.slot-h + .hrow, .slot-card > .hrow:first-child { border-top: 0; }
+.hrow .h-ic { width: 34px; height: 34px; border-radius: 10px; }
+.hrow .h-ic .i { width: 1.15rem; height: 1.15rem; }
+.hrow .name { flex: 1; min-width: 0; display: grid; gap: 3px; padding: 2px 0; text-align: left; font-weight: 650; font-size: 1.02rem; }
+.hrow .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hrow .sub { display: flex; align-items: center; gap: 8px; font-size: .75rem; font-weight: 400; min-height: 14px; }
+.hrow .streak { font-size: .75rem; display: inline-flex; align-items: center; gap: 2px; }
+.hrow .streak .i { width: .95em; height: .95em; }
+.mini { display: inline-flex; gap: 4px; }
+.mini i { width: 8px; height: 8px; border-radius: 50%; background: var(--surface1); }
+.mini i.on { background: var(--c); }
+.hrow .dot { flex: none; width: 44px; height: 44px; max-width: none; }
+.hrow.sorting .name { display: block; }

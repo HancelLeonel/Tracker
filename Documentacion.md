@@ -260,11 +260,13 @@ Cada cuenta tiene un botón con una flecha para **ocultar o mostrar sus categor�
 **Hábitos →** botón **+** para crear un hábito. Cada hábito tiene:
 
 - **Nombre**, **color** y un **icono** a elegir entre 22 (agua, libro, pesas, correr, corazón, café, pastilla, cama…). El icono se muestra en un recuadro con el borde del color del hábito.
-- **Momento del día**: **Mañana**, **Durante el día**, **Noche** o **Sin horario**. La pantalla agrupa los hábitos en secciones con ese encabezado y un contador de hoy por sección («1/2»). Si ningún hábito tiene horario, se muestra una sola lista sin encabezados.
+- **Momento del día**: **Mañana**, **Durante el día**, **Noche** o **Sin horario**.
 
-Marca los últimos 7 días tocando los círculos; se muestra la racha y el progreso general de hoy. Tocar el nombre de un hábito lo edita (o elimina); para pasarlo a otro momento del día, cambia su «Momento del día».
+**Carrusel.** Cada momento del día es una **tarjeta independiente**; se pasa de una a otra **deslizando a izquierda o derecha**, o tocando los botones de arriba (icono + contador de hoy, por ejemplo «1/2»). Al abrir la app se muestra el momento actual (antes de las 12 la mañana, hasta las 19 el día y después la noche) si tiene hábitos; si no, el primero que tenga. Al marcar un hábito el carrusel se queda donde estaba. Si ningún hábito tiene horario, se muestra una sola tarjeta sin encabezado ni botones.
 
-**Reordenar.** El botón **Ordenar** (junto al progreso de hoy) muestra los hábitos de forma compacta con flechas ↑ ↓ para subirlos o bajarlos **dentro de su momento del día**; **Listo** vuelve a la vista normal. El orden se guarda. Los hábitos creados antes de existir esta función se ordenaron alfabéticamente una sola vez.
+**Fila compacta.** Cada hábito ocupa una fila: icono, nombre, la racha, seis puntos pequeños con los **6 días anteriores** (relleno = hecho) y, a la derecha, el botón para **marcar hoy**. Arriba se ve el progreso general de hoy. Tocar el nombre abre la edición, donde también puedes **marcar o desmarcar cualquiera de los últimos 7 días** (la fila se actualiza al instante); desde ahí se elimina o se cambia su «Momento del día».
+
+**Reordenar.** El botón **Ordenar** (junto al progreso de hoy) muestra los hábitos sin botones de marcar y con flechas ↑ ↓ para subirlos o bajarlos **dentro de su momento del día**; **Listo** vuelve a la vista normal. El orden se guarda. Los hábitos creados antes de existir esta función se ordenaron alfabéticamente una sola vez.
 
 ### Listas
 

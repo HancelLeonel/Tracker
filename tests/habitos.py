@@ -24,7 +24,7 @@ try:
         def save(): dlg.locator('button.primary').click(); page.wait_for_timeout(150)
         txt = lambda: page.locator('#view').inner_text()
         def go(tab): page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(80)
-        names = lambda: [t.strip() for t in page.locator('.habit .name').all_inner_texts()]
+        names = lambda: [t.strip() for t in page.locator('.habit .name .n').all_inner_texts()]
         heads = lambda: [t.split('\n')[0].strip() for t in page.locator('.slot-h').all_inner_texts()]
         go('habits')
         def habit(name, icon, slot, color=None):
@@ -45,10 +45,44 @@ try:
         page.screenshot(path=OUT+'h_sections.png', full_page=True)
 
         # ---- progreso por momento
-        page.locator('.habit:has-text("Tomar agua") .day.today .dot').click()
+        page.locator('.habit:has-text("Tomar agua") [data-act=toggle]').click()
         page.wait_for_function("document.querySelector('.slot-h small').textContent.trim() === '1/2'", timeout=3000)
         check('contador por momento (1/2)', '1/2' in page.locator('.slot-h').first.inner_text())
         check('contador general (1/5)', 'Hoy 1/5' in txt(), txt()[:80])
+
+        # ---- carrusel de momentos del día
+        inview = lambda key: page.evaluate("k => { const c = document.querySelector(`.slot-card[data-slot=\"${k}\"]`).getBoundingClientRect(); return c.left >= 0 && c.right <= innerWidth; }", key)
+        check('4 tarjetas independientes y 4 botones', page.locator('.slot-card').count()==4 and page.locator('[data-slotpill]').count()==4)
+        check('cada tarjeta ocupa el ancho de la pantalla', page.evaluate("[...document.querySelectorAll('.slot-card')].every(c => c.getBoundingClientRect().width > innerWidth - 40)"))
+        active = page.locator('[data-slotpill].on').get_attribute('data-slotpill')
+        check('arranca en un momento del día con hábitos y su tarjeta es la visible', active in ('morning','day','night') and inview(active), active)
+        check('los botones muestran el contador de cada momento', page.locator('[data-slotpill=morning]').inner_text().strip()=='1/2', page.locator('[data-slotpill=morning]').inner_text())
+        row_h = page.locator('.habit').first.bounding_box()['height']
+        check('filas compactas (menos de 70 px)', row_h < 70, row_h)
+        page.click('[data-slotpill=night]'); page.wait_for_timeout(700)
+        check('botón «Noche» desliza a su tarjeta', inview('night') and not inview('morning') and page.locator('[data-slotpill=night]').get_attribute('class')=='on')
+        page.screenshot(path=OUT+'h_carousel_night.png', full_page=True)
+        page.click('.habit:has-text("Leer") [data-act=toggle]'); page.wait_for_timeout(200)
+        check('marcar un hábito no regresa el carrusel al inicio', inview('night') and 'Hoy 2/5' in txt(), txt()[:60])
+        page.click('.habit:has-text("Leer") [data-act=toggle]'); page.wait_for_timeout(200)
+        # deslizar con el dedo (scroll horizontal) actualiza el botón activo
+        page.evaluate("document.querySelector('#hcar').scrollTo({left: 0, behavior: 'instant'})"); page.wait_for_timeout(500)
+        check('al deslizar al inicio se marca «Mañana»', page.locator('[data-slotpill].on').get_attribute('data-slotpill')=='morning' and inview('morning'))
+        page.click('[data-slotpill=day]'); page.wait_for_timeout(700)
+        page.reload(); page.wait_for_selector('#view .card'); go('habits')
+        check('al volver a abrir arranca según la hora del día, no en la última', page.locator('[data-slotpill].on').count()==1)
+        page.screenshot(path=OUT+'h_carousel.png', full_page=True)
+
+        # ---- marcar un día anterior desde la edición
+        yday = page.evaluate("(() => { const d = new Date(); d.setDate(d.getDate()-1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })()")
+        page.click('[data-slotpill=night]'); page.wait_for_timeout(600)
+        page.click('[data-act=edit-habit]:has-text("Leer")')
+        check('edición: tira de últimos 7 días', dlg.locator('#wk [data-d]').count()==7)
+        dlg.locator(f'#wk [data-d="{yday}"]').click(); page.wait_for_timeout(150)
+        check('marca ayer en el diálogo', dlg.locator(f'#wk [data-d="{yday}"]').get_attribute('aria-pressed')=='true')
+        dlg.locator('#cancel').click(); page.wait_for_timeout(100)
+        check('al cancelar la fila ya refleja la racha y el punto de ayer', '1 día' in page.locator('.habit:has-text("Leer")').inner_text() and page.locator('.habit:has-text("Leer") .mini i.on').count()==1)
+        page.click('[data-act=edit-habit]:has-text("Leer")'); dlg.locator(f'#wk [data-d="{yday}"]').click(); page.wait_for_timeout(100); dlg.locator('#cancel').click(); page.wait_for_timeout(100)
 
         # ---- editar: el formulario muestra icono, momento y color actuales
         page.click('[data-act=edit-habit]:has-text("Tomar agua")')
@@ -59,7 +93,7 @@ try:
 
         # ---- reordenar
         page.click('[data-act=habits-sort]'); page.wait_for_timeout(100)
-        check('modo ordenar: sin tiras de días', page.locator('.week').count()==0 and page.locator('[data-act=habit-up]').count()==5)
+        check('modo ordenar: sin botones de marcar', page.locator('[data-act=toggle]').count()==0 and page.locator('[data-act=habit-up]').count()==5)
         check('no se puede subir el primero de cada momento', page.locator('.habit:has-text("Tomar agua") [data-act=habit-up]').is_disabled() and page.locator('.habit:has-text("Meditar") [data-act=habit-down]').is_disabled())
         page.screenshot(path=OUT+'h_sort.png', full_page=True)
         page.click('.habit:has-text("Meditar") [data-act=habit-up]'); page.wait_for_timeout(100)
@@ -68,7 +102,7 @@ try:
         check('y vuelve a bajar', names()[:2]==['Tomar agua','Meditar'], names())
         page.click('.habit:has-text("Meditar") [data-act=habit-up]'); page.wait_for_timeout(100)
         page.click('[data-act=habits-sort]'); page.wait_for_timeout(100)
-        check('al salir vuelven las tiras de días', page.locator('.week').count()==5)
+        check('al salir vuelven los botones de marcar', page.locator('[data-act=toggle]').count()==5)
         page.reload(); page.wait_for_selector('#view .card'); go('habits')
         check('el orden persiste al recargar', names()[:2]==['Meditar','Tomar agua'], names())
 

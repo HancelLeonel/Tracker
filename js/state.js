@@ -13,6 +13,7 @@ export const S = {
   listId: null,        // lista abierta (null = vista general)
   listEdit: false,     // modo «editar» de una lista (permite quitar elementos)
   listLimit: 10,       // listas completadas que se muestran
+  habitSlot: null,     // momento del día visible en el carrusel de hábitos
   habitsSort: false,   // modo «ordenar» de la pantalla de hábitos
   moveLimit: 30,       // movimientos que muestra la lista principal (crece de 30 en 30)
   purchaseLimit: 40,

@@ -48,6 +48,7 @@ function render() {
   } else if (S.tab === 'habits') {
     top.innerHTML = topbar('Hábitos', ['new-habit', 'Nuevo hábito']);
     view.innerHTML = habits.habitsView();
+    habits.restoreCarousel();
   } else if (S.tab === 'lists') {
     const cur = S.listId && lists.current();
     if (cur) {
@@ -80,6 +81,8 @@ const actions = {
 };
 
 document.addEventListener('click', async e => {
+  const pill = e.target.closest('[data-slotpill]');
+  if (pill) return habits.goSlot(pill);
   const el = e.target.closest('[data-act]');
   const fn = el && actions[el.dataset.act];
   if (!fn) return;
@@ -99,6 +102,9 @@ document.addEventListener('input', e => {
   S.purchaseLimit = 40;
   $('#plist').innerHTML = purchases.purchaseList();
 });
+
+// El carrusel de hábitos recuerda en qué momento del día va (el evento scroll no burbujea: se captura).
+document.addEventListener('scroll', e => { if (e.target.id === 'hcar') habits.onCarouselScroll(e.target); }, true);
 
 // Formularios en línea (agregar a una lista): se gestionan con data-act, sin enviar la página.
 document.addEventListener('submit', e => { if (e.target.matches('[data-noform]')) e.preventDefault(); });
