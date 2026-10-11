@@ -2,8 +2,8 @@ import * as db from './db.js';
 import { esc, uid, today, toast, $ } from './util.js';
 import { S, loadState, saveSettings, gcFiles, sortedKinds } from './state.js';
 import { modal } from './ui.js';
-import { icon } from './icons.js';
-import { COLORS } from './habits.js';
+import { icon, HABIT_ICONS } from './icons.js';
+import { COLORS, SLOT_KEYS } from './habits.js';
 import { fileSize } from './ui.js';
 
 const APP_ID = 'tracker';
@@ -146,7 +146,11 @@ function validateImport(d) {
 
   const habits = arr(d.habits, 'hábitos').map(h => {
     if (!h?.id || typeof h.name !== 'string') bad('Hay un hábito inválido en el archivo.');
-    return { id: String(h.id), name: h.name, color: COLORS.includes(h.color) ? h.color : 'mauve', dates: h.dates && typeof h.dates === 'object' ? h.dates : {} };
+    return {
+      id: String(h.id), name: h.name, color: COLORS.includes(h.color) ? h.color : 'mauve', dates: h.dates && typeof h.dates === 'object' ? h.dates : {},
+      icon: HABIT_ICONS.includes(h.icon) ? h.icon : HABIT_ICONS[0], slot: SLOT_KEYS.includes(h.slot) ? h.slot : '',
+      ...(Number.isFinite(h.order) ? { order: h.order } : {}), // sin `order` (respaldos viejos) se asigna al cargar
+    };
   });
   const accounts = arr(d.accounts, 'cuentas').map(a => {
     if (!a?.id || typeof a.name !== 'string' || !Array.isArray(a.cats)) bad('Hay una cuenta inválida en el archivo.');

@@ -55,6 +55,7 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - Escapa todo texto de usuario con `esc()`.
 - Paleta Catppuccin Macchiato vía variables CSS (`--mauve`, `--base`…). Interfaz pensada para móvil (390 px), con áreas táctiles ≥ 44 px.
 - **Orden alfabético** en Finanzas: cuentas y categorías se guardan ordenadas (`sortAccounts()` dentro de `saveAccount`, y al cargar), y las listas de nombres usan `byName`/`byText` de `util.js` (insensibles a tildes y mayúsculas, con números naturales). Si añades una lista de entidades nombradas, ordénala así; las listas con orden propio (movimientos y pagos por fecha, rankings por monto) no.
+- **Hábitos**: `icon` (nombre de `HABIT_ICONS`), `slot` (`morning`/`day`/`night`/`''`) y `order` (único; se intercambia con el vecino del mismo `slot` al reordenar). `normalizeHabits()` en `state.js` asigna `order` a los antiguos. Si añades un icono elegible, agrégalo a `PATHS` y a `HABIT_ICONS`; `validateImport` ignora los que no existan.
 - Un gasto **exige título**. El selector de categoría del gasto no asume nada: arranca vacío y ofrece solo categorías con dinero libre.
 
 **Compartir respaldo**

@@ -59,7 +59,7 @@ function render() {
 hooks.render = render;
 
 const actions = {
-  tab: el => { S.tab = el.dataset.tab; menuOpen(false); window.scrollTo(0, 0); },
+  tab: el => { S.tab = el.dataset.tab; S.habitsSort = false; menuOpen(false); window.scrollTo(0, 0); },
   'menu-open': () => menuOpen(true),
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },

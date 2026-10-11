@@ -27,6 +27,33 @@ const PATHS = {
   half: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>',
   done: '<circle cx="12" cy="12" r="8"/><path d="M8.5 12.3l2.5 2.5 4.5-5"/>',
   list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+  sort: '<path d="M8 20V4M4 8l4-4 4 4M16 4v16M12 16l4 4 4-4"/>',
+  // ---- iconos para hábitos ----
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  drop: '<path d="M12 3c3.5 4.5 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 2.5-6.5 6-11z"/>',
+  book: '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/>',
+  dumbbell: '<path d="M6 7v10M3 10v4M18 7v10M21 10v4M6 12h12"/>',
+  run: '<circle cx="15" cy="4.5" r="1.8"/><path d="M13 21l1.5-6-3-3 1.5-5 3 2.5 3 .5M10.5 8L7 10M11.5 12l-3 4.5"/>',
+  bike: '<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7M10 9l3 7M8.5 6h3"/>',
+  heart: '<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/>',
+  leaf: '<path d="M5 19c0-9 5-14 14-14 0 9-5 14-14 14z"/><path d="M5 19c3-5 6-8 9-10"/>',
+  apple: '<path d="M12 8c-2.5-2-7-.5-7 4.5S8 21 10.5 21c.8 0 1.1-.4 1.5-.4s.7.4 1.5.4c2.5 0 5.5-3.5 5.5-8.5S14.5 6 12 8z"/><path d="M12 8c0-2 1-3.5 3-4.5"/>',
+  coffee: '<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v3M12 3v3"/>',
+  pill: '<rect x="2.5" y="8.5" width="19" height="7" rx="3.5" transform="rotate(-45 12 12)"/><path d="M8.8 8.8l6.4 6.4"/>',
+  sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18.5 16v4M16.5 18h4"/>',
+  music: '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
+  phone: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
+  bed: '<path d="M3 19V6M3 15h18v4M21 15v-2.5a3 3 0 0 0-3-3h-7V15"/><circle cx="7" cy="11.5" r="1.5"/>',
+  smile: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14a4 4 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>',
+  star: '<path d="M12 3l2.8 5.8 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.3l1.1-6.2L3 9.7l6.2-.9z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  sunrise: '<path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 7v3M5.5 11.5L7 13M18.5 11.5L17 13"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
 };
+
+// Iconos que se pueden elegir para un hábito (el primero es el predeterminado).
+export const HABIT_ICONS = ['habits', 'target', 'drop', 'book', 'dumbbell', 'run', 'bike', 'heart', 'leaf', 'apple', 'coffee',
+  'pill', 'sparkle', 'music', 'phone', 'bed', 'smile', 'star', 'sun', 'moon', 'clock', 'edit'];
 
 export const icon = name => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${PATHS[name] ?? ''}</svg>`;

@@ -273,3 +273,21 @@ body.menu-open #drawer { transform: none; visibility: visible; transition: trans
 /* Pantalla de carga */
 .boot { display: grid; place-content: center; justify-items: center; gap: 16px; min-height: 70dvh; }
 .boot b { font-size: 1.6rem; letter-spacing: .04em; }
+
+/* Hábitos: iconos, momentos del día y orden */
+.slot { display: grid; gap: 10px; }
+.slot-h { display: flex; align-items: center; gap: 8px; font-size: .95rem; font-weight: 650; color: var(--subtext1); margin: 6px 2px 0; text-transform: uppercase; letter-spacing: .05em; }
+.slot-h small { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.h-ic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--surface0); border: 2px solid var(--c, var(--mauve)); }
+.h-ic .i { width: 1.35rem; height: 1.35rem; }
+.habit-h { gap: 12px; }
+.habit.sorting .name { flex: 1; font-weight: 650; font-size: 1.05rem; }
+.icon:disabled { opacity: .3; }
+.progress-ring .btn { flex: none; }
+.icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 6px; }
+.icon-grid label { display: block; }
+.icon-grid input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; }
+.icon-grid span { display: grid; place-items: center; aspect-ratio: 1; border-radius: 12px; background: var(--mantle); border: 2px solid transparent; }
+.icon-grid span .i { width: 1.4rem; height: 1.4rem; }
+.icon-grid input:checked + span { border-color: var(--mauve); background: var(--surface0); }
+.icon-grid input:focus-visible + span { outline: 2px solid var(--mauve); outline-offset: 2px; }

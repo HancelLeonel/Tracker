@@ -3,7 +3,7 @@
 **Tracker** es una PWA pensada para Android que reúne cuatro herramientas personales en una sola app:
 
 - **Finanzas**: cuentas con dinero real repartido en categorías, tarjetas de crédito, guía de transferencias de cada quincena, pagos pendientes y reportes.
-- **Hábitos**: seguimiento diario con rachas.
+- **Hábitos**: seguimiento diario con rachas, iconos, momentos del día y orden propio.
 - **Compras**: registro buscable de lo que vale la pena recordar (con garantía y facturas).
 - **Datos**: respaldo (exportar/importar) y ajustes.
 
@@ -66,7 +66,7 @@ js/
   bills.js              Pagos que debo realizar
   reports.js            Reportes
   purchases.js          Registro de compras
-  habits.js             Hábitos
+  habits.js             Hábitos (iconos, momentos del día, orden)
   data.js               Exportar, importar, tipos de gasto, borrado total
 tests/                  Pruebas end-to-end con Playwright y benchmarks
 CLAUDE.md               Contexto y reglas del proyecto para asistentes de código
@@ -246,7 +246,14 @@ Cada cuenta tiene un botón con una flecha para **ocultar o mostrar sus categor�
 
 ### Hábitos
 
-**Hábitos →** botón **+** para crear un hábito (con color). Marca los últimos 7 días tocando los círculos; se muestra la racha y el progreso de hoy.
+**Hábitos →** botón **+** para crear un hábito. Cada hábito tiene:
+
+- **Nombre**, **color** y un **icono** a elegir entre 22 (agua, libro, pesas, correr, corazón, café, pastilla, cama…). El icono se muestra en un recuadro con el borde del color del hábito.
+- **Momento del día**: **Mañana**, **Durante el día**, **Noche** o **Sin horario**. La pantalla agrupa los hábitos en secciones con ese encabezado y un contador de hoy por sección («1/2»). Si ningún hábito tiene horario, se muestra una sola lista sin encabezados.
+
+Marca los últimos 7 días tocando los círculos; se muestra la racha y el progreso general de hoy. Tocar el nombre de un hábito lo edita (o elimina); para pasarlo a otro momento del día, cambia su «Momento del día».
+
+**Reordenar.** El botón **Ordenar** (junto al progreso de hoy) muestra los hábitos de forma compacta con flechas ↑ ↓ para subirlos o bajarlos **dentro de su momento del día**; **Listo** vuelve a la vista normal. El orden se guarda. Los hábitos creados antes de existir esta función se ordenaron alfabéticamente una sola vez.
 
 ### Respaldo
 
@@ -272,7 +279,7 @@ Base de datos IndexedDB versión 3. Su nombre interno sigue siendo `mi-quincena`
 | `plan` | Líneas de la guía: `{ id, name, amount, key: 'cuenta｜categoría', when: 'both'｜'q1'｜'q2' }` |
 | `bills` | `{ id, title, amount, freq: 'once'｜'monthly'｜'biweekly', day?, dueDate?, start, card?, active, paid: { [vencimiento]: { on, amount, moveId, skipped, files } } }` |
 | `purchases` | `{ id, name, date, price, store, tag, warrantyMonths, notes, files }` |
-| `habits` | `{ id, name, color, dates: { 'YYYY-MM-DD': 1 } }` |
+| `habits` | `{ id, name, color, icon, slot: 'morning'｜'day'｜'night'｜'', order, dates: { 'YYYY-MM-DD': 1 } }` |
 | `files` | `{ id, blob, mime, name, size }` |
 | `meta` | `{ k: 'settings', v: { lastExport, includeFiles, types, leftover, lastKind } }` |
 

@@ -30,6 +30,7 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | `guia.py` | Guía de transferencias: pago a una cuenta, avance por línea y por cuenta, categoría de paso, quincenas |
 | `interfaz.py` | Menú lateral, cuentas plegables, movimientos por cuenta, selector de gasto, iconos blancos, nombre Tracker |
 | `paginacion_y_cache.py` | Listas paginadas y que la caché se invalide al agregar/editar/borrar |
+| `habitos.py` | Hábitos: iconos, momentos del día, reordenar, persistencia, exportar/importar y respaldos antiguos |
 | `benchmark_carga.py` | Tiempos de carga, pantallas, reportes y guardado con 1k–60k movimientos (no es parte de `run_all`) |
 | `benchmark_listas.py` | Tiempos de las listas largas con 1k–60k movimientos (no es parte de `run_all`) |
 

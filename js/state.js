@@ -9,6 +9,7 @@ export const S = {
   settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {} },
   report: { kind: 'q', ref: today() },
   guide: { ref: today() }, // quincena que se ve en la guía de transferencias
+  habitsSort: false,   // modo «ordenar» de la pantalla de hábitos
   moveLimit: 30,       // movimientos que muestra la lista principal (crece de 30 en 30)
   purchaseLimit: 40,
   rev: 0,              // versión de los datos: invalida lo calculado en caché
@@ -42,6 +43,7 @@ export async function loadState() {
   S.habits = habits;
   S.accounts = accounts.map(a => ({ type: 'normal', ...a }));
   sortAccounts();
+  await normalizeHabits();
   S.moves = moves;
   S.plan = plan;
   S.bills = bills;
@@ -53,6 +55,17 @@ export async function loadState() {
     S.settings.types = DEFAULT_KINDS.map(name => ({ id: uid(), name }));
     await saveSettings();
   }
+}
+
+// Los hábitos guardados antes de poder ordenarlos no tienen `order`: se les asigna uno (alfabético, una sola vez).
+async function normalizeHabits() {
+  const missing = S.habits.filter(h => h.order == null);
+  if (missing.length) {
+    const base = Math.max(0, ...S.habits.map(h => h.order ?? 0));
+    missing.sort(byName).forEach((h, i) => { h.order = base + i + 1; });
+    await db.commit({ put: { habits: S.habits } });
+  }
+  S.habits.sort((a, b) => a.order - b.order);
 }
 
 export const saveHabit = h => db.commit({ put: { habits: [h] } });
