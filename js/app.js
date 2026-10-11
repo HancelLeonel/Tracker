@@ -8,6 +8,7 @@ import * as bills from './bills.js';
 import * as reports from './reports.js';
 import * as purchases from './purchases.js';
 import * as habits from './habits.js';
+import * as lists from './lists.js';
 import * as data from './data.js';
 import { esc } from './util.js';
 
@@ -15,7 +16,7 @@ const SUBS = [['accounts', 'Cuentas'], ['plan', 'Guía'], ['bills', 'Pagos'], ['
 const SUB_TITLES = { accounts: 'Finanzas', plan: 'Guía de transferencias', bills: 'Pagos', reports: 'Reportes' };
 const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], plan: ['new-line', 'Nueva línea'], bills: ['new-bill', 'Nuevo pago'] };
 
-const TABS = [['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['purchases', 'Compras', 'bag'], ['data', 'Datos', 'data']];
+const TABS = [['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'], ['data', 'Datos', 'data']];
 
 const menuOpen = open => {
   document.body.classList.toggle('menu-open', open);
@@ -47,6 +48,17 @@ function render() {
   } else if (S.tab === 'habits') {
     top.innerHTML = topbar('Hábitos', ['new-habit', 'Nuevo hábito']);
     view.innerHTML = habits.habitsView();
+  } else if (S.tab === 'lists') {
+    const cur = S.listId && lists.current();
+    if (cur) {
+      top.innerHTML = `<button class="icon" data-act="list-back" aria-label="Volver a las listas">${icon('left')}</button><h1>${esc(cur.name)}</h1>
+        <button class="icon" data-act="list-opts" aria-label="Opciones de la lista">${icon('edit')}</button>`;
+      view.innerHTML = lists.listDetail(cur);
+    } else {
+      top.innerHTML = topbar('Listas', S.listSub === 'templates' ? ['new-tpl', 'Nueva plantilla'] : ['new-list', 'Nueva lista']);
+      view.innerHTML = lists.listsView();
+    }
+    lists.restoreFocus();
   } else if (S.tab === 'purchases') {
     top.innerHTML = topbar('Compras', ['new-purchase', 'Nueva compra']);
     view.innerHTML = purchases.purchasesView();
@@ -59,12 +71,12 @@ function render() {
 hooks.render = render;
 
 const actions = {
-  tab: el => { S.tab = el.dataset.tab; S.habitsSort = false; menuOpen(false); window.scrollTo(0, 0); },
+  tab: el => { S.tab = el.dataset.tab; S.habitsSort = false; S.listEdit = false; menuOpen(false); window.scrollTo(0, 0); },
   'menu-open': () => menuOpen(true),
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
   'open-file': el => openFile(el.dataset.id),
-  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...data.actions,
+  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...data.actions,
 };
 
 document.addEventListener('click', async e => {
@@ -87,6 +99,9 @@ document.addEventListener('input', e => {
   S.purchaseLimit = 40;
   $('#plist').innerHTML = purchases.purchaseList();
 });
+
+// Formularios en línea (agregar a una lista): se gestionan con data-act, sin enviar la página.
+document.addEventListener('submit', e => { if (e.target.matches('[data-noform]')) e.preventDefault(); });
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') menuOpen(false); });
 

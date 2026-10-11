@@ -291,3 +291,28 @@ body.menu-open #drawer { transform: none; visibility: visible; transition: trans
 .icon-grid span .i { width: 1.4rem; height: 1.4rem; }
 .icon-grid input:checked + span { border-color: var(--mauve); background: var(--surface0); }
 .icon-grid input:focus-visible + span { outline: 2px solid var(--mauve); outline-offset: 2px; }
+
+/* Listas y plantillas */
+.tpl-meta { margin: 8px 0 12px; font-size: .9rem; }
+.card.due { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-color: var(--yellow); }
+.list-card { width: 100%; display: grid; gap: 10px; text-align: left; color: inherit; }
+.list-card:active { background: var(--surface0); }
+.list-card .lc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.list-card .bar { margin: 0; }
+.list-card .bar i { background: var(--c); }
+.list-card.compact { padding: 10px 14px; opacity: .75; }
+.progress-ring[style*="--c"] .bar i { background: var(--c); }
+.center { text-align: center; }
+.add-row { display: flex; gap: 8px; }
+.add-row input { flex: 1; min-width: 0; }
+.add-row .btn { flex: none; width: 48px; padding: 0; display: grid; place-items: center; }
+.li-list { display: grid; }
+.li { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 6px 4px; text-align: left; color: inherit; border-top: 1px solid var(--surface0); }
+.li-list .li:first-child { border-top: 0; }
+button.li:active { background: var(--surface0); }
+.li .dot { flex: none; width: 30px; max-width: none; border-radius: 9px; display: grid; place-items: center; background: var(--surface0); }
+.li .dot.on { background: var(--c, var(--mauve)); border-color: var(--c, var(--mauve)); }
+.li .dot .i { width: 1rem; height: 1rem; }
+.li-t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.li.done .li-t { color: var(--subtext0); text-decoration: line-through; }
+.li.editing .icon { flex: none; }

@@ -1,9 +1,10 @@
 # Tracker — Documentación
 
-**Tracker** es una PWA pensada para Android que reúne cuatro herramientas personales en una sola app:
+**Tracker** es una PWA pensada para Android que reúne cinco herramientas personales en una sola app:
 
 - **Finanzas**: cuentas con dinero real repartido en categorías, tarjetas de crédito, guía de transferencias de cada quincena, pagos pendientes y reportes.
 - **Hábitos**: seguimiento diario con rachas, iconos, momentos del día y orden propio.
+- **Listas**: listas de tareas o compras que se crean a partir de **plantillas** reutilizables (el súper quincenal, la limpieza semanal…).
 - **Compras**: registro buscable de lo que vale la pena recordar (con garantía y facturas).
 - **Datos**: respaldo (exportar/importar) y ajustes.
 
@@ -67,6 +68,7 @@ js/
   reports.js            Reportes
   purchases.js          Registro de compras
   habits.js             Hábitos (iconos, momentos del día, orden)
+  lists.js              Listas y plantillas
   data.js               Exportar, importar, tipos de gasto, borrado total
 tests/                  Pruebas end-to-end con Playwright y benchmarks
 CLAUDE.md               Contexto y reglas del proyecto para asistentes de código
@@ -177,6 +179,15 @@ En **Finanzas → Reportes**, por **quincena, mes, año o todo el tiempo** (con 
 
 Las transferencias y los pagos de tarjeta no cuentan como gasto.
 
+### Listas y plantillas
+
+Pensado para lo que repites cada cierto tiempo (el súper cada 15 días, tareas semanales o mensuales). En vez de reescribir la lista, la guardas una vez como **plantilla** y cada vez creas una **lista** nueva copiada de ella; la lista es independiente, así que marcas y agregas lo extra sin tocar la plantilla.
+
+- **Plantilla**: nombre, color, elementos y, opcionalmente, cada cuánto se repite (**cada semana**, **cada 15 días** o **cada mes**). Los elementos se escriben **uno por línea**; una línea que empieza con `#` es un encabezado de sección (por ejemplo `# Lácteos`), que no cuenta como elemento.
+- **Lista**: copia de los elementos de una plantilla (o vacía). Tocar un elemento lo marca o desmarca; el avance se ve como «3/12» con barra. Lo que agregues con el campo **Agregar algo adicional…** (un elemento a la vez, con Enter o con el botón) queda en la sección **Adicionales**.
+- Una lista con todo marcado pasa a **Completadas** (se muestran de 10 en 10); si le agregas algo vuelve a estar activa. El botón **Editar** de la lista permite quitar elementos con la X; el lápiz de la barra superior cambia el nombre, elimina la lista o la **guarda como plantilla**: abre el formulario de plantilla con los elementos fijos de la lista (sin los adicionales) para que lo ajustes y guardes.
+- **Ya toca**: si la plantilla tiene periodo y ya pasó desde la última lista creada con ella, en **Listas** aparece un aviso con el botón **Crear lista**; en **Plantillas** se muestra «Toca en N días» o «Ya toca». Sin listas previas no hay aviso.
+
 ### Compras
 
 Registro de lo que vale la pena recordar: nombre, fecha, precio, tienda, etiqueta, notas y archivos. Si indicas los **meses de garantía**, se calcula la fecha de vencimiento y cuánto falta. Hay un buscador por nombre, tienda, etiqueta, notas, precio y fecha (ignora mayúsculas y tildes).
@@ -255,6 +266,14 @@ Marca los últimos 7 días tocando los círculos; se muestra la racha y el progr
 
 **Reordenar.** El botón **Ordenar** (junto al progreso de hoy) muestra los hábitos de forma compacta con flechas ↑ ↓ para subirlos o bajarlos **dentro de su momento del día**; **Listo** vuelve a la vista normal. El orden se guarda. Los hábitos creados antes de existir esta función se ordenaron alfabéticamente una sola vez.
 
+### Listas
+
+1. **Listas → Plantillas → +**: escribe el nombre, elige cada cuánto se repite y pon los elementos (uno por línea, `# Sección` para separar).
+2. En la tarjeta de la plantilla, **Crear lista** (o **+** en **Listas** para elegir plantilla y nombre). Se abre la lista lista para marcar.
+3. Durante la compra o la tarea, toca cada elemento al terminarlo y agrega lo no periódico en **Adicionales**.
+4. ¿Ya tienes una lista armada? Lápiz → **Guardar como plantilla**.
+5. La próxima vez, vuelve a crear la lista desde la misma plantilla. Para cambiar lo fijo, edita la plantilla (las listas ya creadas no cambian).
+
 ### Respaldo
 
 En **Datos**:
@@ -270,7 +289,7 @@ En **Datos**:
 
 ## 5. Modelo de datos
 
-Base de datos IndexedDB versión 3. Su nombre interno sigue siendo `mi-quincena` (el de antes de llamarse Tracker) para no perder los datos ya guardados.
+Base de datos IndexedDB versión 4 (la 4 agregó `templates` y `lists`; se migra sola). Su nombre interno sigue siendo `mi-quincena` (el de antes de llamarse Tracker) para no perder los datos ya guardados.
 
 | Store | Contenido |
 |---|---|
@@ -280,6 +299,8 @@ Base de datos IndexedDB versión 3. Su nombre interno sigue siendo `mi-quincena`
 | `bills` | `{ id, title, amount, freq: 'once'｜'monthly'｜'biweekly', day?, dueDate?, start, card?, active, paid: { [vencimiento]: { on, amount, moveId, skipped, files } } }` |
 | `purchases` | `{ id, name, date, price, store, tag, warrantyMonths, notes, files }` |
 | `habits` | `{ id, name, color, icon, slot: 'morning'｜'day'｜'night'｜'', order, dates: { 'YYYY-MM-DD': 1 } }` |
+| `templates` | `{ id, name, color, freq: ''｜'weekly'｜'biweekly'｜'monthly', items: [{ text, head? }] }` |
+| `lists` | `{ id, name, tplId?, color, created, t, items: [{ id, text, head?, done?, extra? }] }`. Una lista se copia de la plantilla al crearla; no queda ligada a ella |
 | `files` | `{ id, blob, mime, name, size }` |
 | `meta` | `{ k: 'settings', v: { lastExport, includeFiles, types, leftover, lastKind } }` |
 
@@ -288,7 +309,7 @@ Base de datos IndexedDB versión 3. Su nombre interno sigue siendo `mi-quincena`
 - Un gasto con tarjeta lleva `card`; sus `parts` indican la categoría apartada, pero **no modifican su saldo**: solo suma deuda a la tarjeta.
 - Lo apartado por tarjeta **no se guarda**: se deriva del historial (`cardPending` en [state.js](js/state.js)). Las compras suman a su categoría y los pagos restan primero de la categoría desde la que se paga y luego de las mayores. Por eso editar o borrar siempre cuadra.
 - Un gasto repartido guarda varias entradas en `parts`.
-- Los respaldos se exportan con `version: 3`. También se aceptan los de la versión 2.
+- Los respaldos se exportan con `version: 3`. También se aceptan los de la versión 2 y los que no traen `templates` ni `lists`.
 
 ### Formato del respaldo
 
@@ -299,7 +320,7 @@ Base de datos IndexedDB versión 3. Su nombre interno sigue siendo `mi-quincena`
   "exportedAt": "2026-10-10T18:00:00.000Z",
   "includesFiles": false,
   "settings": {}, "habits": [], "accounts": [], "moves": [],
-  "plan": [], "bills": [], "purchases": [],
+  "plan": [], "bills": [], "purchases": [], "templates": [], "lists": [],
   "files": [{ "id": "…", "mime": "image/jpeg", "name": "…", "data": "data:…;base64,…" }]
 }
 ```
@@ -317,6 +338,7 @@ Las pruebas son de extremo a extremo con Playwright (Chromium, 390×800) contra 
 - Guía de transferencias: avance por línea y por cuenta, parcial, por quincena y con categoría de paso.
 - Pagos: vencidos, mensuales, pagar, omitir y deshacer.
 - Compras con adjuntos, búsqueda y garantía.
+- Listas y plantillas: crear desde plantilla, marcar, adicionales, aviso «Ya toca», completar y exportar/importar.
 - Reportes, exportar/importar (con y sin archivos) y migración desde la base de datos v2.
 
 Los scripts están en [tests/](tests/) (ver [tests/README.md](tests/README.md) para preparar el entorno y ejecutarlos con `tests/run_all.py`). Aún falta validar la app en un teléfono Android real.

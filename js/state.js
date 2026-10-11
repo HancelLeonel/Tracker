@@ -4,11 +4,15 @@ import { r2, sum, uid, today, byName } from './util.js';
 export const S = {
   tab: 'money',
   sub: 'accounts', // accounts | plan | bills | reports
-  habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [],
+  habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [],
   files: new Map(), // id -> { mime, name, size } (el contenido se lee bajo demanda)
   settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {} },
   report: { kind: 'q', ref: today() },
   guide: { ref: today() }, // quincena que se ve en la guía de transferencias
+  listSub: 'lists',    // lists | templates
+  listId: null,        // lista abierta (null = vista general)
+  listEdit: false,     // modo «editar» de una lista (permite quitar elementos)
+  listLimit: 10,       // listas completadas que se muestran
   habitsSort: false,   // modo «ordenar» de la pantalla de hábitos
   moveLimit: 30,       // movimientos que muestra la lista principal (crece de 30 en 30)
   purchaseLimit: 40,
@@ -37,8 +41,8 @@ export function sortedMoves() {
 export const DEFAULT_KINDS = ['Comida', 'Transporte', 'Servicios', 'Suscripciones', 'Salud', 'Ocio', 'Hogar', 'Otros'];
 
 export async function loadState() {
-  const [habits, accounts, moves, plan, bills, purchases, files, meta] =
-    await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'files', 'meta'].map(db.getAll));
+  const [habits, accounts, moves, plan, bills, purchases, templates, lists, files, meta] =
+    await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'files', 'meta'].map(db.getAll));
   bump();
   S.habits = habits;
   S.accounts = accounts.map(a => ({ type: 'normal', ...a }));
@@ -48,6 +52,9 @@ export async function loadState() {
   S.plan = plan;
   S.bills = bills;
   S.purchases = purchases;
+  S.templates = templates.sort(byName);
+  S.lists = lists;
+  if (!S.lists.some(l => l.id === S.listId)) S.listId = null;
   S.files = new Map(files.map(f => [f.id, { mime: f.mime, name: f.name, size: f.size }]));
   const settings = meta.find(m => m.k === 'settings');
   if (settings) S.settings = { ...S.settings, ...settings.v };
@@ -221,6 +228,8 @@ export async function deleteMove(m) {
 // ---------- pagos, compras, plan ----------
 export const saveBill = b => db.commit({ put: { bills: [b] } });
 export const savePurchase = async p => { await db.commit({ put: { purchases: [p] } }); await gcFiles(); };
+export const saveTemplate = t => { S.templates.sort(byName); return db.commit({ put: { templates: [t] } }); };
+export const saveList = l => db.commit({ put: { lists: [l] } });
 export const savePlanLine = l => db.commit({ put: { plan: [l] } });
 
 // ---------- archivos adjuntos ----------
