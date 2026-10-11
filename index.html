@@ -5,24 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1e2030">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="Hábitos y gastos quincenales">
+  <meta name="description" content="Finanzas, hábitos y compras">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <title>Mi Quincena</title>
+  <title>Tracker</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header id="topbar"></header>
   <main id="view"></main>
-  <button id="fab" class="fab" data-act="new-exp" aria-label="Nuevo gasto" hidden>＋</button>
+  <button id="fab" class="fab" data-act="new-exp" aria-label="Nuevo gasto" hidden></button>
 
-  <nav id="tabs">
-    <button data-act="tab" data-tab="money"><span>💸</span>Finanzas</button>
-    <button data-act="tab" data-tab="habits"><span>✅</span>Hábitos</button>
-    <button data-act="tab" data-tab="purchases"><span>🛍️</span>Compras</button>
-    <button data-act="tab" data-tab="data"><span>💾</span>Datos</button>
-  </nav>
+  <div id="scrim" data-act="menu-close"></div>
+  <aside id="drawer" aria-label="Menú principal"></aside>
 
   <dialog id="dlg"></dialog>
   <dialog id="viewer"></dialog>

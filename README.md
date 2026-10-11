@@ -1,4 +1,4 @@
-# Mi Quincena
+# Tracker
 
 PWA para Android: tracker de hábitos + gestor de gastos quincenales. Sin build, sin dependencias.
 Datos en IndexedDB (locales al teléfono), con exportación/importación JSON desde la pestaña **Datos**.
@@ -25,7 +25,7 @@ Todas las rutas son relativas, así que funciona bajo el subpath `/<repo>/`.
   y, si no alcanza, se reparte entre varias. Cada gasto lleva título y un *tipo de gasto* (en qué se usó).
   Las **tarjetas de crédito** acumulan deuda; «Pagar tarjeta» mueve dinero de tus cuentas a la tarjeta
   sin volver a contarlo como gasto.
-- **Plan**: reparto base de cada pago (por quincena). «Registrar pago recibido» lo distribuye entre tus categorías.
+- **Guía**: lista de transferencias que debes hacer cada quincena (por cuenta y categoría) con avance. El pago entra a una cuenta y tú lo repartes poco a poco.
 - **Pagos**: pagos pendientes, vencidos y realizados, con comprobante y opción de descontarlos de tus cuentas.
 - **Reportes**: por quincena, mes, año o todo el tiempo.
 - **Compras**: registro buscable de lo que vale la pena recordar, con cálculo de garantía.

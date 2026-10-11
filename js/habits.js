@@ -2,6 +2,7 @@ import * as db from './db.js';
 import { esc, uid, today, addDays, parseYmd, fmtDate } from './util.js';
 import { S, saveHabit } from './state.js';
 import { modal } from './ui.js';
+import { icon } from './icons.js';
 
 export const COLORS = ['mauve', 'blue', 'green', 'peach', 'pink', 'teal', 'yellow', 'red', 'lavender'];
 const WEEKDAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
@@ -27,13 +28,13 @@ export function habitsView() {
     const week = days.map(d => `
       <div class="day ${d === t ? 'today' : ''}">
         <small>${WEEKDAYS[parseYmd(d).getDay()]}</small>
-        <button class="dot ${h.dates[d] ? 'on' : ''}" data-act="toggle" data-id="${h.id}" data-date="${d}" aria-pressed="${!!h.dates[d]}" aria-label="${esc(h.name)} ${fmtDate(d)}">${h.dates[d] ? '✓' : ''}</button>
+        <button class="dot ${h.dates[d] ? 'on' : ''}" data-act="toggle" data-id="${h.id}" data-date="${d}" aria-pressed="${!!h.dates[d]}" aria-label="${esc(h.name)} ${fmtDate(d)}">${h.dates[d] ? icon('check') : ''}</button>
       </div>`).join('');
     return `
       <section class="card habit" style="--c:var(--${h.color})">
         <div class="habit-h">
           <button class="name" data-act="edit-habit" data-id="${h.id}">${esc(h.name)}</button>
-          ${s ? `<span class="streak">🔥 ${s} ${s === 1 ? 'día' : 'días'}</span>` : ''}
+          ${s ? `<span class="streak">${icon('flame')} ${s} ${s === 1 ? 'día' : 'días'}</span>` : ''}
         </div>
         <div class="week">${week}</div>
       </section>`;

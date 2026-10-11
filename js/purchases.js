@@ -2,6 +2,7 @@ import * as db from './db.js';
 import { esc, money, r2, uid, today, addMonths, daysBetween, fmtDateY } from './util.js';
 import { S, savePurchase, gcFiles } from './state.js';
 import { modal, mountAttach, attachHtml } from './ui.js';
+import { icon } from './icons.js';
 
 const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -30,7 +31,7 @@ export function purchaseList() {
         <small>${fmtDateY(p.date)}${p.price ? ` · ${money(p.price)}` : ''}${p.store ? ` · ${esc(p.store)}` : ''}</small>
         ${warranty(p)}
         ${p.tag ? `<small class="tag">${esc(p.tag)}</small>` : ''}</span>
-      ${p.files?.length ? `<span class="p-files">📎 ${p.files.length}</span>` : ''}
+      ${p.files?.length ? `<span class="p-files">${icon('clip')} ${p.files.length}</span>` : ''}
     </button></li>`).join('')}</ul>`;
 }
 

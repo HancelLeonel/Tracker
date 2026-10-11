@@ -6,8 +6,9 @@ export const S = {
   sub: 'accounts', // accounts | plan | bills | reports
   habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [],
   files: new Map(), // id -> { mime, name, size } (el contenido se lee bajo demanda)
-  settings: { lastExport: null, includeFiles: false, types: null, leftover: null, lastKind: null },
+  settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {} },
   report: { kind: 'q', ref: today() },
+  guide: { ref: today() }, // quincena que se ve en la guía de transferencias
   showAllMoves: false,
   search: '',
 };
@@ -56,7 +57,7 @@ export const hasNormalCats = () => normalKeys().length > 0;
 export const catLabel = p => {
   const a = findAcc(p.acc), c = findCat(p.acc, p.cat);
   if (!c) return '(eliminada)';
-  return isCredit(a) ? `💳 ${a.name}` : `${a.name} / ${c.name}`;
+  return isCredit(a) ? `${a.name} (tarjeta)` : `${a.name} / ${c.name}`;
 };
 
 // Dinero en cuentas normales, deuda en tarjetas y neto (lo que realmente tienes).

@@ -1,63 +1,115 @@
 import * as db from './db.js';
-import { esc, money, sum, r2, uid, today, fmtDate, periodFor, toast } from './util.js';
-import { S, saveSettings, savePlanLine, saveMove, allKeys, normalKeys, hasCats, hasNormalCats, catLabel, balanceWithout, findCat, splitKey } from './state.js';
+import { esc, money, sum, r2, uid, today, periodFor, shiftRef, toast } from './util.js';
+import { S, savePlanLine, allKeys, hasCats, catLabel, balanceWithout, findAcc, findCat, isCredit, splitKey } from './state.js';
 import { modal, catSelect } from './ui.js';
+import { flowForm, payCardForm } from './money.js';
+import { icon as svg } from './icons.js';
 
+// La guía es una lista de transferencias que debes hacer cada quincena. Los pagos entran a una cuenta
+// y tú los repartes como puedas; la app mide el avance con las transferencias que registres.
 const WHEN = { both: 'Cada quincena', q1: 'Solo 1ª quincena (1–15)', q2: 'Solo 2ª quincena (16–fin)' };
 const applies = (line, half) => line.when === 'both' || line.when === (half === 1 ? 'q1' : 'q2');
 const lineValid = l => { const { acc, cat } = splitKey(l.key); return !!findCat(acc, cat); };
+const accOf = l => splitKey(l.key).acc;
 
-// Ingresos del plan ya registrados dentro de una quincena.
-const paydays = q => S.moves.filter(m => m.plan && m.date >= q.start && m.date <= q.end);
+// Dinero transferido en el periodo, por categoría destino y por cuenta destino (desde otras cuentas).
+function progress(p) {
+  const into = new Map(), cross = new Map();
+  for (const m of S.moves) {
+    if (m.type !== 'transfer' || m.date < p.start || m.date > p.end) continue;
+    const key = `${m.to.acc}|${m.to.cat}`;
+    into.set(key, r2((into.get(key) ?? 0) + m.total));
+    const fromOthers = sum(m.parts.filter(pt => pt.acc !== m.to.acc), pt => pt.amount);
+    if (fromOthers) cross.set(m.to.acc, r2((cross.get(m.to.acc) ?? 0) + fromOthers));
+  }
+  return { into, cross };
+}
+
+const bar = (done, total) => `<div class="bar"><i style="width:${total ? Math.min(100, done / total * 100) : 0}%"></i></div>`;
+const icon = (done, total) => `<span class="status-i">${svg(done >= total - 0.004 ? 'done' : done > 0 ? 'half' : 'circle')}</span>`;
 
 export function planView() {
-  const q = periodFor('q', today());
-  const planned = half => sum(S.plan.filter(l => applies(l, half)), l => l.amount);
-  const done = paydays(q);
-  const funded = new Map();
-  done.forEach(m => m.parts.forEach(p => p.line && funded.set(p.line, (funded.get(p.line) ?? 0) + p.amount)));
-  const current = S.plan.filter(l => applies(l, q.half));
+  const p = periodFor('q', S.guide.ref);
+  const lines = S.plan.filter(l => applies(l, p.half) && lineValid(l));
+  const { into, cross } = progress(p);
+  const received = sum(S.moves.filter(m => m.type === 'income' && m.date >= p.start && m.date <= p.end), m => m.total);
 
-  const status = current.length ? `
+  // Agrupa por cuenta destino y calcula el avance de cada una.
+  const groups = new Map();
+  for (const l of lines) groups.set(accOf(l), [...(groups.get(accOf(l)) ?? []), l]);
+  const accs = [...groups].map(([id, ls]) => {
+    const total = sum(ls, l => l.amount);
+    const byLines = sum(ls, l => Math.min(l.amount, into.get(l.key) ?? 0));
+    const done = Math.min(total, Math.max(cross.get(id) ?? 0, byLines));
+    return { acc: findAcc(id), lines: ls, total, done };
+  }).sort((a, b) => S.accounts.indexOf(a.acc) - S.accounts.indexOf(b.acc));
+  const total = sum(accs, a => a.total), done = sum(accs, a => a.done);
+
+  const header = `
+    <div class="qnav">
+      <button class="icon" data-act="guide-prev" aria-label="Quincena anterior">${svg('left')}</button>
+      <button class="label" data-act="guide-now"><b>${p.label}</b></button>
+      <button class="icon" data-act="guide-next" aria-label="Quincena siguiente">${svg('right')}</button>
+    </div>
     <section class="card">
-      <div class="card-h"><div><h3>Quincena actual</h3><small>${q.label}</small></div>
-        <small class="${done.length ? 'pos' : 'warn'}">${done.length ? `Pago recibido: ${money(sum(done, m => m.total))}` : 'Aún sin pago'}</small></div>
-      <ul class="moves">${current.map(l => `
-        <li class="move static"><span>${funded.has(l.id) ? '✅' : '⬜'} ${esc(l.name)}<small>${esc(lineValid(l) ? catLabel(splitKey(l.key)) : '(categoría eliminada)')}</small></span>
-          <span class="amt">${money(funded.get(l.id) ?? l.amount)}</span></li>`).join('')}</ul>
-    </section>` : '';
+      <div class="grid2">
+        <div><small>Pago recibido</small><b class="big ${received ? 'pos' : 'warn'}">${money(received)}</b></div>
+        <div><small>Por transferir</small><b class="big">${money(r2(Math.max(0, total - done)))}</b>${total ? `<small>de ${money(total)}</small>` : ''}</div>
+      </div>
+      ${total ? bar(done, total) : ''}
+      <button class="btn primary block" data-act="new-pay">${svg('coin')} Registrar pago recibido</button>
+    </section>`;
 
-  const lines = S.plan.map(l => `
+  const cards = accs.map(({ acc, lines: ls, total, done }) => `
+    <section class="card">
+      <div class="card-h">
+        <div><h3>${isCredit(acc) ? svg('card') + ' ' : ''}${esc(acc.name)}</h3>
+          <small>${done >= total - 0.004 ? '<b class="pos">Completo</b>' : `Transferir <b>${money(total)}</b> · llevas ${money(done)} · faltan <b class="warn">${money(r2(total - done))}</b>`}</small></div>
+        <button class="btn sm primary" data-act="guide-acc" data-acc="${acc.id}" data-left="${r2(total - done)}">${svg('swap')} Transferir</button>
+      </div>
+      ${bar(done, total)}
+      <ul class="cats">${ls.map(l => {
+        const d = into.get(l.key) ?? 0;
+        return `
+        <li class="cat">
+          <button class="cat-main" data-act="guide-do" data-id="${l.id}" data-done="${d}">
+            <span class="cat-row"><span>${icon(d, l.amount)} ${esc(l.name)}</span><span>${money(d)} / ${money(l.amount)}</span></span>
+            <small class="muted">${esc(catLabel(splitKey(l.key)))}</small>
+          </button>
+          <button class="mini" data-act="edit-line" data-id="${l.id}" aria-label="Editar ${esc(l.name)}">${svg('edit')}</button>
+        </li>`;
+      }).join('')}</ul>
+    </section>`).join('');
+
+  const planned = half => sum(S.plan.filter(l => applies(l, half)), l => l.amount);
+  const all = S.plan.map(l => `
     <li><button class="move" data-act="edit-line" data-id="${l.id}">
       <span>${esc(l.name)}<small>${esc(WHEN[l.when])} · ${esc(lineValid(l) ? catLabel(splitKey(l.key)) : '(categoría eliminada)')}</small></span>
       <span class="amt">${money(l.amount)}</span></button></li>`).join('');
 
   return `
-    <section class="card empty-ish">
-      <p class="muted">Define a dónde va cada pago que recibes. Al registrar un pago, la app lo reparte por ti según este plan.</p>
-      <button class="btn primary block" data-act="new-payday">💰 Registrar pago recibido</button>
-    </section>
-    ${status}
+    ${header}
+    ${cards || `<div class="card empty"><p>${S.plan.length ? 'No hay transferencias pendientes para esta quincena.' : 'Crea tu guía: lo que debes transferir cada quincena (por ejemplo, Q200 a Efectivo / Internet).'}</p></div>`}
     <section class="card">
-      <div class="card-h"><h3>Plan de reparto</h3><button class="btn sm" data-act="new-line">＋ Línea</button></div>
-      ${lines ? `<ul class="moves">${lines}</ul>
-        <div class="kv plan-total"><span class="muted">Plan 1ª quincena</span><b>${money(planned(1))}</b></div>
-        <div class="kv plan-total"><span class="muted">Plan 2ª quincena</span><b>${money(planned(2))}</b></div>`
-        : '<small class="muted">Aún no hay líneas. Ej.: Transporte Q300 cada quincena, Seguro Q450 solo la 1ª quincena, Pago de tarjeta Q800 cada quincena.</small>'}
+      <div class="card-h"><h3>Líneas de la guía</h3><button class="btn sm" data-act="new-line">${svg('plus')} Línea</button></div>
+      ${all ? `<ul class="moves">${all}</ul>
+        <div class="kv plan-total"><span class="muted">Total 1ª quincena</span><b>${money(planned(1))}</b></div>
+        <div class="kv plan-total"><span class="muted">Total 2ª quincena</span><b>${money(planned(2))}</b></div>`
+        : '<small class="muted">Ej.: Internet Q200 cada quincena → Efectivo / Internet; Seguro Q450 solo la 1ª quincena → Banco / Seguro.</small>'}
     </section>`;
 }
 
 export function lineForm(line) {
   if (!hasCats()) return toast('Primero crea una cuenta con una categoría');
   const bal = k => balanceWithout(null, k);
-  modal(line ? 'Editar línea' : 'Nueva línea del plan', `
-    <label>Concepto <input name="name" required maxlength="40" value="${esc(line?.name ?? '')}" placeholder="Ej. Transporte, Seguro, Tarjeta…"></label>
-    <label>Monto <input name="amount" type="number" inputmode="decimal" step="0.01" min="0.01" required value="${line?.amount ?? ''}"></label>
-    <label>Va hacia ${catSelect('key', line?.key ?? allKeys()[0], bal)}</label>
+  modal(line ? 'Editar línea' : 'Nueva línea de la guía', `
+    <label>Concepto <input name="name" required maxlength="40" value="${esc(line?.name ?? '')}" placeholder="Ej. Internet, Seguro, Comida…"></label>
+    <label>Monto a transferir <input name="amount" type="number" inputmode="decimal" step="0.01" min="0.01" required value="${line?.amount ?? ''}"></label>
+    <label>Transferir a ${catSelect('key', line?.key ?? allKeys()[0], bal)}</label>
     <label>Cuándo aplica
       <select name="when">${Object.entries(WHEN).map(([k, v]) => `<option value="${k}" ${k === (line?.when ?? 'both') ? 'selected' : ''}>${v}</option>`).join('')}</select>
     </label>
-    <small class="muted">Si el destino es una tarjeta de crédito, el monto se usa para pagarla.</small>`, {
+    <small class="muted">El avance se calcula con las transferencias que registres hacia esa categoría durante la quincena.</small>`, {
     async onSubmit(fd) {
       const data = { name: fd.get('name').trim(), amount: r2(+fd.get('amount')), key: fd.get('key'), when: fd.get('when') };
       if (line) Object.assign(line, data);
@@ -71,81 +123,27 @@ export function lineForm(line) {
   });
 }
 
-// Registrar un pago: se reparte entre las líneas del plan que aplican a esa quincena; el resto va al «sobrante».
-export function paydayForm() {
-  if (!hasNormalCats()) return toast('Primero crea una cuenta con una categoría');
-  const bal = k => balanceWithout(null, k);
-  const keys = normalKeys();
-  let received = 0;
-  let date = today();
-  let rows = []; // { line, on, amount }
-  const leftoverKey = keys.includes(S.settings.leftover) ? S.settings.leftover : keys[0];
-
-  const syncRows = () => {
-    const half = periodFor('q', date).half;
-    const prev = new Map(rows.map(r => [r.line.id, r]));
-    rows = S.plan.filter(l => applies(l, half) && lineValid(l))
-      .map(l => prev.get(l.id) ?? { line: l, on: true, amount: l.amount });
-  };
-  syncRows();
-
-  modal('Registrar pago recibido', `
-    <label>Título <input name="title" required maxlength="60" value="Pago quincenal"></label>
-    <label>Monto recibido <input name="amount" type="number" inputmode="decimal" step="0.01" min="0.01" required></label>
-    <label>Fecha <input name="date" type="date" required value="${date}"></label>
-    <div>
-      <small class="muted">Reparto según tu plan</small>
-      <div id="lines" class="parts"></div>
-      <p class="muted" id="noplan" ${rows.length ? 'hidden' : ''}>No hay líneas del plan para esta quincena.</p>
-    </div>
-    <label>Lo que sobre va hacia ${catSelect('leftover', leftoverKey, bal, '', { credit: false })}</label>
-    <p id="remain" class="remain" aria-live="polite"></p>`, {
-    submit: 'Registrar',
-    afterOpen(f) {
-      const box = f.querySelector('#lines'), remain = f.querySelector('#remain'), noplan = f.querySelector('#noplan');
-      const left = () => r2(received - sum(rows.filter(r => r.on), r => r.amount));
-      const status = () => {
-        const l = left();
-        remain.className = 'remain ' + (l < 0 ? 'neg' : 'pos');
-        remain.textContent = l < 0 ? `Las líneas superan lo recibido por ${money(-l)}` : `Sobrante: ${money(l)}`;
-      };
-      const paint = () => {
-        noplan.hidden = rows.length > 0;
-        box.innerHTML = rows.map((r, i) => `
-          <div class="part line-row">
-            <label class="check"><input type="checkbox" data-i="${i}" ${r.on ? 'checked' : ''}><span>${esc(r.line.name)}<small>${esc(catLabel(splitKey(r.line.key)))}</small></span></label>
-            <input type="number" inputmode="decimal" step="0.01" min="0" data-i="${i}" value="${r.amount}" aria-label="Monto de ${esc(r.line.name)}">
-          </div>`).join('');
-        status();
-      };
-      f.elements.amount.addEventListener('input', () => { received = r2(+f.elements.amount.value || 0); status(); });
-      f.elements.date.addEventListener('change', () => { date = f.elements.date.value || date; syncRows(); paint(); });
-      box.addEventListener('input', e => {
-        const r = rows[+e.target.dataset.i];
-        if (e.target.type === 'checkbox') r.on = e.target.checked; else r.amount = r2(+e.target.value || 0);
-        status();
-      });
-      paint();
-      f.elements.amount.focus();
-    },
-    async onSubmit(fd) {
-      const total = r2(+fd.get('amount'));
-      const l = r2(total - sum(rows.filter(r => r.on), r => r.amount));
-      if (l < 0) { alert('Las líneas del plan superan lo recibido.'); return false; }
-      const parts = rows.filter(r => r.on && r.amount > 0).map(r => ({ ...splitKey(r.line.key), amount: r.amount, line: r.line.id }));
-      if (l > 0.004) parts.push({ ...splitKey(fd.get('leftover')), amount: l, line: null });
-      S.settings.leftover = fd.get('leftover');
-      await saveSettings();
-      await saveMove(null, {
-        id: uid(), t: Date.now(), type: 'income', plan: true, date: fd.get('date'),
-        title: fd.get('title').trim(), note: '', total, parts, files: [],
-      });
-    },
-  });
+// Abre la transferencia (o el pago de tarjeta) ya llenada para cumplir una parte de la guía.
+function doTransfer(key, amount, note) {
+  const a = findAcc(splitKey(key).acc);
+  if (isCredit(a)) return payCardForm(a);
+  flowForm('transfer', null, { to: key, amount: amount > 0 ? amount : '', note });
 }
 
 export const actions = {
   'new-line': () => lineForm(),
   'edit-line': el => lineForm(S.plan.find(l => l.id === el.dataset.id)),
-  'new-payday': () => paydayForm(),
+  'new-pay': () => flowForm('income', null, { note: 'Pago quincenal' }),
+  'guide-do'(el) {
+    const l = S.plan.find(x => x.id === el.dataset.id);
+    doTransfer(l.key, r2(l.amount - (+el.dataset.done || 0)), l.name);
+  },
+  'guide-acc'(el) {
+    const p = periodFor('q', S.guide.ref);
+    const l = S.plan.find(x => applies(x, p.half) && lineValid(x) && accOf(x) === el.dataset.acc);
+    doTransfer(l.key, +el.dataset.left, `Guía ${findAcc(el.dataset.acc).name}`);
+  },
+  'guide-prev': () => { S.guide.ref = shiftRef('q', S.guide.ref, -1); },
+  'guide-next': () => { S.guide.ref = shiftRef('q', S.guide.ref, 1); },
+  'guide-now': () => { S.guide.ref = today(); },
 };

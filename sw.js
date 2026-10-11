@@ -1,6 +1,6 @@
 // Network-first con respaldo en caché: siempre trae la versión nueva si hay red
 // y sigue funcionando sin conexión. No hace falta versionar la caché a mano.
-const CACHE = 'mi-quincena-v3';
+const CACHE = 'tracker-v4';
 const SHELL = [
   './',
   'index.html',
@@ -8,6 +8,7 @@ const SHELL = [
   'js/app.js',
   'js/db.js',
   'js/util.js',
+  'js/icons.js',
   'js/state.js',
   'js/ui.js',
   'js/money.js',

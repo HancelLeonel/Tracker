@@ -5,6 +5,7 @@ import {
   allocatePayment, catLabel,
 } from './state.js';
 import { modal, catSelect, kindSelect, wireKindSelect, mountAttach, attachHtml, fileLinks } from './ui.js';
+import { icon } from './icons.js';
 
 const FREQ = { once: 'Una sola vez', monthly: 'Cada mes', biweekly: 'Cada quincena' };
 const LOOKAHEAD = 30;
@@ -72,15 +73,15 @@ export function billsView() {
     .sort((a, b) => b.e.on.localeCompare(a.e.on) || b.due.localeCompare(a.due)).slice(0, HISTORY);
 
   return `
-    ${overdue.length ? `<section class="card alert"><div class="card-h"><h3>⚠️ Vencidos</h3></div><ul class="moves">${overdue.map(row).join('')}</ul></section>` : ''}
+    ${overdue.length ? `<section class="card alert"><div class="card-h"><h3>${icon('alert')} Vencidos</h3></div><ul class="moves">${overdue.map(row).join('')}</ul></section>` : ''}
     <section class="card"><div class="card-h"><h3>Próximos</h3></div>
       ${next.length ? `<ul class="moves">${next.map(row).join('')}</ul>` : '<small class="muted">Nada pendiente en los próximos 30 días.</small>'}</section>
     ${history.length ? `<section class="card"><div class="card-h"><h3>Realizados</h3></div><ul class="moves">${history.map(({ bill, due, e }) => `
       <li><button class="move" data-act="paid-bill" data-id="${bill.id}" data-due="${due}">
-        <span>${e.skipped ? '⏭️' : '✅'} ${esc(bill.title)}<small>${e.skipped ? 'Omitido' : `Pagado el ${fmtDateY(e.on)}`} · vencía ${fmtDate(due)}${e.files?.length ? ' · 📎' : ''}</small></span>
+        <span>${icon(e.skipped ? 'skip' : 'done')} ${esc(bill.title)}<small>${e.skipped ? 'Omitido' : `Pagado el ${fmtDateY(e.on)}`} · vencía ${fmtDate(due)}${e.files?.length ? ' · ' + icon('clip') : ''}</small></span>
         ${e.skipped ? '' : `<span class="amt">${money(e.amount)}</span>`}
       </button></li>`).join('')}</ul></section>` : ''}
-    <button class="btn block" data-act="new-bill">＋ Agregar pago</button>`;
+    <button class="btn block" data-act="new-bill">${icon('plus')} Agregar pago</button>`;
 }
 
 export function billForm(bill) {

@@ -1,5 +1,6 @@
 import * as db from './db.js';
 import { $, esc, money, toast, uid } from './util.js';
+import { icon } from './icons.js';
 import { S, hooks, isCredit, addFile, saveSettings } from './state.js';
 
 const dlg = $('#dlg');
@@ -16,6 +17,7 @@ export const isOpen = () => dlg.open || viewer.open;
 
 // onSubmit puede devolver false para mantener el diálogo abierto.
 export function modal(title, body, { submit = 'Guardar', onSubmit, onDelete, deleteLabel = 'Eliminar', confirmText = '¿Eliminar? Esta acción no se puede deshacer.', afterOpen } = {}) {
+  if (dlg.open) dlg.close(); // permite abrir un formulario desde otro diálogo (p. ej. editar desde la lista de movimientos)
   dlg.innerHTML = `
     <form id="f" method="dialog">
       <h2>${esc(title)}</h2>
@@ -23,7 +25,7 @@ export function modal(title, body, { submit = 'Guardar', onSubmit, onDelete, del
       <div class="actions">
         ${onDelete ? `<button type="button" class="btn danger" id="del">${esc(deleteLabel)}</button>` : ''}
         <span class="spacer"></span>
-        <button type="button" class="btn ghost" id="cancel">Cancelar</button>
+        <button type="button" class="btn ${onSubmit ? 'ghost' : ''}" id="cancel">${onSubmit ? 'Cancelar' : 'Cerrar'}</button>
         ${onSubmit ? `<button class="btn primary">${esc(submit)}</button>` : ''}
       </div>
     </form>`;
@@ -49,22 +51,28 @@ export const closeModal = () => dlg.close();
 
 // ---------- selects ----------
 // <select> con las categorías agrupadas por cuenta y su saldo. `bal(key)` devuelve el saldo a mostrar.
-export function catSelect(name, selected, bal, attrs = '', { credit = true } = {}) {
-  const groups = S.accounts.filter(a => a.cats.length && (credit || !isCredit(a))).map(a => `
-    <optgroup label="${esc(isCredit(a) ? '💳 ' + a.name : a.name)}">
-      ${a.cats.map(c => {
+// opts: credit (incluir tarjetas), only (Set de claves permitidas), placeholder (texto si no hay selección).
+export function catSelect(name, selected, bal, attrs = '', { credit = true, only = null, placeholder = '' } = {}) {
+  const groups = S.accounts.filter(a => credit || !isCredit(a)).map(a => {
+    const cats = a.cats.filter(c => !only || only.has(`${a.id}|${c.id}`));
+    if (!cats.length) return '';
+    return `
+    <optgroup label="${esc(isCredit(a) ? a.name + ' (tarjeta)' : a.name)}">
+      ${cats.map(c => {
         const k = `${a.id}|${c.id}`, b = bal(k);
         const text = isCredit(a) ? (b < 0 ? `Deuda ${money(-b)}` : `A favor ${money(b)}`) : `${c.name} · ${money(b)}`;
         return `<option value="${k}" ${k === selected ? 'selected' : ''}>${esc(text)}</option>`;
       }).join('')}
-    </optgroup>`).join('');
-  return `<select name="${name}" ${attrs}>${groups}</select>`;
+    </optgroup>`;
+  }).join('');
+  const ph = placeholder ? `<option value="" disabled ${selected ? '' : 'selected'}>${esc(placeholder)}</option>` : '';
+  return `<select name="${name}" ${attrs}>${ph}${groups}</select>`;
 }
 
 export function kindSelect(name, selected) {
   return `<select name="${name}">
     ${S.settings.types.map(t => `<option value="${t.id}" ${t.id === selected ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
-    <option value="__new">＋ Nuevo tipo…</option></select>`;
+    <option value="__new">+ Nuevo tipo…</option></select>`;
 }
 
 // Hace que la opción «Nuevo tipo» del select cree el tipo al vuelo.
@@ -119,11 +127,11 @@ export function mountAttach(el, ids) {
     el.innerHTML = `
       <div class="chips">${ids.map(id => {
         const m = S.files.get(id);
-        const thumb = m?.mime.startsWith('image/') ? `<img data-thumb="${id}" alt="">` : '<span aria-hidden="true">📄</span>';
+        const thumb = m?.mime.startsWith('image/') ? `<img data-thumb="${id}" alt="">` : icon('file');
         return `<span class="chip"><button type="button" class="chip-open" data-open="${id}">${thumb}<span>${esc(m?.name ?? 'archivo')}</span></button>
-          <button type="button" class="chip-x" data-rm="${id}" aria-label="Quitar">✕</button></span>`;
+          <button type="button" class="chip-x" data-rm="${id}" aria-label="Quitar">${icon('close')}</button></span>`;
       }).join('')}</div>
-      <button type="button" class="btn sm" data-add>📎 Adjuntar foto o archivo</button>`;
+      <button type="button" class="btn sm" data-add>${icon('clip')} Adjuntar foto o archivo</button>`;
     el.querySelectorAll('img[data-thumb]').forEach(async img => {
       const rec = await db.get('files', img.dataset.thumb);
       if (rec) { const u = URL.createObjectURL(rec.blob); urls.push(u); img.src = u; }
@@ -171,6 +179,6 @@ export async function openFile(id) {
 export function fileLinks(ids = []) {
   return ids.map(id => {
     const m = S.files.get(id);
-    return `<button type="button" class="btn sm" data-act="open-file" data-id="${id}">${m?.mime.startsWith('image/') ? '🖼️' : '📄'} ${esc(m?.name ?? 'archivo')}</button>`;
+    return `<button type="button" class="btn sm" data-act="open-file" data-id="${id}">${icon(m?.mime.startsWith('image/') ? 'image' : 'file')} ${esc(m?.name ?? 'archivo')}</button>`;
   }).join(' ');
 }

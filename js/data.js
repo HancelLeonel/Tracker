@@ -2,10 +2,12 @@ import * as db from './db.js';
 import { esc, uid, today, toast, $ } from './util.js';
 import { S, loadState, saveSettings, gcFiles } from './state.js';
 import { modal } from './ui.js';
+import { icon } from './icons.js';
 import { COLORS } from './habits.js';
 import { fileSize } from './ui.js';
 
-const APP_ID = 'mi-quincena';
+const APP_ID = 'tracker';
+const LEGACY_IDS = ['mi-quincena']; // nombre anterior de la app: sus respaldos se siguen aceptando
 const VERSION = 3;
 const FREQS = ['once', 'monthly', 'biweekly'];
 const WHENS = ['both', 'q1', 'q2'];
@@ -31,7 +33,7 @@ export function dataView() {
       <button class="btn block" data-act="import">Importar desde archivo</button>
     </section>
     <section class="card stack">
-      <div class="card-h"><h3>Tipos de gasto</h3><button class="btn sm" data-act="new-kind">＋ Nuevo</button></div>
+      <div class="card-h"><h3>Tipos de gasto</h3><button class="btn sm" data-act="new-kind">${icon('plus')} Nuevo</button></div>
       <div class="chips">${S.settings.types.map(t => `<button class="chip-tag" data-act="edit-kind" data-id="${t.id}">${esc(t.name)}</button>`).join('')}</div>
     </section>
     <section class="card stack">
@@ -79,7 +81,7 @@ async function buildExport() {
 
 async function fileForExport() {
   const suffix = S.settings.includeFiles ? '-con-archivos' : '';
-  return new File([JSON.stringify(await buildExport(), null, 2)], `mi-quincena-${today()}${suffix}.json`, { type: 'application/json' });
+  return new File([JSON.stringify(await buildExport(), null, 2)], `tracker-${today()}${suffix}.json`, { type: 'application/json' });
 }
 
 async function markExported() {
@@ -105,7 +107,7 @@ async function doShare() {
   const file = await fileForExport();
   if (!navigator.canShare({ files: [file] })) return toast('Este dispositivo no puede compartir archivos');
   try {
-    await navigator.share({ files: [file], title: 'Respaldo Mi Quincena' });
+    await navigator.share({ files: [file], title: 'Respaldo Tracker' });
     await markExported();
   } catch (err) {
     if (err.name !== 'AbortError') toast('No se pudo compartir');
@@ -115,7 +117,7 @@ async function doShare() {
 // ---------- importar ----------
 function validateImport(d) {
   const bad = msg => { throw new Error(msg); };
-  if (!d || d.app !== APP_ID) bad('El archivo no es un respaldo de esta app.');
+  if (!d || (d.app !== APP_ID && !LEGACY_IDS.includes(d.app))) bad('El archivo no es un respaldo de esta app.');
   if (d.version !== 2 && d.version !== VERSION) bad('Este respaldo es de una versión que ya no se puede importar.');
   const arr = (v, name) => (v === undefined ? [] : Array.isArray(v) ? v : bad(`El respaldo está dañado (${name}).`));
   const num = n => Number.isFinite(n) ? n : bad('Hay un monto inválido en el archivo.');

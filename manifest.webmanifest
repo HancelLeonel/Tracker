@@ -1,7 +1,7 @@
 {
-  "name": "Mi Quincena",
-  "short_name": "Quincena",
-  "description": "Hábitos y gastos quincenales",
+  "name": "Tracker",
+  "short_name": "Tracker",
+  "description": "Finanzas, hábitos y compras",
   "lang": "es",
   "start_url": "./",
   "scope": "./",

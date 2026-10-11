@@ -7,6 +7,7 @@
 //   purchases -> { id, name, date, price, store, tag, warrantyMonths, notes, files }
 //   files     -> { id, blob, mime, name, size }
 //   meta      -> { k: 'settings', v: {...} }
+// El nombre interno se conserva tras el cambio de nombre a Tracker para no perder los datos ya guardados en el teléfono.
 const DB_NAME = 'mi-quincena';
 const STORES = ['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'files', 'meta'];
 let opened;

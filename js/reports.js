@@ -1,6 +1,7 @@
 import { esc, money, sum, r2, today, addDays, daysBetween, fmtDate, fmtDateY, periodFor, shiftRef, MONTHS, toast } from './util.js';
 import { S, kindName, catLabel, findAcc } from './state.js';
 import { moveTitle } from './money.js';
+import { icon } from './icons.js';
 
 const KINDS = [['q', 'Quincena'], ['m', 'Mes'], ['y', 'Año'], ['all', 'Todo']];
 
@@ -78,7 +79,7 @@ export function reportsView() {
   let delta = '';
   if (kind !== 'all') {
     const prev = spentIn(periodFor(kind, shiftRef(kind, ref, -1)));
-    delta = prev ? (() => { const d = Math.round((spent - prev) / prev * 100); return `<small class="${d > 0 ? 'neg' : 'pos'}">${d > 0 ? '▲' : d < 0 ? '▼' : '='} ${Math.abs(d)}% vs periodo anterior (${money(prev)})</small>`; })()
+    delta = prev ? (() => { const d = Math.round((spent - prev) / prev * 100); return `<small class="${d > 0 ? 'neg' : 'pos'}">${d > 0 ? icon('up') : d < 0 ? icon('down') : ''} ${Math.abs(d)}% vs periodo anterior (${money(prev)})</small>`; })()
       : '<small class="muted">Sin gastos en el periodo anterior</small>';
   }
 
@@ -107,9 +108,9 @@ export function reportsView() {
   return `
     <div class="seg small" role="tablist">${KINDS.map(([k, label]) => `<button class="${k === kind ? 'on' : ''}" data-act="rep-kind" data-kind="${k}">${label}</button>`).join('')}</div>
     ${kind !== 'all' ? `<div class="qnav">
-      <button class="icon" data-act="rep-prev" aria-label="Periodo anterior">‹</button>
+      <button class="icon" data-act="rep-prev" aria-label="Periodo anterior">${icon('left')}</button>
       <button class="label" data-act="rep-now"><b>${p.label}</b></button>
-      <button class="icon" data-act="rep-next" aria-label="Periodo siguiente">›</button></div>` : ''}
+      <button class="icon" data-act="rep-next" aria-label="Periodo siguiente">${icon('right')}</button></div>` : ''}
 
     <section class="card">
       <div class="grid2">
