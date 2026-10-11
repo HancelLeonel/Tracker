@@ -47,8 +47,6 @@ export function modal(title, body, { submit = 'Guardar', onSubmit, onDelete, del
   dlg.showModal();
 }
 
-export const closeModal = () => dlg.close();
-
 // ---------- selects ----------
 // <select> con las categorías agrupadas por cuenta y su saldo. `bal(key)` devuelve el saldo a mostrar.
 // opts: credit (incluir tarjetas), only (Set de claves permitidas), placeholder (texto si no hay selección).

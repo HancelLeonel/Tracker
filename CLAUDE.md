@@ -73,6 +73,8 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 
 **Service worker**
 - Si añades un archivo `.js`/`.css`, agrégalo a `SHELL` en [sw.js](sw.js) y sube el nombre de `CACHE`.
+- Si añades un archivo `.js` también agrégalo a los `<link rel="modulepreload">` de [index.html](index.html) (descarga los módulos en paralelo; sin ellos el arranque por red es más lento). `tests/smoke.py` falla si `js/`, `SHELL` y `index.html` no coinciden.
+- Antes de "optimizar" el código de datos, mide: la revisión de oct 2026 mostró que, salvo la lectura de IndexedDB, todo está por debajo de 100 ms con 60,000 movimientos (ver «Rendimiento» en [Documentacion.md](Documentacion.md)).
 
 ## Pruebas
 

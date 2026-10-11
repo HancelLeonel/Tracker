@@ -7,6 +7,14 @@ import subprocess, time, sys
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 time.sleep(1)
+# index.html (modulepreload) y sw.js (SHELL) deben listar exactamente los módulos de js/.
+import re
+mods = sorted(f.name for f in Path(ROOT, 'js').glob('*.js'))
+html = Path(ROOT, 'index.html').read_text(); sw = Path(ROOT, 'sw.js').read_text()
+pre = sorted(re.findall(r'rel="modulepreload" href="js/([\w.]+)"', html))
+shell = sorted(re.findall(r"'js/([\w.]+)'", sw))
+print(('PASS ' if pre == mods else 'FAIL ') + 'index.html precarga todos los módulos', '' if pre == mods else (set(mods) ^ set(pre)))
+print(('PASS ' if shell == mods else 'FAIL ') + 'sw.js (SHELL) lista todos los módulos', '' if shell == mods else (set(mods) ^ set(shell)))
 try:
     with sync_playwright() as p:
         b = p.chromium.launch()

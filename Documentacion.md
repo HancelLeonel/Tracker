@@ -353,15 +353,18 @@ Medido en Chromium de escritorio con datos sintéticos (8 cuentas, 2 tarjetas, h
 
 | Movimientos | Carga inicial | Pantalla Cuentas | Reportes (todo) | Guardar un gasto |
 |---|---|---|---|---|
-| 5,000 | 0.26 s | 20 ms | 33 ms | 0.1 s |
-| 20,000 | 0.5 s | 17 ms | 80 ms | 0.2 s |
-| 60,000 | 1.2 s | 19 ms | 170 ms | 0.4 s |
+| 5,000 | 0.11 s | 10 ms | 27 ms | 0.06 s |
+| 20,000 | 0.23 s | 10 ms | 40 ms | 0.08 s |
+| 60,000 | 0.48 s | 21 ms | 106 ms | 0.13 s |
 
-Con uso intenso (5–10 gastos al día) se llega a unos 20,000 movimientos en 5 años. Para mantener ese margen:
+Con uso intenso (5–10 gastos al día) se llega a unos 20,000 movimientos en 5 años; con un uso normal (unas decenas por quincena) son cientos por año. Para mantener ese margen:
 
 - **Listas paginadas**: los movimientos, la lista de movimientos de una cuenta y las compras se pintan de 30 en 30 (40 en compras) con «Ver más». Antes, «Ver todos» con 20,000 movimientos tardaba 2 s y con 60,000 casi 6 s; ahora cuesta lo mismo con cualquier cantidad.
 - **Caché de lo derivado** ([state.js](js/state.js)): los movimientos ordenados y lo apartado para tarjetas se calculan una vez y se reutilizan hasta que cambian los datos. Cualquier cambio en movimientos o cuentas debe llamar a `bump()` para invalidarla; los guardados de `state.js` ya lo hacen. Con 60,000 movimientos la pantalla de Cuentas bajó de 333 ms a 19 ms.
-- Lo que sigue creciendo de forma lineal es la **carga inicial** (la app lee todos los datos al abrir) y los **reportes** (recorren el periodo). Con 60,000 movimientos siguen por debajo de 1.5 s y 200 ms.
+- Lo que sigue creciendo de forma lineal es la **carga inicial** (la app lee todos los datos al abrir: con 60,000 movimientos, ~350 ms son solo la lectura de IndexedDB) y los **reportes** (recorren el periodo). Con 60,000 movimientos siguen por debajo de 0.5 s y 110 ms.
+- **Arranque por red**: los módulos JS se importan unos a otros, y sin ayuda el navegador los descubre por niveles (unos 5 saltos seguidos). `index.html` los declara con `<link rel="modulepreload">` para descargarlos todos en paralelo. Con latencia de móvil, el arranque en frío bajó de 866 a 590 ms (150 ms de latencia) y de 1,625 a 1,033 ms (300 ms). La lista debe incluir **todos** los `.js` de `js/` (lo verifica `tests/smoke.py`).
+
+**Revisión de optimización (10 oct 2026).** Se perfilaron la carga, el ordenado de movimientos, lo apartado de tarjetas, el recuento de adjuntos, los reportes y la guía con 20,000 y 60,000 movimientos: salvo la lectura de IndexedDB, ninguno pasa de 100 ms, así que no se justifican más cambios en el código de datos (por ejemplo, `localeCompare` en los ordenados no pesa: ~14 ms con 60,000). Lo único con ganancia medible fue la precarga de módulos. Se quitó además código sin uso (una importación en `bills.js` y la función `closeModal` en `ui.js`).
 
 ## 7. Limitaciones conocidas
 
