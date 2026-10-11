@@ -34,7 +34,7 @@ try:
 
         # ---- fuente por defecto
         check('por defecto usa la fuente del sistema', family().startswith('system-ui') and q.evaluate("document.documentElement.dataset.font")=='system', family())
-        check('«Predeterminada del sistema» está marcada y explica cuál es', q.locator('input[name=font][value=system]').is_checked() and 'Roboto' in q.locator('.font-opt').first.inner_text())
+        check('«Predeterminada del sistema» está marcada y explica cuál es', q.locator('input[name=font][value=system]').is_checked() and 'Roboto' in q.locator('.font-opt:has(input[name=font])').first.inner_text())
         check('cada opción se muestra con su propia letra', q.evaluate("[...document.querySelectorAll('.fo-sample')].map(e => getComputedStyle(e).fontFamily)").__len__()==2 and 'JetBrains' in q.evaluate("getComputedStyle(document.querySelectorAll('.fo-sample')[1]).fontFamily"))
         base = q.evaluate("getComputedStyle(document.documentElement).fontSize")
 
@@ -89,6 +89,48 @@ try:
         with q.expect_file_chooser() as fc: q.click('[data-act=import]')
         fc.value.set_files(os.path.join(tempfile.gettempdir(), 'jb-font.json')); q.wait_for_timeout(800)
         check('un respaldo con JetBrains Mono la aplica al importar', 'JetBrains Mono' in family())
+
+        # ---- tema: oscuro, claro o automático
+        theme = lambda pg=q: pg.evaluate("document.documentElement.dataset.theme")
+        bar = lambda pg=q: pg.evaluate("document.querySelector('meta[name=theme-color]').content")
+        bg = lambda pg=q: pg.evaluate("getComputedStyle(document.body).backgroundColor")
+        saved = lambda: q.evaluate("import('/js/state.js').then(st => st.S.settings.theme)")
+        go('data')
+        check('Apariencia ofrece Oscuro, Claro y Automático; por defecto oscuro', q.locator('input[name=theme]').count()==3 and q.locator('input[name=theme][value=dark]').is_checked() and theme()=='dark' and bar()=='#111317' and bg()=='rgb(17, 19, 23)', (theme(), bar(), bg()))
+        q.click('.font-opt:has(input[value=light])'); q.wait_for_timeout(200)
+        check('«Claro» cambia toda la interfaz, los controles nativos y la barra del sistema', theme()=='light' and bar()=='#f3f4f6' and bg()=='rgb(243, 244, 246)' and q.evaluate("getComputedStyle(document.documentElement).colorScheme")=='light', (theme(), bar(), bg()))
+        check('se guarda en los ajustes (viaja en el respaldo)', saved()=='light')
+        q.reload(); q.wait_for_selector('#view .home')
+        check('al reabrir la app se mantiene', theme()=='light' and bar()=='#f3f4f6')
+        q.screenshot(path=OUT+'tema_claro.png', full_page=True)
+        # desde el primer pintado: aunque la app aún no haya cargado (la pantalla de carga ya sale clara)
+        q.evaluate("navigator.serviceWorker.getRegistrations().then(rs => Promise.all(rs.map(r => r.unregister())))")  # sin él, la app sale de su copia
+        q2 = ctx.new_page(); q2.route('**/js/**', lambda r: r.abort()); q2.goto(URL); q2.wait_for_timeout(300)
+        check('la pantalla de carga ya usa el tema elegido (antes de cargar los módulos)', theme(q2)=='light' and bg(q2)=='rgb(243, 244, 246)' and q2.locator('.boot').count()==1, (theme(q2), bg(q2)))
+        q2.close()
+        # automático: sigue al sistema, también si cambia con la app abierta
+        q.emulate_media(color_scheme='dark'); go('data')
+        q.click('.font-opt:has(input[value=auto])'); q.wait_for_timeout(200)
+        check('«Automático» con el sistema en oscuro: oscuro', theme()=='dark' and saved()=='auto' and bar()=='#111317')
+        q.emulate_media(color_scheme='light'); q.wait_for_timeout(200)
+        check('si el sistema pasa a claro, la app cambia sola', theme()=='light' and bar()=='#f3f4f6')
+        q.emulate_media(color_scheme='dark'); q.wait_for_timeout(200)
+        check('y de vuelta a oscuro', theme()=='dark')
+        q.emulate_media(color_scheme='light'); q.reload(); q.wait_for_selector('#view .home')
+        check('al abrir con el sistema en claro arranca en claro', theme()=='light')
+        q.emulate_media(color_scheme='dark')
+        go('data'); q.click('.font-opt:has(input[value=dark])'); q.wait_for_timeout(200)
+        q.emulate_media(color_scheme='light'); q.wait_for_timeout(200)
+        check('con «Oscuro» fijo, el sistema en claro no lo cambia', theme()=='dark')
+        # respaldo con un tema inválido
+        Path(tempfile.gettempdir(), 'weird-theme.json').write_text(json.dumps({'app':'tracker','version':3,'habits':[],'accounts':[],'moves':[],'settings':{'theme':'neón'}}))
+        with q.expect_file_chooser() as fc: q.click('[data-act=import]')
+        fc.value.set_files(os.path.join(tempfile.gettempdir(), 'weird-theme.json')); q.wait_for_timeout(800)
+        check('un tema desconocido en un respaldo se corrige a oscuro', saved()=='dark' and theme()=='dark')
+        Path(tempfile.gettempdir(), 'light-theme.json').write_text(json.dumps({'app':'tracker','version':3,'habits':[],'accounts':[],'moves':[],'settings':{'theme':'light'}}))
+        with q.expect_file_chooser() as fc: q.click('[data-act=import]')
+        fc.value.set_files(os.path.join(tempfile.gettempdir(), 'light-theme.json')); q.wait_for_timeout(800)
+        check('un respaldo con tema claro lo aplica al importar', theme()=='light')
         check('sin errores de consola', errs==[], errs)
         print('errors:', errs); b.close()
 finally:

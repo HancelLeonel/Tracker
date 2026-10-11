@@ -11,7 +11,28 @@
   --base: #111317; --mantle: #181b20; --crust: #0c0d10;
   --line: #23272e;                                  /* líneas finas y bordes de tarjeta */
   --accent: #9aa7f5; --accent-ink: #0c0d10;         /* el único acento de la interfaz y el texto sobre él */
+  --shadow: #000a; --scrim: rgba(0, 0, 0, .6);      /* sombras de hojas/botones flotantes y velo detrás de diálogos y menú */
   --radius: 18px;
+  color-scheme: dark;
+}
+
+/* Tema claro (Configuración › Apariencia). Mismos nombres de variables: los colores elegibles son más oscuros para que se lean
+   sobre blanco (como texto ≥ 4.5:1 los semánticos, ≥ 3:1 los de iconos) y el texto sobre el acento es blanco.
+   `data-theme` lo pone `applyTheme()` (ui.js) y, antes del primer pintado, el script de index.html; «Automático» se resuelve
+   allí mismo según el sistema. */
+:root[data-theme="light"] {
+  --rosewater: #a35a54; --flamingo: #b04a55; --pink: #ad3a82; --mauve: #6d48c4;
+  --red: #c0354a; --maroon: #a83a46; --peach: #b0521c; --yellow: #866000;
+  --green: #1d7a4b; --teal: #11756c; --sky: #19718f; --sapphire: #22609a;
+  --blue: #2f5fc6; --lavender: #5357bd;
+  --text: #16181d; --subtext1: #383e49; --subtext0: #565d69;
+  --overlay2: #6b717d; --overlay1: #7d838f; --overlay0: #a1a6af;
+  --surface2: #c3c8d0; --surface1: #dadde3; --surface0: #e9ebef;
+  --base: #f3f4f6; --mantle: #ffffff; --crust: #f0f1f4;
+  --line: #e1e4e9;
+  --accent: #4352c4; --accent-ink: #ffffff;
+  --shadow: #0f172a26; --scrim: rgba(15, 18, 25, .4);
+  color-scheme: light;
 }
 
 /* JetBrains Mono (licencia OFL, ver fonts/OFL.txt): solo se descarga si se elige en Configuración o se muestra un bloque de código. */
@@ -28,6 +49,8 @@
 :root[data-font="jetbrains"] { --font: var(--font-jb); font-size: 90%; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* `hidden` siempre oculta, aunque el componente fije su propio display (label, .stack…). */
+[hidden] { display: none !important; }
 html { background: var(--base); }
 body {
   margin: 0; min-height: 100dvh; background: var(--base); color: var(--text);
@@ -100,7 +123,7 @@ small, .muted { color: var(--subtext0); }
 .fab {
   position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 6;
   width: 58px; height: 58px; border-radius: 18px; font-size: 1.8rem; line-height: 1;
-  background: var(--accent); color: var(--accent-ink); box-shadow: 0 10px 24px #000a;
+  background: var(--accent); color: var(--accent-ink); box-shadow: 0 10px 24px var(--shadow);
 }
 .fab:active { filter: brightness(.9); }
 
@@ -152,12 +175,12 @@ small, .muted { color: var(--subtext0); }
 /* Los formularios se abren como hoja que sube desde abajo (cómoda con una mano). */
 dialog {
   width: min(520px, 100%); max-width: 100%; max-height: 92dvh; margin: auto auto 0; padding: 0 0 env(safe-area-inset-bottom); border: 0;
-  border-radius: 24px 24px 0 0; background: var(--mantle); color: var(--text); box-shadow: 0 -12px 40px #000a;
+  border-radius: 24px 24px 0 0; background: var(--mantle); color: var(--text); box-shadow: 0 -12px 40px var(--shadow);
 }
 dialog[open] { animation: sheet-up .22s cubic-bezier(.2, .8, .2, 1); }
 @keyframes sheet-up { from { transform: translateY(32px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { dialog[open] { animation: none; } }
-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+dialog::backdrop { background: var(--scrim, rgba(0, 0, 0, .6)); }
 dialog form::before { content: ''; justify-self: center; width: 40px; height: 4px; margin: -6px 0 -2px; border-radius: 99px; background: var(--surface2); }
 dialog form { padding: 18px; display: grid; gap: 14px; }
 dialog h2 { font-size: 1.15rem; font-weight: 600; }
@@ -179,7 +202,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 #toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 20;
   transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: .2s;
-  background: var(--surface1); color: var(--text); padding: 10px 16px; border-radius: 14px; border: 1px solid var(--surface2); max-width: 90vw; text-align: center; box-shadow: 0 8px 24px #0008;
+  background: var(--surface1); color: var(--text); padding: 10px 16px; border-radius: 14px; border: 1px solid var(--surface2); max-width: 90vw; text-align: center; box-shadow: 0 8px 24px var(--shadow);
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
@@ -268,10 +291,10 @@ dialog#viewer { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100d
 .status-i { margin-right: 4px; }
 .hb-row .i, .qnav .i { vertical-align: -0.2em; }
 
-#scrim { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, .6); opacity: 0; pointer-events: none; transition: opacity .2s; }
+#scrim { position: fixed; inset: 0; z-index: 30; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .2s; }
 #drawer {
   position: fixed; top: 0; bottom: 0; left: 0; z-index: 31; width: min(290px, 82vw); display: flex; flex-direction: column;
-  background: var(--mantle); border-right: 1px solid var(--line); box-shadow: 8px 0 30px #0009;
+  background: var(--mantle); border-right: 1px solid var(--line); box-shadow: 8px 0 30px var(--shadow);
   padding-top: env(safe-area-inset-top); transform: translateX(-102%); visibility: hidden; transition: transform .22s, visibility 0s .22s;
 }
 body.menu-open #scrim { opacity: 1; pointer-events: auto; }
@@ -512,7 +535,7 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
 .gym-top { display: grid; gap: 4px; }
 .gym-top .bar i { background: var(--c); }
 .gym-top .bar { margin: 8px 0 0; }
-.rest-bar { position: sticky; top: 61px; z-index: 4; display: grid; gap: 8px; border-color: var(--accent); box-shadow: 0 8px 24px #000a; }
+.rest-bar { position: sticky; top: 61px; z-index: 4; display: grid; gap: 8px; border-color: var(--accent); box-shadow: 0 8px 24px var(--shadow); }
 .rest-bar .bar { margin: 0; }
 .rest-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .rest-clock { font-size: 2rem; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -556,3 +579,28 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
 .rx-nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .rx-nums label { font-size: .72rem; gap: 4px; }
 .rx-nums input { padding: 10px 4px; text-align: center; }
+
+/* Bandeja: seleccionar varias */
+.inbox-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; }
+.qn.pick { display: flex; align-items: center; gap: 10px; }
+.qn-box { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--surface2); }
+.qn.pick.on .qn-box { background: var(--accent); border-color: var(--accent); }
+.qn-box .i { width: 1rem; height: 1rem; stroke: var(--accent-ink); stroke-width: 2.4; }
+.qn-body { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.qn-bar { display: flex; align-items: center; gap: 6px; position: sticky; bottom: calc(8px + env(safe-area-inset-bottom)); padding: 8px 10px; background: var(--mantle); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 24px var(--shadow); }
+.qn-bar .spacer { flex: 1; }
+.btn:disabled { opacity: .45; }
+
+/* Gimnasio: notas por serie, opciones del ejercicio y editar un entrenamiento terminado */
+.gx-note { margin: -4px 0 2px calc(1.6rem + 6px); font-size: .8rem; color: var(--subtext0); overflow-wrap: anywhere; }
+.set-notes { display: grid; gap: 6px; margin-top: 6px; }
+.set-notes label { grid-template-columns: 4.2rem 1fr; align-items: center; gap: 8px; }
+.we-cols, .we-set { display: grid; grid-template-columns: 1.6rem 1fr 1rem 1fr 38px; align-items: center; gap: 6px; }
+.we-cols small { text-align: center; font-size: .72rem; }
+.we-set input { min-width: 0; padding: 10px 4px; text-align: center; }
+.we-set .we-note { grid-column: 2 / -1; text-align: left; padding: 8px 10px; min-height: 40px; font-size: .9rem; }
+.we-set + .we-set { margin-top: 4px; }
+
+/* Configuración: elegir tema */
+.th-sample { flex: none; display: grid; place-items: center; width: 2.6rem; }
+.th-sample .i { width: 1.5rem; height: 1.5rem; }

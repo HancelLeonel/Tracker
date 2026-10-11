@@ -1,7 +1,7 @@
 import * as db from './db.js';
-import { esc, uid, today, toast, $ } from './util.js';
+import { esc, uid, today, toast, $, pl } from './util.js';
 import { S, loadState, saveSettings, gcFiles, sortedKinds } from './state.js';
-import { modal, applyFont } from './ui.js';
+import { modal, applyFont, applyTheme, THEMES } from './ui.js';
 import { icon, HABIT_ICONS, NOTE_ICONS } from './icons.js';
 import { COLORS, SLOT_KEYS } from './habits.js';
 import { FREQS as TPL_FREQS } from './lists.js';
@@ -15,7 +15,6 @@ const VERSION = 3;
 const FREQS = ['once', 'monthly', 'biweekly'];
 const WHENS = ['both', 'q1', 'q2'];
 
-const pl = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 
 // ---------- vista ----------
 export function dataView() {
@@ -23,9 +22,19 @@ export function dataView() {
   const bytes = [...S.files.values()].reduce((t, f) => t + (f.size ?? 0), 0);
   const filesInfo = S.files.size ? `${pl(S.files.size, 'archivo')} · ${fileSize(bytes)}` : 'ninguno';
   const font = S.settings.font === 'jetbrains' ? 'jetbrains' : 'system';
+  const theme = THEMES.includes(S.settings.theme) ? S.settings.theme : 'dark';
+  const themeOpt = (k, ic, name, hint) => `<label class="font-opt"><input type="radio" name="theme" value="${k}" data-change="theme" ${theme === k ? 'checked' : ''}>
+          <span class="th-sample">${icon(ic)}</span><span class="fo-name">${name}<small>${hint}</small></span></label>`;
   return `
     <section class="card stack">
       <h3>Apariencia</h3>
+      <small class="muted">Tema</small>
+      <div class="font-opts" role="radiogroup" aria-label="Tema">
+        ${themeOpt('dark', 'moon', 'Oscuro', 'Fondo casi negro (el de siempre)')}
+        ${themeOpt('light', 'sun', 'Claro', 'Fondo blanco, para usar con mucha luz')}
+        ${themeOpt('auto', 'half', 'Automático', 'Sigue el modo claro u oscuro del teléfono')}
+      </div>
+      <small class="muted">Fuente</small>
       <div class="font-opts" role="radiogroup" aria-label="Fuente">
         <label class="font-opt"><input type="radio" name="font" value="system" data-change="font" ${font === 'system' ? 'checked' : ''}>
           <span class="fo-sample" style="font-family:var(--font-system)">Aa 0123</span>
@@ -266,6 +275,7 @@ function validateImport(d) {
   if (!d.settings?.gymCatalogSeeded) delete settings.gymCatalogSeeded;
   if (!Array.isArray(settings.types)) settings.types = S.settings.types;
   if (!['system', 'jetbrains'].includes(settings.font)) settings.font = 'system';
+  if (!THEMES.includes(settings.theme)) settings.theme = 'dark';
   return { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises, settings, files: d.files };
 }
 
@@ -313,4 +323,5 @@ export async function onFilePicked(file) { await doImport(file); }
 export const changes = {
   async 'include-files'(el) { S.settings.includeFiles = el.checked; await saveSettings(); },
   async font(el) { S.settings.font = el.value === 'jetbrains' ? 'jetbrains' : 'system'; applyFont(S.settings.font); await saveSettings(); },
+  async theme(el) { S.settings.theme = THEMES.includes(el.value) ? el.value : 'dark'; applyTheme(S.settings.theme); await saveSettings(); },
 };

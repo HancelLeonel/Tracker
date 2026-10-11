@@ -1,7 +1,7 @@
 {
   "name": "Tracker",
   "short_name": "Tracker",
-  "description": "Finanzas, hábitos y compras",
+  "description": "Finanzas, hábitos, listas, notas, pomodoro y gimnasio",
   "id": "./",
   "lang": "es",
   "start_url": "./",

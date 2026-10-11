@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { $, esc, uid, today, addDays, parseYmd, daysBetween, fmtDate, fmtDateY, norm, r2, toast } from './util.js';
+import { $, esc, uid, today, addDays, parseYmd, daysBetween, fmtDate, fmtDateY, norm, r2, toast, pl, clock } from './util.js';
 import { S, hooks, saveSettings, saveRoutine, saveWorkout, saveExercise } from './state.js';
 import { GROUPS, exKey } from './catalogo.js';
 import { modal } from './ui.js';
@@ -15,13 +15,25 @@ import { prepAudio, alarm, keepAwake } from './aviso.js';
 const DEFAULTS = { unit: 'kg', rest: 90 };
 const SUBS = [['train', 'Entrenar'], ['routines', 'Rutinas'], ['history', 'Historial'], ['progress', 'Progreso']];
 
-const pl = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 const fmtN = n => String(+Number(n).toFixed(2));
 const key = exKey; // un mismo ejercicio sin importar tildes ni mayúsculas
 const num = (v, lo, hi, d) => {
   const n = typeof v === 'string' && !v.trim() ? NaN : Number(v);
   return v != null && typeof v !== 'boolean' && Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
 };
+
+// Cada serie tiene dos casillas. Fuerza: peso × repeticiones. Cardio (ejercicios del grupo «Cardio» del catálogo): tiempo · distancia.
+// El ejercicio guarda `cardio: true` al crearse, así el historial se sigue leyendo bien aunque el catálogo cambie.
+const FIELDS = { weight: [0, 9999, true], reps: [0, 999, false], min: [0, 1440, true], km: [0, 999, true] }; // mínimo, máximo, decimales
+const fieldVal = (f, v, d) => { const [lo, hi, dec] = FIELDS[f]; const x = num(v, lo, hi, d); return dec ? r2(x) : Math.round(x); };
+const MODES = {
+  strength: { a: 'weight', b: 'reps', sep: '×', heads: unit => [`Peso (${unit})`, 'Reps'], blank: () => ({ reps: 10, weight: 0, done: false }) },
+  cardio: { a: 'min', b: 'km', sep: '·', heads: () => ['Tiempo (min)', 'Distancia (km)'], blank: () => ({ min: 0, km: 0, done: false }) },
+};
+const modeOf = e => MODES[e?.cardio ? 'cardio' : 'strength'];
+const isCardio = name => S.exercises.find(x => key(x.name) === key(name))?.group === 'Cardio';
+const copySet = ({ done, at, note, ...rest }) => ({ ...rest, done: false }); // una serie nueva igual a otra (sin marcar ni nota)
+const inputmode = f => (FIELDS[f][2] ? 'decimal' : 'numeric');
 
 // ---------- ajustes y descanso ----------
 const G = () => {
@@ -39,8 +51,6 @@ const rest = () => {
 };
 const restLeft = () => Math.min(rest().total * 1000, Math.max(0, rest().endsAt - Date.now()));
 const restPct = () => Math.min(100, (1 - restLeft() / (rest().total * 1000)) * 100);
-const pad = n => String(n).padStart(2, '0');
-const fmt = t => { const s = Math.ceil(t / 1000); return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; };
 
 let timer = null;
 const startTick = () => { timer ??= setInterval(tick, 250); };
@@ -48,7 +58,7 @@ const stopTick = () => { clearInterval(timer); timer = null; };
 
 function paint() {
   if (!rest()) return;
-  const txt = fmt(restLeft());
+  const txt = clock(restLeft());
   document.querySelectorAll('[data-rest-clock]').forEach(e => { if (e.textContent !== txt) e.textContent = txt; });
   const bar = $('[data-rest-bar]');
   if (bar) bar.style.width = `${restPct()}%`;
@@ -66,12 +76,12 @@ async function endRest(sound) {
   await saveSettings();
   if (S.tab === 'gym' && !$('#dlg[open]')) hooks.render();
 }
-async function startRest(secs) {
+// Arranca la cuenta; quien la llama guarda los ajustes (junto con la serie, en una sola escritura).
+function startRest(secs) {
   prepAudio();
   G().rest = { endsAt: Date.now() + secs * 1000, total: secs };
   startTick();
   keepAwake('gym', true);
-  await saveSettings();
 }
 const clearRest = async () => { if (G().rest) await endRest(false); };
 
@@ -94,20 +104,32 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- datos ----------
 const active = () => S.workouts.filter(w => !w.end).sort((a, b) => b.t - a.t)[0] ?? null;
-const finished = () => S.workouts.filter(w => w.end).sort((a, b) => b.t - a.t);
+const finished = () => S.workouts.filter(w => w.end).sort((a, b) => b.date.localeCompare(a.date) || b.t - a.t);
 const doneSets = e => e.sets.filter(s => s.done);
-const volume = sets => sets.reduce((t, s) => t + s.weight * s.reps, 0);
-const topSet = sets => sets.reduce((b, s) => (!b || s.weight > b.weight || (s.weight === b.weight && s.reps > b.reps) ? s : b), null);
-const setText = (s, unit) => (s.weight > 0 ? `${fmtN(s.weight)} ${unit} × ${s.reps}` : `${s.reps} reps`);
+const volume = sets => sets.reduce((t, s) => t + (s.weight || 0) * (s.reps || 0), 0); // el cardio no suma volumen
+const total = (sets, f) => sets.reduce((t, s) => t + (s[f] || 0), 0);
+const topSet = (sets, cardio) => sets.reduce((b, s) => (!b ? s
+  : cardio ? (s.km > b.km || (s.km === b.km && s.min > b.min) ? s : b)
+  : (s.weight > b.weight || (s.weight === b.weight && s.reps > b.reps) ? s : b)), null);
+function setText(s, unit) {
+  if (s.min != null || s.km != null) return [s.min ? `${fmtN(s.min)} min` : '', s.km ? `${fmtN(s.km)} km` : ''].filter(Boolean).join(' · ') || '—';
+  return s.weight > 0 ? `${fmtN(s.weight)} ${unit} × ${s.reps}` : `${s.reps} reps`;
+}
 const mins = w => {
   const last = Math.max(0, ...w.exercises.flatMap(e => e.sets.map(s => s.at ?? 0)));
   return last > w.t ? Math.max(1, Math.round((last - w.t) / 60000)) : null;
 };
 function summary(w) {
   const sets = w.exercises.flatMap(doneSets);
-  return { sets: sets.length, vol: volume(sets), mins: mins(w) };
+  return { sets: sets.length, vol: volume(sets), km: total(sets, 'km'), mins: mins(w) };
 }
 const fmtVol = v => Math.round(v).toLocaleString('en-US');
+// «4 ejercicios · 12 series · 3,420 kg · 5 km · 52 min» (lo que no aplica no se muestra).
+function summaryText(w) {
+  const s = summary(w), unit = cfg().unit;
+  return [pl(w.exercises.length, 'ejercicio'), pl(s.sets, 'serie'), s.vol > 0 ? `${fmtVol(s.vol)} ${unit}` : '', s.km > 0 ? `${fmtN(s.km)} km` : '', s.mins ? `${s.mins} min` : '']
+    .filter(Boolean).join(' · ');
+}
 
 // Historia por ejercicio (de más viejo a más nuevo): de ahí salen «la última vez», los récords y el progreso.
 function progressMap() {
@@ -120,7 +142,8 @@ function progressMap() {
       let p = out.get(k);
       if (!p) out.set(k, p = { name: e.name, sessions: [] });
       p.name = e.name;
-      p.sessions.push({ date: w.date, t: w.t, sets, top: topSet(sets), vol: volume(sets) });
+      p.cardio = !!e.cardio;
+      p.sessions.push({ date: w.date, t: w.t, sets, cardio: !!e.cardio, top: topSet(sets, e.cardio), vol: volume(sets), km: total(sets, 'km'), min: total(sets, 'min') });
     }
   }
   return out;
@@ -133,7 +156,9 @@ export function sanitizeRoutines(list) {
     return {
       id: String(r.id), name: r.name, color: COLORS.includes(r.color) ? r.color : 'mauve',
       exercises: r.exercises.filter(e => typeof e?.name === 'string' && e.name.trim()).map(e => ({
-        name: e.name, sets: Math.round(num(e.sets, 1, 20, 3)), reps: Math.round(num(e.reps, 0, 999, 10)), weight: r2(num(e.weight, 0, 9999, 0)),
+        name: e.name, sets: Math.round(num(e.sets, 1, 20, 3)),
+        ...(e.cardio ? { cardio: true, min: fieldVal('min', e.min, 0), km: fieldVal('km', e.km, 0) }
+          : { reps: Math.round(num(e.reps, 0, 999, 10)), weight: r2(num(e.weight, 0, 9999, 0)) }),
         ...(e.rest != null && Number.isFinite(Number(e.rest)) ? { rest: Math.round(num(e.rest, 0, 600, 0)) } : {}),
       })),
     };
@@ -153,11 +178,13 @@ export function sanitizeWorkouts(list) {
       date: /^\d{4}-\d{2}-\d{2}$/.test(w.date) ? w.date : today(), t: Number(w.t) || 0,
       ...(Number.isFinite(w.end) ? { end: w.end } : {}),
       exercises: w.exercises.filter(e => typeof e?.name === 'string' && Array.isArray(e.sets)).map(e => ({
-        id: String(e.id ?? uid()), name: e.name,
+        id: String(e.id ?? uid()), name: e.name, ...(e.cardio ? { cardio: true } : {}),
         ...(e.rest != null && Number.isFinite(Number(e.rest)) ? { rest: Math.round(num(e.rest, 0, 600, 0)) } : {}),
         sets: e.sets.filter(s => s && typeof s === 'object').map(s => ({
-          reps: Math.round(num(s.reps, 0, 999, 0)), weight: r2(num(s.weight, 0, 9999, 0)), done: !!s.done,
+          ...(e.cardio ? { min: fieldVal('min', s.min, 0), km: fieldVal('km', s.km, 0) } : { reps: fieldVal('reps', s.reps, 0), weight: fieldVal('weight', s.weight, 0) }),
+          done: !!s.done,
           ...(s.done && Number.isFinite(s.at) ? { at: s.at } : {}),
+          ...(typeof s.note === 'string' && s.note.trim() ? { note: s.note.trim().slice(0, 120) } : {}),
         })),
       })),
     };
@@ -237,7 +264,7 @@ function restBar() {
   if (!rest()) return '';
   return `
     <section class="card rest-bar" role="timer" aria-label="Descanso">
-      <div class="rest-top"><span class="overline">Descanso</span><b class="rest-clock" data-rest-clock>${fmt(restLeft())}</b></div>
+      <div class="rest-top"><span class="overline">Descanso</span><b class="rest-clock" data-rest-clock>${clock(restLeft())}</b></div>
       <div class="bar"><i data-rest-bar style="width:${restPct()}%"></i></div>
       <div class="rest-tools">
         <button class="btn sm" data-act="gym-rest-less">−15 s</button>
@@ -265,18 +292,21 @@ function activeView(w) {
     <button class="btn danger block" data-act="gym-discard">Descartar entrenamiento</button>`;
 }
 
+// Campo de una de las dos casillas de una serie (`f` = weight/reps/min/km).
+const setInput = (e, s, i, f, label, extra = '') => `<input type="number" inputmode="${inputmode(f)}" step="any" min="0" max="${FIELDS[f][1]}" placeholder="0"
+  value="${s[f] ? fmtN(s[f]) : f === 'reps' ? (s.reps ?? '') : ''}" data-f="${f}" ${extra} aria-label="${esc(label)} de la serie ${i + 1} de ${esc(e.name)}">`;
+
 function exerciseCard(w, e, last, c) {
+  const m = modeOf(e), [ha, hb] = m.heads(c.unit);
   const rows = e.sets.map((s, i) => `
     <div class="gx-set ${s.done ? 'done' : ''}">
       <span class="gx-n">${i + 1}</span>
-      <input type="number" inputmode="decimal" step="any" min="0" max="9999" placeholder="0" value="${s.weight ? fmtN(s.weight) : ''}"
-        data-change="gym-w" data-ex="${e.id}" data-i="${i}" aria-label="Peso de la serie ${i + 1} de ${esc(e.name)}">
-      <span class="gx-x">×</span>
-      <input type="number" inputmode="numeric" min="0" max="999" placeholder="0" value="${s.reps}"
-        data-change="gym-r" data-ex="${e.id}" data-i="${i}" aria-label="Repeticiones de la serie ${i + 1} de ${esc(e.name)}">
+      ${setInput(e, s, i, m.a, ha, `data-change="gym-f" data-ex="${e.id}" data-i="${i}"`)}
+      <span class="gx-x">${m.sep}</span>
+      ${setInput(e, s, i, m.b, hb, `data-change="gym-f" data-ex="${e.id}" data-i="${i}"`)}
       <button class="set-chk ${s.done ? 'on' : ''}" data-act="gym-set" data-ex="${e.id}" data-i="${i}" aria-pressed="${!!s.done}"
         aria-label="Marcar la serie ${i + 1} de ${esc(e.name)}">${icon('check')}</button>
-    </div>`).join('');
+    </div>${s.note ? `<small class="gx-note">${esc(s.note)}</small>` : ''}`).join('');
   return `
     <section class="card gx" style="--c:var(--${w.color})">
       <div class="gx-h">
@@ -285,7 +315,7 @@ function exerciseCard(w, e, last, c) {
         <button class="icon sm" data-act="gym-ex-opts" data-ex="${e.id}" aria-label="Opciones de ${esc(e.name)}">${icon('edit')}</button>
       </div>
       ${last ? `<small class="muted gx-prev">Última vez: ${esc(last.slice(0, 6).map(s => setText(s, c.unit)).join(' · '))}</small>` : ''}
-      <div class="gx-cols"><span></span><small>Peso (${c.unit})</small><span></span><small>Reps</small><span></span></div>
+      <div class="gx-cols"><span></span><small>${ha}</small><span></span><small>${hb}</small><span></span></div>
       ${rows}
       <button class="btn sm gx-add" data-act="gym-add-set" data-ex="${e.id}">${icon('plus')} Serie</button>
     </section>`;
@@ -386,11 +416,10 @@ function catalogForm(ex, then) {
 }
 
 function workoutCard(w) {
-  const s = summary(w), c = cfg();
   return `
     <button class="card list-card" style="--c:var(--${w.color})" data-act="workout-open" data-id="${w.id}">
       <span class="lc-top"><b>${esc(w.name)}</b><small>${esc(fmtDate(w.date))}</small></span>
-      <small class="muted">${pl(w.exercises.length, 'ejercicio')} · ${pl(s.sets, 'serie')} · ${fmtVol(s.vol)} ${c.unit}${s.mins ? ` · ${s.mins} min` : ''}</small>
+      <small class="muted">${summaryText(w)}</small>
     </button>`;
 }
 
@@ -402,7 +431,12 @@ function historyView() {
     ${left > 0 ? `<button class="btn ghost block" data-act="gym-more">Ver más (${Math.min(30, left)} de ${left} restantes)</button>` : ''}`;
 }
 
-const metricOf = (p, s) => (p.sessions.some(x => x.top.weight > 0) ? s.top.weight : s.top.reps);
+// Qué se grafica de cada sesión: fuerza → peso máximo (o repeticiones si nunca hubo peso); cardio → distancia total (o tiempo).
+const metricOf = (p, s) => (p.cardio ? (p.sessions.some(x => x.km > 0) ? s.km : s.min)
+  : p.sessions.some(x => x.top.weight > 0) ? s.top.weight : s.top.reps);
+const metricLabel = (p, unit) => (p.cardio ? (p.sessions.some(x => x.km > 0) ? 'Distancia por sesión (km)' : 'Tiempo por sesión (min)')
+  : p.sessions.some(x => x.top.weight > 0) ? `Peso máximo por sesión (${unit})` : 'Repeticiones máximas por sesión');
+const bestText = (p, s, unit) => (p.cardio ? setText({ min: s.min, km: s.km }, unit) : setText(s.top, unit));
 
 function progressView() {
   const list = [...progressMap()].map(([k, p]) => ({ k, ...p })).sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base', numeric: true }));
@@ -413,7 +447,7 @@ function progressView() {
     return `
       <button class="card list-card" data-act="gym-prog" data-k="${esc(p.k)}">
         <span class="lc-top"><b>${esc(p.name)}</b><small>${pl(p.sessions.length, 'sesión', 'sesiones')}</small></span>
-        <small class="muted">Mejor: ${esc(setText(best.top, c.unit))} · última vez ${esc(fmtDate(p.sessions.at(-1).date))}</small>
+        <small class="muted">Mejor: ${esc(bestText(p, best, c.unit))} · última vez ${esc(fmtDate(p.sessions.at(-1).date))}</small>
       </button>`;
   }).join('');
 }
@@ -425,27 +459,30 @@ function progressDetail(k) {
   const best = p.sessions.reduce((b, s) => (metricOf(p, s) > metricOf(p, b) ? s : b));
   const vals = recent.map(s => metricOf(p, s)), max = Math.max(...vals, 1);
   modal(p.name, `
-    <p>Mejor serie: <b>${esc(setText(best.top, c.unit))}</b> <span class="muted">(${esc(fmtDateY(best.date))})</span></p>
+    <p>${p.cardio ? 'Mejor sesión' : 'Mejor serie'}: <b>${esc(bestText(p, best, c.unit))}</b> <span class="muted">(${esc(fmtDateY(best.date))})</span></p>
     <div>
-      <small class="muted">${p.sessions.some(s => s.top.weight > 0) ? `Peso máximo por sesión (${c.unit})` : 'Repeticiones máximas por sesión'} · últimas ${recent.length}</small>
+      <small class="muted">${metricLabel(p, c.unit)} · últimas ${recent.length}</small>
       <div class="spark few" role="img" aria-label="Gráfica de progreso">${vals.map(v => `<div class="col"><i style="height:${Math.max(4, (v / max) * 100)}%"></i></div>`).join('')}</div>
       <div class="spark-x"><span>${esc(fmtDate(recent[0].date))}</span><span>${esc(fmtDate(recent.at(-1).date))}</span></div>
     </div>
     <ul class="moves">${[...p.sessions].reverse().slice(0, 10).map(s => `
-      <li><div class="move static"><span>${esc(fmtDate(s.date))}<small>${pl(s.sets.length, 'serie')} · ${fmtVol(s.vol)} ${c.unit}</small></span>
-        <span class="amt">${esc(setText(s.top, c.unit))}</span></div></li>`).join('')}</ul>`);
+      <li><div class="move static"><span>${esc(fmtDate(s.date))}<small>${pl(s.sets.length, 'serie')}${s.vol > 0 ? ` · ${fmtVol(s.vol)} ${c.unit}` : ''}</small></span>
+        <span class="amt">${esc(bestText(p, s, c.unit))}</span></div></li>`).join('')}</ul>`);
 }
 
 let viewing = null; // entrenamiento cuyo detalle está abierto (para «Guardar como rutina»)
 function workoutDetail(w) {
   viewing = w;
-  const s = summary(w), c = cfg();
+  const c = cfg();
   modal(w.name, `
-    <small class="muted">${esc(fmtDateY(w.date))} · ${pl(s.sets, 'serie')} · ${fmtVol(s.vol)} ${c.unit}${s.mins ? ` · ${s.mins} min` : ''}</small>
+    <small class="muted">${esc(fmtDateY(w.date))} · ${summaryText(w)}</small>
     ${w.exercises.map(e => `
       <div class="gx-done"><b>${esc(e.name)}</b>
-        <ol>${doneSets(e).map(x => `<li>${esc(setText(x, c.unit))}</li>`).join('')}</ol></div>`).join('')}
-    <button type="button" class="btn block" data-act="workout-to-routine">${icon('copy')} Guardar como rutina</button>`, {
+        <ol>${doneSets(e).map(x => `<li>${esc(setText(x, c.unit))}${x.note ? ` <span class="muted">— ${esc(x.note)}</span>` : ''}</li>`).join('')}</ol></div>`).join('')}
+    <div class="two">
+      <button type="button" class="btn" data-act="workout-edit">${icon('edit')} Editar</button>
+      <button type="button" class="btn" data-act="workout-to-routine">${icon('copy')} Como rutina</button>
+    </div>`, {
     onDelete: async () => {
       S.workouts = S.workouts.filter(x => x.id !== w.id);
       await db.commit({ remove: { workouts: [w.id] } });
@@ -460,6 +497,7 @@ function workoutDetail(w) {
 function routineForm(r, seed) {
   const src = r ?? seed, color = src?.color ?? 'mauve', unit = cfg().unit;
   const blank = () => ({ name: '', sets: 3, reps: 10, weight: 0 });
+  const numIn = (e, k, label, attrs = '') => `<label>${label} <input data-k="${k}" type="number" inputmode="${inputmode(k)}" step="any" min="0" max="${FIELDS[k][1]}" ${attrs} placeholder="0" value="${e[k] ? fmtN(e[k]) : k === 'reps' ? (e.reps ?? '') : ''}"></label>`;
   const rows = (src?.exercises?.length ? src.exercises : [blank()]).map(e => ({ ...e }));
   modal(r ? 'Editar rutina' : 'Nueva rutina', `
     <label>Nombre <input name="name" required maxlength="40" value="${esc(src?.name ?? '')}" placeholder="Ej. Pecho y tríceps, Pierna…"></label>
@@ -480,9 +518,8 @@ function routineForm(r, seed) {
             ${exerciseSelect('ex', e.name, `required data-k="name" aria-label="Ejercicio ${i + 1}"`)}
             <div class="rx-nums">
               <label>Series <input data-k="sets" type="number" inputmode="numeric" min="1" max="20" required value="${e.sets}"></label>
-              <label>Reps <input data-k="reps" type="number" inputmode="numeric" min="0" max="999" required value="${e.reps}"></label>
-              <label>Peso (${unit}) <input data-k="weight" type="number" inputmode="decimal" step="any" min="0" max="9999" placeholder="0" value="${e.weight ? fmtN(e.weight) : ''}"></label>
-              <label>Desc. (s) <input data-k="rest" type="number" inputmode="numeric" min="0" max="600" placeholder="${cfg().rest}" value="${e.rest ?? ''}"></label>
+              ${isCardio(e.name) ? numIn(e, 'min', 'Min') + numIn(e, 'km', 'Km') : numIn(e, 'reps', 'Reps', 'required') + numIn(e, 'weight', `Peso (${unit})`)}
+              <label>Desc. (s) <input data-k="rest" type="number" inputmode="numeric" min="0" max="600" placeholder="${isCardio(e.name) ? 0 : cfg().rest}" value="${e.rest ?? ''}"></label>
             </div>
             <div class="frow-tools"><span class="spacer"></span>
               <button type="button" class="icon sm" data-mv="-1" aria-label="Subir ejercicio ${i + 1}" ${i === 0 ? 'disabled' : ''}>${icon('up')}</button>
@@ -495,10 +532,14 @@ function routineForm(r, seed) {
         const k = e.target.dataset.k, i = +e.target.closest('.rx')?.dataset.i;
         if (!k || Number.isNaN(i)) return;
         const row = rows[i], v = e.target.value;
-        if (k === 'name') row.name = v;
-        else if (k === 'rest') { if (v === '') delete row.rest; else row.rest = Math.round(num(v, 0, 600, 0)); }
-        else if (k === 'weight') row.weight = r2(num(v, 0, 9999, 0));
-        else row[k] = Math.round(num(v, k === 'sets' ? 1 : 0, k === 'sets' ? 20 : 999, row[k]));
+        if (k === 'name') {
+          const was = isCardio(row.name);
+          row.name = v;
+          // Al pasar de un ejercicio de fuerza a uno de cardio (o al revés) cambian las casillas de la fila.
+          if (isCardio(v) !== was) { Object.assign(row, isCardio(v) ? { sets: 1, min: 0, km: 0 } : { sets: 3, reps: 10, weight: 0 }); paint(); }
+        } else if (k === 'rest') { if (v === '') delete row.rest; else row.rest = Math.round(num(v, 0, 600, 0)); }
+        else if (k === 'sets') row.sets = Math.round(num(v, 1, 20, row.sets));
+        else if (FIELDS[k]) row[k] = fieldVal(k, v, 0);
       };
       box.addEventListener('input', sync);
       box.addEventListener('change', sync);
@@ -516,7 +557,11 @@ function routineForm(r, seed) {
     },
     async onSubmit(fd) {
       if (!rows.length || rows.some(e => !e.name)) { toast('Elige un ejercicio en cada fila'); return false; }
-      const exercises = rows.map(e => ({ name: e.name, sets: e.sets, reps: e.reps, weight: e.weight || 0, ...(e.rest != null ? { rest: e.rest } : {}) }));
+      const exercises = rows.map(e => ({
+        name: e.name, sets: e.sets,
+        ...(isCardio(e.name) ? { cardio: true, min: e.min || 0, km: e.km || 0 } : { reps: e.reps ?? 10, weight: e.weight || 0 }),
+        ...(e.rest != null ? { rest: e.rest } : {}),
+      }));
       const data = { name: fd.get('name').trim(), color: fd.get('color'), exercises };
       if (r) Object.assign(r, data); else S.routines.push(r = { id: uid(), ...data });
       await saveRoutine(r);
@@ -547,11 +592,16 @@ function configForm() {
   });
 }
 
+// Las casillas vacías de la rutina se llenan con lo de la última vez (la misma serie, o la última que hubo).
 function newExercise(e, prog) {
+  const cardio = e.cardio ?? isCardio(e.name);
   const last = prog.get(key(e.name))?.sessions.at(-1)?.sets ?? [];
+  const prev = (i, f) => (last[i] ?? last.at(-1))?.[f] ?? 0;
   return {
-    id: uid(), name: e.name, ...(e.rest != null ? { rest: e.rest } : {}),
-    sets: Array.from({ length: e.sets }, (_, i) => ({ reps: e.reps, weight: e.weight > 0 ? e.weight : (last[i] ?? last.at(-1))?.weight ?? 0, done: false })),
+    id: uid(), name: e.name, ...(cardio ? { cardio: true } : {}), ...(e.rest != null ? { rest: e.rest } : {}),
+    sets: Array.from({ length: e.sets }, (_, i) => (cardio
+      ? { min: e.min > 0 ? e.min : prev(i, 'min'), km: e.km > 0 ? e.km : prev(i, 'km'), done: false }
+      : { reps: e.reps ?? 10, weight: e.weight > 0 ? e.weight : prev(i, 'weight'), done: false })),
   };
 }
 
@@ -559,13 +609,21 @@ function addExerciseForm(w, preset = '') {
   modal('Agregar ejercicio', `
     <label>Ejercicio ${exerciseSelect('name', preset, 'required')}</label>
     <div class="two">
-      <label>Series <input name="sets" type="number" inputmode="numeric" min="1" max="20" required value="3"></label>
-      <label>Repeticiones <input name="reps" type="number" inputmode="numeric" min="0" max="999" required value="10"></label>
+      <label>Series <input name="sets" type="number" inputmode="numeric" min="1" max="20" required value="${isCardio(preset) ? 1 : 3}"></label>
+      <label id="ax-reps" ${isCardio(preset) ? 'hidden' : ''}>Repeticiones <input name="reps" type="number" inputmode="numeric" min="0" max="999" value="10"></label>
     </div>
-    <small class="muted">El peso se completa con el de la última vez que hiciste este ejercicio.</small>
+    <small class="muted" id="ax-hint">${isCardio(preset) ? 'Cardio: anotas tiempo y distancia de cada serie.' : 'El peso se completa con el de la última vez que hiciste este ejercicio.'}</small>
     <button type="button" class="btn sm" id="new-ex">${icon('plus')} Crear un ejercicio nuevo en el catálogo</button>`, {
     submit: 'Agregar',
-    afterOpen: f => { f.querySelector('#new-ex').onclick = () => catalogForm(null, name => addExerciseForm(w, name)); },
+    afterOpen: f => {
+      f.querySelector('#new-ex').onclick = () => catalogForm(null, name => addExerciseForm(w, name));
+      f.elements.name.addEventListener('change', () => {
+        const c = isCardio(f.elements.name.value);
+        f.querySelector('#ax-reps').hidden = c;
+        f.elements.sets.value = c ? 1 : 3;
+        f.querySelector('#ax-hint').textContent = c ? 'Cardio: anotas tiempo y distancia de cada serie.' : 'El peso se completa con el de la última vez que hiciste este ejercicio.';
+      });
+    },
     async onSubmit(fd) {
       const name = fd.get('name');
       if (!name) return false;
@@ -575,27 +633,112 @@ function addExerciseForm(w, preset = '') {
   });
 }
 
+// Opciones de un ejercicio del entrenamiento en curso: cambiarlo por otro, cuántas series, descanso, una nota por serie y su lugar.
 function exerciseOptions(w, e) {
+  const i = w.exercises.indexOf(e);
   modal('Ejercicio', `
     <label>Ejercicio ${exerciseSelect('name', e.name, 'required')}</label>
-    <label>Series <input name="sets" type="number" inputmode="numeric" min="1" max="20" required value="${e.sets.length}"></label>
-    <label>Descanso entre series (segundos)
-      <input name="rest" type="number" inputmode="numeric" min="0" max="600" placeholder="${cfg().rest} (el predeterminado)" value="${e.rest ?? ''}">
-    </label>`, {
+    <div class="two">
+      <label>Series <input name="sets" type="number" inputmode="numeric" min="1" max="20" required value="${e.sets.length}"></label>
+      <label>Descanso (s) <input name="rest" type="number" inputmode="numeric" min="0" max="600" placeholder="${e.cardio ? 0 : cfg().rest}" value="${e.rest ?? ''}"></label>
+    </div>
+    <div><small class="muted">Notas de cada serie (opcional)</small>
+      <div class="set-notes">${e.sets.map((x, j) => `<label><span>Serie ${j + 1}</span><input name="note_${j}" maxlength="120" value="${esc(x.note ?? '')}" placeholder="Ej. agarre cerrado"></label>`).join('')}</div></div>
+    ${w.exercises.length > 1 ? `<div class="two">
+      <button type="button" class="btn" id="ex-up" ${i === 0 ? 'disabled' : ''}>${icon('up')} Subir</button>
+      <button type="button" class="btn" id="ex-down" ${i === w.exercises.length - 1 ? 'disabled' : ''}>${icon('down')} Bajar</button></div>` : ''}`, {
+    afterOpen(f) {
+      // Mover el ejercicio guarda y cierra el diálogo al momento (no hace falta «Guardar»).
+      const move = async dir => {
+        const j = i + dir;
+        if (!w.exercises[j]) return;
+        [w.exercises[i], w.exercises[j]] = [w.exercises[j], w.exercises[i]];
+        await saveWorkout(w);
+        f.closest('dialog').close();
+        hooks.render();
+      };
+      f.querySelector('#ex-up')?.addEventListener('click', () => move(-1));
+      f.querySelector('#ex-down')?.addEventListener('click', () => move(1));
+    },
     async onSubmit(fd) {
       const name = fd.get('name');
       if (!name) return false;
+      e.sets.forEach((x, j) => { const v = (fd.get(`note_${j}`) ?? '').trim(); if (v) x.note = v.slice(0, 120); else delete x.note; });
+      if (isCardio(name) !== !!e.cardio) { // de fuerza a cardio (o al revés): las casillas de las series cambian
+        if (isCardio(name)) e.cardio = true; else delete e.cardio;
+        e.sets = e.sets.map(x => ({ ...modeOf(e).blank(), ...(x.note ? { note: x.note } : {}) }));
+      }
       e.name = name;
       const rest = fd.get('rest').trim();
       if (rest === '') delete e.rest; else e.rest = Math.round(num(rest, 0, 600, 0));
       const n = Math.round(num(fd.get('sets'), 1, 20, e.sets.length));
       while (e.sets.length > n) e.sets.pop();
-      while (e.sets.length < n) { const l = e.sets.at(-1); e.sets.push({ reps: l?.reps ?? 10, weight: l?.weight ?? 0, done: false }); }
+      while (e.sets.length < n) e.sets.push(e.sets.length ? copySet(e.sets.at(-1)) : modeOf(e).blank());
       await saveWorkout(w);
     },
     onDelete: async () => { w.exercises = w.exercises.filter(x => x.id !== e.id); await saveWorkout(w); },
     deleteLabel: 'Quitar',
     confirmText: '¿Quitar este ejercicio del entrenamiento?',
+  });
+}
+
+// Editar un entrenamiento ya terminado: nombre, fecha, el valor y la nota de cada serie, quitar o agregar series y quitar ejercicios.
+function editWorkoutForm(w) {
+  const unit = cfg().unit;
+  const ex = w.exercises.map(e => ({ ...e, sets: e.sets.map(x => ({ ...x })) }));
+  modal('Editar entrenamiento', `
+    <label>Nombre <input name="name" required maxlength="40" value="${esc(w.name)}"></label>
+    <label>Fecha <input name="date" type="date" required value="${w.date}"></label>
+    <div id="we" class="fields-ed"></div>`, {
+    afterOpen(f) {
+      const box = f.querySelector('#we');
+      const paint = () => {
+        box.innerHTML = ex.map((e, i) => {
+          const m = modeOf(e), [ha, hb] = m.heads(unit);
+          return `
+          <div class="frow" data-e="${i}">
+            <div class="gx-h"><b class="gx-name">${esc(e.name)}</b>
+              <button type="button" class="icon sm" data-rm-ex aria-label="Quitar ${esc(e.name)} del entrenamiento">${icon('close')}</button></div>
+            <div class="we-cols"><span></span><small>${ha}</small><span></span><small>${hb}</small><span></span></div>
+            ${e.sets.map((x, j) => `
+              <div class="we-set" data-s="${j}">
+                <span class="gx-n">${j + 1}</span>
+                ${setInput(e, x, j, m.a, ha)}
+                <span class="gx-x">${m.sep}</span>
+                ${setInput(e, x, j, m.b, hb)}
+                <button type="button" class="icon sm" data-rm-set aria-label="Quitar la serie ${j + 1} de ${esc(e.name)}">${icon('close')}</button>
+                <input class="we-note" data-f="note" maxlength="120" value="${esc(x.note ?? '')}" placeholder="Nota (opcional)" aria-label="Nota de la serie ${j + 1} de ${esc(e.name)}">
+              </div>`).join('')}
+            <button type="button" class="btn sm" data-add-set>${icon('plus')} Serie</button>
+          </div>`;
+        }).join('') || '<p class="muted">Sin ejercicios: deja al menos uno o elimina el entrenamiento desde su detalle.</p>';
+      };
+      box.addEventListener('input', ev => {
+        const ei = ev.target.closest('[data-e]')?.dataset.e, si = ev.target.closest('[data-s]')?.dataset.s, f = ev.target.dataset.f;
+        if (ei == null || si == null || !f) return;
+        const x = ex[+ei].sets[+si];
+        if (f === 'note') { const v = ev.target.value.trim(); if (v) x.note = v.slice(0, 120); else delete x.note; }
+        else if (FIELDS[f]) x[f] = fieldVal(f, ev.target.value, 0);
+      });
+      box.addEventListener('click', ev => {
+        const b = ev.target.closest('button'), ei = ev.target.closest('[data-e]')?.dataset.e;
+        if (!b || ei == null) return;
+        const e = ex[+ei];
+        if ('rmEx' in b.dataset) ex.splice(+ei, 1);
+        else if ('rmSet' in b.dataset) e.sets.splice(+b.closest('[data-s]').dataset.s, 1);
+        else if ('addSet' in b.dataset) e.sets.push({ ...(e.sets.length ? copySet(e.sets.at(-1)) : modeOf(e).blank()), done: true });
+        else return;
+        paint();
+      });
+      paint();
+    },
+    async onSubmit(fd) {
+      const kept = ex.map(e => ({ ...e, sets: e.sets.map(x => ({ ...x, done: true })) })).filter(e => e.sets.length);
+      if (!kept.length) { toast('Deja al menos una serie; para borrarlo entero usa «Eliminar» en su detalle'); return false; }
+      Object.assign(w, { name: fd.get('name').trim() || w.name, date: fd.get('date') || w.date, exercises: kept });
+      await saveWorkout(w);
+      toast('Entrenamiento actualizado');
+    },
   });
 }
 
@@ -647,12 +790,15 @@ export const actions = {
   'start-routine': el => startWorkout(S.routines.find(r => r.id === el.dataset.id)),
   'start-empty': () => startWorkout(null),
   'workout-open': el => workoutDetail(S.workouts.find(w => w.id === el.dataset.id)),
+  'workout-edit': () => { if (viewing) editWorkoutForm(viewing); },
   'workout-to-routine': () => {
     const w = viewing;
     if (!w) return;
     routineForm(null, {
       name: w.name, color: w.color,
-      exercises: w.exercises.filter(e => e.sets.length).map(e => ({ name: e.name, sets: e.sets.length, reps: e.sets.at(-1).reps, weight: Math.max(...e.sets.map(s => s.weight)) })),
+      exercises: w.exercises.filter(e => e.sets.length).map(e => (e.cardio
+        ? { name: e.name, cardio: true, sets: e.sets.length, min: e.sets.at(-1).min ?? 0, km: e.sets.at(-1).km ?? 0 }
+        : { name: e.name, sets: e.sets.length, reps: e.sets.at(-1).reps, weight: Math.max(...e.sets.map(x => x.weight || 0)) })),
     });
   },
   'gym-prog': el => progressDetail(el.dataset.k),
@@ -661,27 +807,25 @@ export const actions = {
   async 'gym-add-set'(el) {
     const w = active(), e = w?.exercises.find(x => x.id === el.dataset.ex);
     if (!e || e.sets.length >= 20) return;
-    const l = e.sets.at(-1);
-    e.sets.push({ reps: l?.reps ?? 10, weight: l?.weight ?? 0, done: false });
+    e.sets.push(e.sets.length ? copySet(e.sets.at(-1)) : modeOf(e).blank());
     await saveWorkout(w);
   },
   // Marcar una serie lee lo que hay escrito en la fila (por si el campo aún no avisó su cambio) y, al marcarla, inicia el descanso.
   async 'gym-set'(el) {
     const { w, e, s } = target(el);
     if (!s) return;
-    const [wi, ri] = el.closest('.gx-set').querySelectorAll('input');
-    s.weight = r2(num(wi.value, 0, 9999, s.weight));
-    s.reps = Math.round(num(ri.value, 0, 999, s.reps));
+    el.closest('.gx-set').querySelectorAll('input[data-f]').forEach(i => { s[i.dataset.f] = fieldVal(i.dataset.f, i.value, s[i.dataset.f]); });
     s.done = !s.done;
     if (!s.done) delete s.at;
     else {
       s.at = Date.now();
-      const best = Math.max(0, ...(progressMap().get(key(e.name))?.sessions.map(x => x.top.weight) ?? []));
+      const best = e.cardio ? 0 : Math.max(0, ...(progressMap().get(key(e.name))?.sessions.map(x => x.top.weight || 0) ?? []));
       if (s.weight > 0 && best > 0 && s.weight > best) toast(`Nuevo récord en ${e.name}: ${fmtN(s.weight)} ${cfg().unit}`);
     }
-    await saveWorkout(w);
-    const secs = e.rest ?? cfg().rest;
-    if (s.done && secs > 0) await startRest(secs);
+    const secs = e.rest ?? (e.cardio ? 0 : cfg().rest); // el cardio no descansa entre series salvo que se pida
+    if (s.done && secs > 0) startRest(secs);
+    // La serie y el descanso se guardan en una sola transacción: el toque se ve marcado antes (en el teléfono se nota).
+    await db.commit({ put: { workouts: [w], ...(s.done && secs > 0 ? { meta: [{ k: 'settings', v: S.settings }] } : {}) } });
   },
   'gym-rest-less': () => moveRest(-15000),
   'gym-rest-more': () => moveRest(15000),
@@ -703,8 +847,7 @@ export const actions = {
     S.gymSub = 'history';
     S.gymLimit = 30;
     window.scrollTo(0, 0);
-    const s = summary(w);
-    toast(`Entrenamiento guardado: ${pl(s.sets, 'serie')}, ${fmtVol(s.vol)} ${cfg().unit}`);
+    toast(`Entrenamiento guardado: ${summaryText(w)}`);
   },
   async 'gym-discard'() {
     const w = active();
@@ -713,15 +856,13 @@ export const actions = {
   },
 };
 
-// Cambios en los campos de peso y repeticiones: se guardan sin repintar, para no perder el foco ni el toque del botón de marcar.
-async function setField(el, field) {
-  const { w, s } = target(el);
-  if (!s) return false;
-  s[field] = field === 'weight' ? r2(num(el.value, 0, 9999, s.weight)) : Math.round(num(el.value, 0, 999, s.reps));
-  await saveWorkout(w);
-  return false;
-}
+// Cambios en las casillas de una serie: se guardan sin repintar, para no perder el foco ni el toque del botón de marcar.
 export const changes = {
-  'gym-w': el => setField(el, 'weight'),
-  'gym-r': el => setField(el, 'reps'),
+  async 'gym-f'(el) {
+    const { w, s } = target(el), f = el.dataset.f;
+    if (!s || !FIELDS[f]) return false;
+    s[f] = fieldVal(f, el.value, s[f]);
+    await saveWorkout(w);
+    return false;
+  },
 };

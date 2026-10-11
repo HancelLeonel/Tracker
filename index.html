@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#111317">
-  <meta name="color-scheme" content="dark">
-  <meta name="description" content="Finanzas, hábitos y compras">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Finanzas, hábitos, listas, notas, pomodoro y gimnasio">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -33,7 +33,15 @@
   <link rel="modulepreload" href="js/notes.js">
   <link rel="modulepreload" href="js/inbox.js">
   <link rel="modulepreload" href="js/data.js">
-  <script>try { var f = localStorage.getItem('tracker-font'); if (f) document.documentElement.dataset.font = f; } catch (e) {}</script>
+  <script>
+    // Fuente y tema elegidos, desde el primer pintado (antes de que carguen los datos). Debe coincidir con applyFont/applyTheme (ui.js).
+    try {
+      var d = document.documentElement, f = localStorage.getItem('tracker-font'), t = localStorage.getItem('tracker-theme');
+      if (f) d.dataset.font = f;
+      if (t === 'auto') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      if (t === 'light') { d.dataset.theme = 'light'; document.querySelector('meta[name=theme-color]').setAttribute('content', '#f3f4f6'); }
+    } catch (e) {}
+  </script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>

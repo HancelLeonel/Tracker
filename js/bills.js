@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { esc, money, r2, uid, today, addDays, daysBetween, fmtDate, fmtDateY, parseYmd, ymd, lastDayOf } from './util.js';
+import { esc, money, r2, uid, today, addDays, daysBetween, fmtDate, fmtDateY, parseYmd, ymd, lastDayOf, pl } from './util.js';
 import {
   S, saveBill, saveMove, deleteMove, gcFiles, normalKeys, hasNormalCats, balanceWithout, isCredit, splitKey, keyOf, findAcc,
   allocatePayment, catLabel,
@@ -42,17 +42,24 @@ function pending() {
   return items.sort((a, b) => a.due.localeCompare(b.due));
 }
 
+// Un pago periódico que se dejó de marcar acumula vencimientos: se agrupan por pago (queda el más antiguo, con `more` = cuántos más)
+// para que la lista y los avisos cuenten pagos, no meses atrasados.
+function byBill(items) {
+  const out = new Map();
+  for (const it of items) { const g = out.get(it.bill.id); if (g) g.more++; else out.set(it.bill.id, { ...it, more: 0 }); }
+  return [...out.values()];
+}
+
 // Resumen para Inicio: cuántos pagos están vencidos y cuál es el próximo por vencer (dentro de los próximos 30 días).
 export function billsSummary() {
   const t = today(), items = pending();
-  const overdue = items.filter(i => i.due < t);
-  return { total: S.bills.filter(b => b.active !== false).length, overdue: overdue.length, next: items.find(i => i.due >= t) ?? null };
+  return { total: S.bills.filter(b => b.active !== false).length, overdue: byBill(items.filter(i => i.due < t)).length, next: items.find(i => i.due >= t) ?? null };
 }
 
 // Cantidad de pagos vencidos o que vencen en los próximos 3 días (para el aviso de la pestaña).
 export function billsAlert() {
-  const t = today(), soon = addDays(t, 3);
-  return pending().filter(i => i.due <= soon).length;
+  const soon = addDays(today(), 3);
+  return byBill(pending().filter(i => i.due <= soon)).length;
 }
 
 function dueText(due) {
@@ -68,15 +75,15 @@ export function billsView() {
   }
   const t = today();
   const items = pending();
-  const row = ({ bill, due }) => `
+  const row = ({ bill, due, more }) => `
     <li class="bill">
       <button class="move" data-act="edit-bill" data-id="${bill.id}">
-        <span>${esc(bill.title)}<small>${dueText(due)}${bill.card ? ' · tarjeta' : ''}</small></span>
+        <span>${esc(bill.title)}<small>${dueText(due)}${more ? ` · y ${pl(more, 'vencimiento')} más` : ''}${bill.card ? ' · tarjeta' : ''}</small></span>
         ${bill.amount ? `<span class="amt">${money(bill.amount)}</span>` : ''}
       </button>
       <button class="btn sm primary" data-act="pay-bill" data-id="${bill.id}" data-due="${due}">Pagar</button>
     </li>`;
-  const overdue = items.filter(i => i.due < t), next = items.filter(i => i.due >= t);
+  const overdue = byBill(items.filter(i => i.due < t)), next = items.filter(i => i.due >= t);
 
   const history = S.bills.flatMap(b => Object.entries(b.paid ?? {}).map(([due, e]) => ({ bill: b, due, e })))
     .sort((a, b) => b.e.on.localeCompare(a.e.on) || b.due.localeCompare(a.due)).slice(0, HISTORY);

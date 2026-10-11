@@ -7,7 +7,7 @@ export const S = {
   sub: 'accounts', // accounts | plan | bills | reports
   habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [], exercises: [],
   files: new Map(), // id -> { mime, name, size } (el contenido se lee bajo demanda)
-  settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {}, listSort: 'recent', font: 'system' },
+  settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {}, listSort: 'recent', font: 'system', theme: 'dark' },
   report: { kind: 'q', ref: today() },
   guide: { ref: today() }, // quincena que se ve en la guía de transferencias
   noteGroup: null,     // grupo de notas abierto (null = vista general)
@@ -25,6 +25,7 @@ export const S = {
   purchaseLimit: 40,
   rev: 0,              // versión de los datos: invalida lo calculado en caché
   search: '',
+  inboxSel: null,      // notas rápidas elegidas para archivarlas juntas (Set) o null
 };
 
 // Las vistas se registran aquí para que los formularios puedan pedir un repintado sin importar app.js.
@@ -51,33 +52,66 @@ export async function loadState() {
   const [habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises, files, meta] =
     await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'exercises', 'files', 'meta'].map(db.getAll));
   bump();
-  S.habits = habits;
-  S.accounts = accounts.map(a => ({ type: 'normal', ...a }));
+  Object.assign(S, { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises });
+  repair(); // primero la forma de los datos: ordenar o migrar con un registro dañado haría fallar el arranque
+  S.accounts = S.accounts.map(a => ({ type: 'normal', ...a }));
   sortAccounts();
   await normalizeHabits();
-  S.moves = moves;
-  S.plan = plan;
-  S.bills = bills;
-  S.purchases = purchases;
-  S.templates = templates.sort(byName);
-  S.lists = lists;
-  S.noteGroups = noteGroups.sort(byName);
-  S.notes = notes;
-  S.inbox = inbox.sort((a, b) => b.t - a.t);
-  S.routines = routines.sort(byName);
-  S.workouts = workouts;
-  S.exercises = exercises.sort(byName);
+  S.templates.sort(byName);
+  S.noteGroups.sort(byName);
+  S.inbox.sort((a, b) => b.t - a.t);
+  S.routines.sort(byName);
+  S.exercises.sort(byName);
   if (!S.noteGroups.some(g => g.id === S.noteGroup)) S.noteGroup = null;
   if (!S.lists.some(l => l.id === S.listId)) S.listId = null;
   S.files = new Map(files.map(f => [f.id, { mime: f.mime, name: f.name, size: f.size }]));
   const settings = meta.find(m => m.k === 'settings');
   if (settings) S.settings = { ...S.settings, ...settings.v };
-  if (!S.settings.types) {
+  delete S.settings.homeMoney; // de la tarjeta de dinero de Inicio, que ya no existe
+  if (!Array.isArray(S.settings.types)) {
     S.settings.types = DEFAULT_KINDS.map(name => ({ id: uid(), name }));
     await saveSettings();
   }
   await archiveOldCompletedLists();
   await seedExercises();
+}
+
+// Datos dañados (un respaldo editado a mano, un error de una versión vieja): se corrige en memoria la FORMA de cada registro para
+// que ninguna pantalla falle al leerlo (listas que no son listas, textos que no son texto, saldos que no son números). No se
+// guarda nada: si el registro se edita, se guarda ya corregido. Lo que no tiene arreglo (no es un objeto) se descarta.
+const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+const arrOf = v => (!Array.isArray(v) ? [] : v.every(isObj) ? v : v.filter(isObj)); // solo copia si hay algo que quitar
+const str = v => (typeof v === 'string' ? v : v == null ? '' : String(v));
+const fin = v => (Number.isFinite(v) ? v : 0);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ymdOr = (v, d = '') => (typeof v === 'string' && DATE_RE.test(v) ? v : d);
+function repair() {
+  const clean = k => { S[k] = arrOf(S[k]); };
+  ['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'exercises'].forEach(clean);
+  S.habits.forEach(h => { h.name = str(h.name); if (!isObj(h.dates)) h.dates = {}; });
+  S.accounts.forEach(a => { a.name = str(a.name); a.cats = arrOf(a.cats); a.cats.forEach(c => { c.name = str(c.name); c.balance = fin(c.balance); }); });
+  for (const m of S.moves) { // el más numeroso (decenas de miles): sin funciones ni copias por registro
+    m.parts = arrOf(m.parts);
+    for (const p of m.parts) if (!Number.isFinite(p.amount)) p.amount = 0;
+    if (!Number.isFinite(m.total)) m.total = 0;
+    if (typeof m.date !== 'string' || !DATE_RE.test(m.date)) m.date = '0000-01-01';
+    if (m.type === 'transfer' && !isObj(m.to)) m.to = { acc: '', cat: '' };
+    if (m.files != null && !Array.isArray(m.files)) m.files = [];
+  }
+  S.plan.forEach(l => { l.name = str(l.name); l.key = str(l.key); l.amount = fin(l.amount); });
+  S.bills.forEach(b => { b.title = str(b.title); if (!isObj(b.paid)) b.paid = {}; });
+  S.purchases.forEach(p => { p.name = str(p.name); p.date = ymdOr(p.date, today()); if (!Array.isArray(p.files)) p.files = []; });
+  S.templates.forEach(t => { t.name = str(t.name); t.items = arrOf(t.items); t.items.forEach(i => { i.text = str(i.text); }); });
+  S.lists.forEach(l => { l.name = str(l.name); l.created = ymdOr(l.created, today()); l.items = arrOf(l.items); l.items.forEach(i => { i.text = str(i.text); }); });
+  S.noteGroups.forEach(g => { g.name = str(g.name); g.fields = arrOf(g.fields); });
+  S.notes.forEach(n => { n.title = str(n.title); if (!isObj(n.values)) n.values = {}; n.tags = Array.isArray(n.tags) ? n.tags.map(str) : []; });
+  S.inbox.forEach(q => { q.text = str(q.text); q.t = fin(q.t); });
+  S.routines.forEach(r => { r.name = str(r.name); r.exercises = arrOf(r.exercises); r.exercises.forEach(e => { e.name = str(e.name); }); });
+  S.workouts.forEach(w => {
+    w.name = str(w.name); w.date = ymdOr(w.date, today()); w.t = fin(w.t);
+    w.exercises = arrOf(w.exercises); w.exercises.forEach(e => { e.name = str(e.name); e.sets = arrOf(e.sets); });
+  });
+  S.exercises.forEach(e => { e.name = str(e.name); });
 }
 
 // Antes de existir «Finalizar», las listas con todo marcado se veían aparte como «Completadas». Esa vez se archivan solas

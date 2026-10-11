@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { $, esc, uid, toast } from './util.js';
+import { $, esc, uid, toast, pl } from './util.js';
 import { S, saveInbox, saveNote, saveList } from './state.js';
 import { modal } from './ui.js';
 import { icon } from './icons.js';
@@ -25,15 +25,27 @@ export const quickNoteForm = () => `
     <button class="btn" data-act="qn-add" aria-label="Guardar nota rápida">${icon('plus')}</button>
   </form>`;
 
+// Selección de varias notas rápidas (para archivarlas o eliminarlas juntas): un Set de ids, o null fuera de ese modo.
+const picking = () => S.inboxSel instanceof Set;
+
 export function inboxSection() {
-  if (!S.inbox.length) return '';
-  const shown = S.inboxAll ? S.inbox : S.inbox.slice(0, SHOWN), extra = S.inbox.length - shown.length;
+  if (!S.inbox.length) { S.inboxSel = null; return ''; }
+  const sel = picking() ? S.inboxSel : null;
+  if (sel) [...sel].forEach(id => { if (!S.inbox.some(q => q.id === id)) sel.delete(id); });
+  const shown = sel || S.inboxAll ? S.inbox : S.inbox.slice(0, SHOWN), extra = S.inbox.length - shown.length;
+  const row = q => sel
+    ? `<button class="qn pick ${sel.has(q.id) ? 'on' : ''}" data-act="qn-pick" data-id="${q.id}" aria-pressed="${sel.has(q.id)}">
+        <span class="qn-box">${sel.has(q.id) ? icon('check') : ''}</span><span class="qn-body"><span class="qn-text">${esc(q.text)}</span><small class="muted">${ago(q.t)}</small></span></button>`
+    : `<button class="qn" data-act="qn-open" data-id="${q.id}"><span class="qn-text">${esc(q.text)}</span><small class="muted">${ago(q.t)}</small></button>`;
   return `
     <section class="today inbox">
-      <h3 class="overline">Bandeja <span class="count">${S.inbox.length}</span></h3>
-      <div class="trows">${shown.map(q => `
-        <button class="qn" data-act="qn-open" data-id="${q.id}"><span class="qn-text">${esc(q.text)}</span><small class="muted">${ago(q.t)}</small></button>`).join('')}</div>
-      ${extra > 0 ? `<button class="btn ghost block" data-act="qn-more">Ver ${extra} más</button>`
+      <div class="inbox-h"><h3 class="overline">Bandeja <span class="count">${S.inbox.length}</span></h3>
+        ${sel ? '' : S.inbox.length > 1 ? '<button class="btn ghost sm" data-act="qn-select">Seleccionar</button>' : ''}</div>
+      <div class="trows">${shown.map(row).join('')}</div>
+      ${sel ? `<div class="qn-bar"><button class="btn sm ghost" data-act="qn-cancel">Cancelar</button><span class="spacer"></span>
+          <button class="btn sm" data-act="qn-pick-all">${sel.size === S.inbox.length ? 'Ninguna' : 'Todas'}</button>
+          <button class="btn sm primary" data-act="qn-batch" ${sel.size ? '' : 'disabled'} aria-label="Archivar ${pl(sel.size, 'nota seleccionada', 'notas seleccionadas')}">Archivar (${sel.size})</button></div>`
+        : extra > 0 ? `<button class="btn ghost block" data-act="qn-more">Ver ${extra} más</button>`
         : S.inboxAll && S.inbox.length > SHOWN ? '<button class="btn ghost block" data-act="qn-less">Ver menos</button>' : ''}
     </section>`;
 }
@@ -61,7 +73,7 @@ function suggestTitle(text) {
 function noteFor(g, title, text) {
   const fields = g.fields ?? [];
   const values = {};
-  const url = text.match(/https?:\/\/[^\s<>"']+/i)?.[0];
+  const url = text.match(URL_RE)?.[0];
   const urlField = url && fields.find(f => f.type === 'url');
   if (urlField) values[urlField.id] = url;
   const rest = urlField && text.trim() === url ? '' : text.trim();
@@ -74,6 +86,14 @@ function noteFor(g, title, text) {
   return { note: { id: uid(), group: g.id, title, values, tags: [], created: now, updated: now } };
 }
 
+// Grupo sugerido: si lo que se archiva trae enlaces, el primer grupo con campo de enlace; si no, el primero.
+const URL_RE = /https?:\/\/[^\s<>"']+/i;
+function suggestGroup(texts) {
+  const g = texts.some(t => URL_RE.test(t)) && S.noteGroups.find(x => (x.fields ?? []).some(f => f.type === 'url'));
+  return (g || S.noteGroups[0])?.id ?? '';
+}
+const groupOptions = selected => S.noteGroups.map(g => `<option value="${g.id}" ${g.id === selected ? 'selected' : ''}>${esc(g.name)}</option>`).join('');
+
 function quickNoteModal(q) {
   const lists = S.lists.filter(l => !l.archived);
   modal('Nota rápida', `
@@ -85,7 +105,7 @@ function quickNoteModal(q) {
         <option value="list" ${lists.length ? '' : 'disabled'}>Agregar a una lista…</option>
       </select></label>
     <div id="d-note" hidden class="stack">
-      <label>Grupo de notas <select name="group">${S.noteGroups.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select></label>
+      <label>Grupo de notas <select name="group">${groupOptions(suggestGroup([q.text]))}</select></label>
       <label>Título <input name="title" maxlength="120" value="${esc(suggestTitle(q.text))}"></label>
     </div>
     <label id="d-list" hidden>Lista <select name="list">${lists.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select></label>
@@ -131,6 +151,58 @@ function quickNoteModal(q) {
   });
 }
 
+// Varias a la vez: todas como notas de un grupo, todas a una lista, o eliminarlas. Si alguna no cabe en el grupo elegido no se
+// archiva ninguna (todo o nada, en una sola transacción).
+function batchModal() {
+  const picked = S.inbox.filter(q => S.inboxSel.has(q.id));
+  if (!picked.length) return;
+  const lists = S.lists.filter(l => !l.archived);
+  modal(`Archivar ${pl(picked.length, 'nota rápida', 'notas rápidas')}`, `
+    <label>Qué hacer con ellas
+      <select name="dest">
+        <option value="note" ${S.noteGroups.length ? '' : 'disabled'}>Archivarlas como notas…</option>
+        <option value="list" ${lists.length ? '' : 'disabled'}>Agregarlas a una lista…</option>
+        <option value="delete">Eliminarlas</option>
+      </select></label>
+    <div id="d-note" class="stack">
+      <label>Grupo de notas <select name="group">${groupOptions(suggestGroup(picked.map(q => q.text)))}</select></label>
+      <small class="muted">Cada una será una nota; su título es la primera línea (o el sitio, si es un enlace).</small>
+    </div>
+    <label id="d-list" hidden>Lista <select name="list">${lists.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select></label>`, {
+    submit: 'Aplicar',
+    afterOpen(f) {
+      const d = f.elements.dest;
+      if (d.options[d.selectedIndex]?.disabled) d.value = [...d.options].find(o => !o.disabled).value;
+      const sync = () => { f.querySelector('#d-note').hidden = d.value !== 'note'; f.querySelector('#d-list').hidden = d.value !== 'list'; };
+      d.addEventListener('change', sync);
+      sync();
+    },
+    async onSubmit(fd) {
+      const dest = fd.get('dest'), ids = picked.map(q => q.id);
+      if (dest === 'note') {
+        const g = S.noteGroups.find(x => x.id === fd.get('group'));
+        const made = picked.map(q => noteFor(g, suggestTitle(q.text) || 'Nota', q.text));
+        const bad = made.find(r => r.error);
+        if (bad) { alert(bad.error); return false; }
+        S.notes.push(...made.map(r => r.note));
+        await db.commit({ put: { notes: made.map(r => r.note) }, remove: { inbox: ids } });
+        toast(`${pl(made.length, 'nota archivada', 'notas archivadas')} en ${g.name}`);
+      } else if (dest === 'list') {
+        const l = lists.find(x => x.id === fd.get('list'));
+        picked.forEach(q => l.items.push({ id: uid(), text: oneLine(q.text).slice(0, 200), done: false, extra: true }));
+        await db.commit({ put: { lists: [l] }, remove: { inbox: ids } });
+        toast(`${pl(picked.length, 'agregada', 'agregadas')} a ${l.name}`);
+      } else {
+        if (!confirm(`¿Eliminar ${pl(picked.length, 'nota rápida', 'notas rápidas')}?`)) return false;
+        await db.commit({ remove: { inbox: ids } });
+        toast(pl(picked.length, 'nota eliminada', 'notas eliminadas'));
+      }
+      S.inbox = S.inbox.filter(q => !S.inboxSel.has(q.id));
+      S.inboxSel = null;
+    },
+  });
+}
+
 async function remove(q) {
   S.inbox = S.inbox.filter(x => x.id !== q.id);
   await db.commit({ remove: { inbox: [q.id] } });
@@ -153,5 +225,10 @@ export const actions = {
   },
   'qn-open': el => quickNoteModal(S.inbox.find(x => x.id === el.dataset.id)),
   'qn-more': () => { S.inboxAll = true; },
+  'qn-select': () => { S.inboxSel = new Set(); },
+  'qn-cancel': () => { S.inboxSel = null; },
+  'qn-pick': el => { const s = S.inboxSel; if (s) { if (s.has(el.dataset.id)) s.delete(el.dataset.id); else s.add(el.dataset.id); } },
+  'qn-pick-all': () => { const s = S.inboxSel; if (s) S.inboxSel = s.size === S.inbox.length ? new Set() : new Set(S.inbox.map(q => q.id)); },
+  'qn-batch': () => { if (S.inboxSel?.size) batchModal(); },
   'qn-less': () => { S.inboxAll = false; },
 };

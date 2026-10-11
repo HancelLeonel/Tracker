@@ -23,6 +23,24 @@ export function applyFont(name) {
   try { localStorage.setItem('tracker-font', f); } catch { /* sin almacenamiento local: se aplica al abrir con los ajustes */ }
 }
 
+// Tema: 'dark', 'light' o 'auto' (sigue al sistema y cambia solo si el sistema cambia). En <html> queda el tema efectivo
+// (data-theme="dark|light"); la preferencia se copia a localStorage para que index.html la aplique desde el primer pintado.
+export const THEMES = ['dark', 'light', 'auto'];
+const BARS = { dark: '#111317', light: '#f3f4f6' }; // color de la barra del sistema (theme-color), igual a --base
+const lightMq = window.matchMedia?.('(prefers-color-scheme: light)');
+let themePref = 'dark';
+function paintTheme() {
+  const eff = themePref === 'auto' ? (lightMq?.matches ? 'light' : 'dark') : themePref;
+  document.documentElement.dataset.theme = eff;
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', BARS[eff]);
+}
+lightMq?.addEventListener?.('change', () => { if (themePref === 'auto') paintTheme(); });
+export function applyTheme(pref) {
+  themePref = THEMES.includes(pref) ? pref : 'dark';
+  paintTheme();
+  try { localStorage.setItem('tracker-theme', themePref); } catch { /* sin almacenamiento local: se aplica al abrir con los ajustes */ }
+}
+
 export const isOpen = () => dlg.open || viewer.open;
 
 // onSubmit puede devolver false para mantener el diálogo abierto.

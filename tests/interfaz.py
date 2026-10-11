@@ -112,6 +112,13 @@ try:
                  ('accent', 'mantle', 4.5), ('red', 'mantle', 4.5), ('green', 'mantle', 4.5), ('yellow', 'mantle', 4.5)] + [(c, 'mantle', 3) for c in ('mauve','blue','peach','pink','teal','lavender')]
         bad = [(x, y, round(ratio(V[x], V[y]), 2), need) for x, y, need in pairs if ratio(V[x], V[y]) < need]
         check('contraste del tema: texto ≥ 7:1, secundario/semánticos/acento ≥ 4.5:1, colores de iconos ≥ 3:1', not bad, bad)
+        # el tema claro cumple los mismos mínimos (Configuración › Apariencia)
+        page.evaluate("document.documentElement.dataset.theme = 'light'")
+        V = page.evaluate("""() => { const s = getComputedStyle(document.documentElement); const g = n => s.getPropertyValue(n).trim();
+          return Object.fromEntries(['text','subtext0','base','mantle','accent','accent-ink','red','green','yellow','mauve','blue','peach','pink','teal','lavender'].map(n => [n, g('--' + n)])); }""")
+        bad = [(x, y, round(ratio(V[x], V[y]), 2), need) for x, y, need in pairs if ratio(V[x], V[y]) < need]
+        check('contraste del tema claro: mismos mínimos', not bad, bad)
+        page.evaluate("document.documentElement.dataset.theme = 'dark'")
         # --- hoja inferior y áreas de toque
         page.click('[data-act=edit-acc] >> nth=0'); page.wait_for_timeout(300)
         geo = page.evaluate("(() => { const r = document.querySelector('#dlg').getBoundingClientRect(); return { bottom: r.bottom, h: innerHeight, w: r.width, vw: innerWidth, top: r.top, rad: getComputedStyle(document.querySelector('#dlg')).borderTopLeftRadius }; })()")

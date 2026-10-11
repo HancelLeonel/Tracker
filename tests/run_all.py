@@ -7,7 +7,7 @@ import subprocess, sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
-TESTS = ['smoke', 'flujo_completo', 'migracion_y_limites', 'tarjetas', 'guia', 'interfaz', 'paginacion_y_cache', 'orden_compartir_carga', 'habitos', 'listas', 'inicio', 'pomodoro', 'notas', 'arranque', 'bandeja', 'listas_orden', 'sw', 'configuracion', 'gimnasio', 'catalogo', 'inicio_resumen']
+TESTS = ['smoke', 'flujo_completo', 'migracion_y_limites', 'tarjetas', 'guia', 'interfaz', 'paginacion_y_cache', 'orden_compartir_carga', 'habitos', 'listas', 'inicio', 'pomodoro', 'notas', 'arranque', 'bandeja', 'listas_orden', 'sw', 'configuracion', 'gimnasio', 'catalogo', 'gimnasio_mas', 'inicio_resumen', 'bandeja_varias', 'revision']
 
 bad = []
 for name in TESTS:

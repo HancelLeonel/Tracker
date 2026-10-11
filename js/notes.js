@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { $, esc, uid, ymd, fmtDateY, norm, byName, byText, toast } from './util.js';
+import { $, esc, uid, ymd, fmtDateY, norm, byName, byText, toast, pl } from './util.js';
 import { S, saveNoteGroup, saveNote } from './state.js';
 import { modal } from './ui.js';
 import { icon, NOTE_ICONS } from './icons.js';
@@ -12,7 +12,6 @@ export const FIELD_TYPES = [
   ['date', 'Fecha'], ['choice', 'Opciones'], ['check', 'Casilla (sí/no)'], ['rating', 'Calificación (1–5)'],
 ];
 const PAGE = 40;
-const pl = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 
 // Grupos de ejemplo para empezar; se pueden cambiar a gusto después.
 const f = (name, type, extra = {}) => ({ id: uid(), name, type, ...extra });

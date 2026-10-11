@@ -13,6 +13,10 @@ export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;'
 export const uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 export const pad = n => String(n).padStart(2, '0');
 export const r2 = n => Math.round(n * 100) / 100;
+// «1 serie», «3 series»; `many` para plurales irregulares (sesión → sesiones).
+export const pl = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+// Milisegundos restantes como «mm:ss» (redondeando hacia arriba: «00:01» hasta el final).
+export const clock = t => { const s = Math.ceil(t / 1000); return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; };
 export const sum = (arr, fn) => r2(arr.reduce((t, x) => t + fn(x), 0));
 
 // ---------- fechas (siempre 'YYYY-MM-DD' en hora local) ----------

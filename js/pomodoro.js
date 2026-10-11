@@ -1,4 +1,4 @@
-import { $, today, toast } from './util.js';
+import { $, today, toast, clock } from './util.js';
 import { S, hooks, saveSettings } from './state.js';
 import { modal } from './ui.js';
 import { icon } from './icons.js';
@@ -32,8 +32,6 @@ const running = () => !!run().endsAt;
 const remaining = () => (running() ? Math.max(0, run().endsAt - Date.now()) : run().left);
 const doneToday = () => (P().day?.date === today() ? P().day.n : 0);
 
-const pad = n => String(n).padStart(2, '0');
-const fmt = t => { const s = Math.ceil(t / 1000); return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; };
 
 // El sonido, la vibración y la pantalla encendida son los mismos que usa el descanso del Gimnasio (aviso.js).
 const holdScreen = on => keepAwake('pomodoro', on);
@@ -44,7 +42,7 @@ const startTick = () => { timer ??= setInterval(tick, 250); };
 const stopTick = () => { clearInterval(timer); timer = null; };
 
 function paint() {
-  const txt = fmt(remaining()), total = ms(run().phase);
+  const txt = clock(remaining()), total = ms(run().phase);
   document.querySelectorAll('[data-pomo-clock]').forEach(e => { if (e.textContent !== txt) e.textContent = txt; });
   const bar = $('[data-pomo-bar]');
   if (bar) bar.style.width = `${Math.min(100, (1 - remaining() / total) * 100)}%`;
@@ -145,7 +143,7 @@ export function pomodoroView() {
   return `
     <section class="pomo" style="--c:var(--${color})">
       <div class="pomo-phase"><b>${name}</b><small>${sub}</small></div>
-      <div class="pomo-clock" data-pomo-clock role="timer" aria-label="Tiempo restante">${fmt(remaining())}</div>
+      <div class="pomo-clock" data-pomo-clock role="timer" aria-label="Tiempo restante">${clock(remaining())}</div>
       <div class="bar"><i data-pomo-bar style="width:${Math.min(100, (1 - remaining() / ms(r.phase)) * 100)}%"></i></div>
       <div class="pomo-controls">
         <button class="icon" data-act="pomo-reset" aria-label="Reiniciar esta fase">${icon('reset')}</button>

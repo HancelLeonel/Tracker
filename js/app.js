@@ -1,7 +1,7 @@
 import { $, toast } from './util.js';
 import { icon } from './icons.js';
 import { S, hooks, loadState, gcFiles, hasNormalCats } from './state.js';
-import { isOpen, openFile, applyFont } from './ui.js';
+import { isOpen, openFile, applyFont, applyTheme } from './ui.js';
 import * as money from './money.js';
 import * as plan from './plan.js';
 import * as bills from './bills.js';
@@ -35,6 +35,15 @@ const topbar = (title, action) => `
   <button class="icon" data-act="menu-open" aria-label="Abrir menú" aria-expanded="false">${icon('menu')}</button>
   <h1>${title}</h1>${action ? `<button class="icon" data-act="${action[0]}" aria-label="${action[1]}">${icon('plus')}</button>` : ''}`;
 
+// Si una pantalla falla al pintarse (un dato que no se pudo reparar), solo esa sección muestra el aviso: el menú y las demás siguen.
+function broken(err) {
+  console.error(err);
+  return `<div class="card empty"><p>No se pudo mostrar esta sección.</p>
+    <small>Algún dato guardado tiene un formato inesperado. Las demás secciones siguen funcionando; si el problema sigue, restaura un respaldo desde Configuración.</small>
+    <small class="muted">Detalle: ${esc(err?.message ?? String(err))}</small>
+    <button class="btn" data-act="tab" data-tab="home">Ir a Inicio</button></div>`;
+}
+
 function render() {
   $('#drawer').innerHTML = `
     <div class="drawer-h"><b>Tracker</b><button class="icon" data-act="menu-close" aria-label="Cerrar menú">${icon('close')}</button></div>
@@ -44,64 +53,71 @@ function render() {
   fab.hidden = !(S.tab === 'money' && S.sub === 'accounts' && hasNormalCats());
   fab.innerHTML = icon('plus');
 
-  if (S.tab === 'home') {
-    top.innerHTML = topbar('Inicio');
-    view.innerHTML = home.homeView();
-    home.restoreQuick();
-  } else if (S.tab === 'money') {
-    const alerts = bills.billsAlert();
-    top.innerHTML = topbar(SUB_TITLES[S.sub], SUB_ACTION[S.sub]);
-    const seg = `<div class="seg" role="tablist">${SUBS.map(([k, name]) =>
-      `<button class="${k === S.sub ? 'on' : ''}" data-act="sub" data-sub="${k}">${name}${k === 'bills' && alerts ? `<span class="badge">${alerts}</span>` : ''}</button>`).join('')}</div>`;
-    const body = { accounts: money.accountsView, plan: plan.planView, bills: bills.billsView, reports: reports.reportsView }[S.sub]();
-    view.innerHTML = seg + body;
-  } else if (S.tab === 'habits') {
-    top.innerHTML = topbar('Hábitos', ['new-habit', 'Nuevo hábito']);
-    view.innerHTML = habits.habitsView();
-    habits.restoreCarousel();
-  } else if (S.tab === 'lists') {
-    const cur = S.listId && lists.current();
-    if (cur) {
-      top.innerHTML = `<button class="icon" data-act="list-back" aria-label="Volver a las listas">${icon('left')}</button><h1>${esc(cur.name)}</h1>
-        <button class="icon" data-act="list-opts" aria-label="Opciones de la lista">${icon('edit')}</button>`;
-      view.innerHTML = lists.listDetail(cur);
+  try {
+    if (S.tab === 'home') {
+      top.innerHTML = topbar('Inicio');
+      view.innerHTML = home.homeView();
+      home.restoreQuick();
+    } else if (S.tab === 'money') {
+      const alerts = bills.billsAlert();
+      top.innerHTML = topbar(SUB_TITLES[S.sub], SUB_ACTION[S.sub]);
+      const seg = `<div class="seg" role="tablist">${SUBS.map(([k, name]) =>
+        `<button class="${k === S.sub ? 'on' : ''}" data-act="sub" data-sub="${k}">${name}${k === 'bills' && alerts ? `<span class="badge">${alerts}</span>` : ''}</button>`).join('')}</div>`;
+      const body = { accounts: money.accountsView, plan: plan.planView, bills: bills.billsView, reports: reports.reportsView }[S.sub]();
+      view.innerHTML = seg + body;
+    } else if (S.tab === 'habits') {
+      top.innerHTML = topbar('Hábitos', ['new-habit', 'Nuevo hábito']);
+      view.innerHTML = habits.habitsView();
+      habits.restoreCarousel();
+    } else if (S.tab === 'lists') {
+      const cur = S.listId && lists.current();
+      if (cur) {
+        top.innerHTML = `<button class="icon" data-act="list-back" aria-label="Volver a las listas">${icon('left')}</button><h1>${esc(cur.name)}</h1>
+          <button class="icon" data-act="list-opts" aria-label="Opciones de la lista">${icon('edit')}</button>`;
+        view.innerHTML = lists.listDetail(cur);
+      } else {
+        top.innerHTML = topbar('Listas', S.listSub === 'templates' ? ['new-tpl', 'Nueva plantilla'] : ['new-list', 'Nueva lista']);
+        view.innerHTML = lists.listsView();
+      }
+      lists.restoreFocus();
+    } else if (S.tab === 'pomodoro') {
+      top.innerHTML = topbar('Pomodoro');
+      view.innerHTML = pomodoro.pomodoroView();
+    } else if (S.tab === 'notes') {
+      const g = S.noteGroup && notes.currentGroup();
+      if (g) {
+        top.innerHTML = `<button class="icon" data-act="note-back" aria-label="Volver a los grupos">${icon('left')}</button><h1>${esc(g.name)}</h1>
+          <button class="icon" data-act="new-note" aria-label="Nueva nota">${icon('plus')}</button>`;
+        view.innerHTML = notes.groupView(g);
+      } else {
+        top.innerHTML = topbar('Notas', ['new-ngroup', 'Nuevo grupo']);
+        view.innerHTML = notes.notesHome();
+      }
+    } else if (S.tab === 'gym') {
+      top.innerHTML = S.gymSub === 'catalog'
+        ? `<button class="icon" data-act="gym-sub" data-sub="routines" aria-label="Volver a las rutinas">${icon('left')}</button><h1>Catálogo de ejercicios</h1>
+          <button class="icon" data-act="new-ex" aria-label="Nuevo ejercicio">${icon('plus')}</button>`
+        : topbar('Gimnasio', S.gymSub === 'routines' ? ['new-routine', 'Nueva rutina'] : null);
+      view.innerHTML = gym.gymView();
+    } else if (S.tab === 'purchases') {
+      top.innerHTML = topbar('Compras', ['new-purchase', 'Nueva compra']);
+      view.innerHTML = purchases.purchasesView();
     } else {
-      top.innerHTML = topbar('Listas', S.listSub === 'templates' ? ['new-tpl', 'Nueva plantilla'] : ['new-list', 'Nueva lista']);
-      view.innerHTML = lists.listsView();
+      top.innerHTML = topbar('Configuración');
+      view.innerHTML = data.dataView();
     }
-    lists.restoreFocus();
-  } else if (S.tab === 'pomodoro') {
-    top.innerHTML = topbar('Pomodoro');
-    view.innerHTML = pomodoro.pomodoroView();
-  } else if (S.tab === 'notes') {
-    const g = S.noteGroup && notes.currentGroup();
-    if (g) {
-      top.innerHTML = `<button class="icon" data-act="note-back" aria-label="Volver a los grupos">${icon('left')}</button><h1>${esc(g.name)}</h1>
-        <button class="icon" data-act="new-note" aria-label="Nueva nota">${icon('plus')}</button>`;
-      view.innerHTML = notes.groupView(g);
-    } else {
-      top.innerHTML = topbar('Notas', ['new-ngroup', 'Nuevo grupo']);
-      view.innerHTML = notes.notesHome();
-    }
-  } else if (S.tab === 'gym') {
-    top.innerHTML = S.gymSub === 'catalog'
-      ? `<button class="icon" data-act="gym-sub" data-sub="routines" aria-label="Volver a las rutinas">${icon('left')}</button><h1>Catálogo de ejercicios</h1>
-        <button class="icon" data-act="new-ex" aria-label="Nuevo ejercicio">${icon('plus')}</button>`
-      : topbar('Gimnasio', S.gymSub === 'routines' ? ['new-routine', 'Nueva rutina'] : null);
-    view.innerHTML = gym.gymView();
-  } else if (S.tab === 'purchases') {
-    top.innerHTML = topbar('Compras', ['new-purchase', 'Nueva compra']);
-    view.innerHTML = purchases.purchasesView();
-  } else {
-    top.innerHTML = topbar('Configuración');
-    view.innerHTML = data.dataView();
+  } catch (err) {
+    top.innerHTML = topbar(TABS.find(t => t[0] === S.tab)?.[1] ?? 'Tracker'); // con el menú siempre a mano
+    view.innerHTML = broken(err);
+    S.listId = null; // al volver a la sección se abre su vista general, no el detalle que falló
+    S.noteGroup = null;
   }
   menuOpen(document.body.classList.contains('menu-open'));
 }
 hooks.render = render;
 
 const actions = {
-  tab: el => { S.tab = el.dataset.tab; if (S.tab === 'home') home.nextQuote(); S.habitsSort = false; S.listEdit = false; menuOpen(false); window.scrollTo(0, 0); },
+  tab: el => { S.tab = el.dataset.tab; if (S.tab === 'home') home.nextQuote(); S.habitsSort = false; S.listEdit = false; S.inboxSel = null; menuOpen(false); window.scrollTo(0, 0); },
   'menu-open': () => menuOpen(true),
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
@@ -151,7 +167,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') menuOpen(fal
 
 $('#file').addEventListener('change', async e => {
   const f = e.target.files[0];
-  if (f) { await data.onFilePicked(f); applyFont(S.settings.font); pomodoro.resume(); gym.resume(); render(); }
+  if (f) { await data.onFilePicked(f); applyFont(S.settings.font); applyTheme(S.settings.theme); pomodoro.resume(); gym.resume(); render(); }
 });
 
 // La actualización de la base de datos espera mientras otra ventana con la versión anterior siga abierta.
@@ -187,6 +203,7 @@ async function receiveShared() {
   try {
     await loadState();
     applyFont(S.settings.font);
+    applyTheme(S.settings.theme);
     await gcFiles();
   } catch (err) {
     return fatal('No se pudo abrir el almacenamiento local.', err);

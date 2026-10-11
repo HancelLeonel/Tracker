@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { esc, uid, today, addDays, addMonths, daysBetween, fmtDate, fmtDateY, parseYmd, toast, $ } from './util.js';
+import { esc, uid, today, addDays, addMonths, daysBetween, fmtDate, fmtDateY, parseYmd, toast, $, pl } from './util.js';
 import { S, saveTemplate, saveList, saveSettings, isListDone } from './state.js';
 import { modal } from './ui.js';
 import { icon } from './icons.js';
@@ -17,7 +17,6 @@ const freqOf = t => FREQS.find(f => f[0] === t.freq) ?? FREQS[0];
 const real = l => l.items.filter(i => !i.head);
 const progress = l => { const r = real(l); return { done: r.filter(i => i.done).length, total: r.length }; };
 const isDone = isListDone;
-const pl = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 
 export const current = () => S.lists.find(l => l.id === S.listId) ?? null;
 

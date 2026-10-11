@@ -1,4 +1,4 @@
-import { esc, today, fmtDate, daysBetween } from './util.js';
+import { esc, today, fmtDate, daysBetween, pl } from './util.js';
 import { S } from './state.js';
 import { icon } from './icons.js';
 import { billsSummary } from './bills.js';
@@ -61,7 +61,6 @@ export function nextQuote() {
 }
 
 const greeting = h => (h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches');
-const pl = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 const MAX_TASKS = 6;
 
 // Tarjeta «Hábitos»: cuántos van hoy.

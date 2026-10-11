@@ -71,7 +71,10 @@ try:
         check('y Finanzas › Pagos también abre con ese pago dañado', pg.locator('#topbar h1').inner_text()=='Pagos' and errs == [], errs)
         pg.evaluate("""async () => { const db = await import('/js/db.js'); await db.commit({ put: { habits: [{ id: 'h', name: 'Roto', color: 'blue', dates: null, order: 1 }] } }); }""")
         pg.reload(); pg.wait_for_selector('#view .home', timeout=8000)
-        check('con un hábito dañado Inicio abre igual: omite solo esa tarjeta', pg.locator('.home').count()==1 and pg.locator('.tile:has-text("Hábitos")').count()==0 and pg.locator('.tile:has-text("Pagos")').count()==1 and pg.locator('.tile-acts').count()==1, pg.locator('.tile').count())
+        check('un hábito guardado con datos dañados se repara al cargar: Inicio lo muestra', pg.locator('.home').count()==1 and pg.locator('.tile:has-text("Hábitos")').count()==1 and errlogs == [] and errs == [], (errlogs, errs))
+        # si algo se daña después de cargar, Inicio omite solo esa tarjeta (safe()) en vez de quedarse en blanco
+        pg.evaluate("() => import('/js/state.js').then(m => { m.S.habits[0].dates = null; m.hooks.render(); })")
+        check('con un hábito dañado en memoria Inicio abre igual: omite solo esa tarjeta', pg.locator('.home').count()==1 and pg.locator('.tile:has-text("Hábitos")').count()==0 and pg.locator('.tile:has-text("Pagos")').count()==1 and pg.locator('.tile-acts').count()==1, pg.locator('.tile').count())
         check('el problema queda registrado en consola y no es un error de página', len(errlogs) >= 1 and errs == [], (errlogs, errs))
         ctx.close()
         b.close()
