@@ -10,6 +10,7 @@ import * as purchases from './purchases.js';
 import * as habits from './habits.js';
 import * as lists from './lists.js';
 import * as home from './home.js';
+import * as pomodoro from './pomodoro.js';
 import * as data from './data.js';
 import { esc } from './util.js';
 
@@ -17,7 +18,10 @@ const SUBS = [['accounts', 'Cuentas'], ['plan', 'Guía'], ['bills', 'Pagos'], ['
 const SUB_TITLES = { accounts: 'Finanzas', plan: 'Guía de transferencias', bills: 'Pagos', reports: 'Reportes' };
 const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], plan: ['new-line', 'Nueva línea'], bills: ['new-bill', 'Nuevo pago'] };
 
-const TABS = [['home', 'Inicio', 'home'], ['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'], ['data', 'Datos', 'data']];
+const TABS = [['home', 'Inicio', 'home'], ['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'],
+  ['pomodoro', 'Pomodoro', 'timer'], ['gym', 'Gimnasio', 'dumbbell'], ['notes', 'Notas', 'note'], ['tasks', 'Tareas', 'tasks'], ['data', 'Datos', 'data']];
+// Secciones aún sin contenido: título (para la barra superior) y mensaje.
+const EMPTY = { gym: 'Gimnasio', notes: 'Notas', tasks: 'Tareas' };
 
 const menuOpen = open => {
   document.body.classList.toggle('menu-open', open);
@@ -64,6 +68,12 @@ function render() {
       view.innerHTML = lists.listsView();
     }
     lists.restoreFocus();
+  } else if (S.tab === 'pomodoro') {
+    top.innerHTML = topbar('Pomodoro');
+    view.innerHTML = pomodoro.pomodoroView();
+  } else if (EMPTY[S.tab]) {
+    top.innerHTML = topbar(EMPTY[S.tab]);
+    view.innerHTML = '<div class="card empty"><p>Esta sección está vacía por ahora.</p></div>';
   } else if (S.tab === 'purchases') {
     top.innerHTML = topbar('Compras', ['new-purchase', 'Nueva compra']);
     view.innerHTML = purchases.purchasesView();
@@ -81,7 +91,7 @@ const actions = {
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
   'open-file': el => openFile(el.dataset.id),
-  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...data.actions,
+  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...pomodoro.actions, ...data.actions,
 };
 
 document.addEventListener('click', async e => {
@@ -122,7 +132,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') menuOpen(fal
 
 $('#file').addEventListener('change', async e => {
   const f = e.target.files[0];
-  if (f) { await data.onFilePicked(f); render(); }
+  if (f) { await data.onFilePicked(f); pomodoro.resume(); render(); }
 });
 
 (async function init() {
@@ -134,6 +144,7 @@ $('#file').addEventListener('change', async e => {
     return;
   }
   render();
+  pomodoro.resume(); // si el temporizador estaba corriendo al cerrar la app, sigue o avanza
 
   // Pide almacenamiento persistente para que Android no lo borre por falta de espacio.
   navigator.storage?.persist?.();

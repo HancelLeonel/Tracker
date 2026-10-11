@@ -1,6 +1,6 @@
 # CLAUDE.md — Tracker
 
-PWA personal para Android (inicio con frases, finanzas por quincena, hábitos, listas con plantillas, compras). **Vanilla JS + IndexedDB, sin build ni dependencias**, publicada en GitHub Pages. Todo el texto de la interfaz, los comentarios y la documentación están en **español**; moneda en quetzales (`Q`). La documentación de usuario/proyecto completa está en [Documentacion.md](Documentacion.md): léela antes de cambiar comportamiento de finanzas.
+PWA personal para Android (inicio con frases, finanzas por quincena, hábitos, listas con plantillas, pomodoro, compras). **Vanilla JS + IndexedDB, sin build ni dependencias**, publicada en GitHub Pages. Todo el texto de la interfaz, los comentarios y la documentación están en **español**; moneda en quetzales (`Q`). La documentación de usuario/proyecto completa está en [Documentacion.md](Documentacion.md): léela antes de cambiar comportamiento de finanzas.
 
 ## Comandos
 
@@ -25,6 +25,7 @@ No hay Node. Para validar cualquier cambio de interfaz se usa Playwright (Chromi
 | `js/money.js` | Cuentas, gasto, ingreso, mover, pago de tarjeta, movimientos por cuenta |
 | `js/plan.js` | Guía de transferencias por quincena |
 | `js/home.js` | Pantalla de inicio (la predeterminada, `S.tab = 'home'`): saludo, fecha y frases |
+| `js/pomodoro.js` | Temporizador Pomodoro (fases, aviso, Wake Lock) y pantalla completa negra (`#pomo-full`) |
 | `js/bills.js` · `reports.js` · `purchases.js` · `habits.js` · `lists.js` · `data.js` | Pagos pendientes · reportes · compras · hábitos · listas y plantillas · respaldo/ajustes |
 | `sw.js` | Service worker (network-first con respaldo offline) |
 
@@ -69,6 +70,14 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 **Inicio** ([home.js](js/home.js))
 - La app abre en `S.tab = 'home'`. Las pruebas que asumen Finanzas deben navegar con el menú (`#tabs [data-tab=money]`) tras cargar/recargar; la espera de carga es `#view .home`, no `#view .card`.
 - La frase **no** se elige en `homeView()` (se repinta con cada acción, y cambiaría al abrir el menú): se elige con `nextQuote()` al iniciar, al elegir la pestaña Inicio, al tocar la frase y en `visibilitychange`. Es una bolsa mezclada (sin repetir hasta agotar `QUOTES`).
+
+**Pomodoro** ([pomodoro.js](js/pomodoro.js))
+- Estado en `S.settings.pomo` (`cfg`, `run`, `day`), así que viaja en el respaldo sin tocar `data.js`. **`cfg()` y `run()` corrigen cualquier valor inválido al leerlo** (un respaldo manipulado no debe dejar la cuenta en cero).
+- La cuenta se **deriva de `run.endsAt`** (hora absoluta), nunca de un contador: sobrevive a temporizadores atrasados, recargas y app cerrada. El `setInterval` solo repinta `[data-pomo-clock]`/`[data-pomo-bar]` (no hace `render()` completo salvo al cambiar de fase) y se detiene solo cuando no hay `endsAt`.
+- `resume()` (al iniciar o importar) continúa el temporizador, o si terminó con la app cerrada avanza **sin sonar**. La vibración solo se intenta tras un toque (`navigator.userActivation`): Chrome la bloquea y deja un error en consola si no.
+- La pantalla completa es un `<div id="pomo-full">` fuera de `#view` (sobrevive a los repintados) con `data-act="pomo-exit"`; solo debe contener el contador (la prueba lo exige). Mantiene Wake Lock mientras corre.
+- Gimnasio, Notas y Tareas son pestañas **vacías a propósito** (`EMPTY` en `app.js`); cuando se desarrollen, pasar a su propio módulo y añadirlo a `SHELL` y a los `modulepreload`.
+- Los avisos con la pantalla bloqueada no son posibles como PWA: ver el plan pospuesto del APK (memoria del proyecto).
 
 **Compartir respaldo**
 - `navigator.share` solo acepta ciertos tipos de archivo y **gasta el permiso en el primer intento** (no se puede reintentar). Por eso se comparte como `text/plain` (`.json.txt`) y, ante cualquier fallo distinto de `AbortError` (o si no hay soporte), el respaldo se **descarga** y se avisa el motivo. El importador acepta `.json` y `.txt`. No se pudo reproducir en Brave Android: las pruebas simulan Web Share.

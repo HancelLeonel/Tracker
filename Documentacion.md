@@ -1,10 +1,12 @@
 # Tracker — Documentación
 
-**Tracker** es una PWA pensada para Android que reúne seis herramientas personales en una sola app:
+**Tracker** es una PWA pensada para Android que reúne varias herramientas personales en una sola app:
 
 - **Inicio**: la pantalla con la que abre la app; saludo, fecha y una frase célebre distinta cada vez.
 - **Finanzas**: cuentas con dinero real repartido en categorías, tarjetas de crédito, guía de transferencias de cada quincena, pagos pendientes y reportes.
 - **Hábitos**: seguimiento diario con rachas, iconos, momentos del día y orden propio.
+- **Pomodoro**: temporizador de trabajo y descansos con modo de pantalla completa en negro.
+- **Gimnasio**, **Notas** y **Tareas**: secciones reservadas en el menú, todavía vacías.
 - **Listas**: listas de tareas o compras que se crean a partir de **plantillas** reutilizables (el súper quincenal, la limpieza semanal…).
 - **Compras**: registro buscable de lo que vale la pena recordar (con garantía y facturas).
 - **Datos**: respaldo (exportar/importar) y ajustes.
@@ -70,6 +72,7 @@ js/
   purchases.js          Registro de compras
   home.js               Inicio: saludo, fecha y frases célebres
   habits.js             Hábitos (iconos, momentos del día, orden)
+  pomodoro.js           Temporizador Pomodoro y pantalla completa negra
   lists.js              Listas y plantillas
   data.js               Exportar, importar, tipos de gasto, borrado total
 tests/                  Pruebas end-to-end con Playwright y benchmarks
@@ -187,6 +190,21 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 
 - **La frase cambia cada vez que se muestra la pantalla**: al abrir la app, al volver a Inicio desde otra herramienta y al regresar a la app desde segundo plano. También cambia **tocando la frase** (no hay botón visible, para mantener la pantalla limpia). Abrir o cerrar el menú no la cambia.
 - Las frases se reparten **mezcladas, sin repetir ninguna hasta haberlas visto todas** (34 frases en [home.js](js/home.js), lista `QUOTES`). Para agregar una basta con añadir `['texto', 'Autor']`; conviene usar solo frases con autoría documentada (obras, discursos o refranes).
+
+### Pomodoro
+
+**Menú → Pomodoro.** Un temporizador sencillo con fases de **Trabajo**, **Descanso corto** y **Descanso largo**.
+
+- **Controles**: el botón grande inicia o pausa; a los lados, **reiniciar** la fase actual y **saltar** a la siguiente (saltar un pomodoro de trabajo no lo cuenta). Debajo de la cuenta se ve el avance de la fase y «Hoy: N pomodoros».
+- **Configurar**: minutos de trabajo (por defecto 25), descanso corto (5) y descanso largo (15), cuántos pomodoros hay antes del descanso largo (4) y, opcionalmente, **iniciar la siguiente fase automáticamente**. Si el temporizador está corriendo, los cambios se aplican desde la fase siguiente. La configuración se guarda en los ajustes y viaja en el respaldo.
+- **Aviso**: al terminar una fase suena un tono de tres pitidos, vibra el teléfono y se muestra un aviso en pantalla; luego queda lista la fase siguiente (o arranca sola si lo activaste).
+- **Pantalla completa**: el botón **Pantalla completa** cubre todo con **negro puro** y deja **solo el contador en blanco**. En pantallas AMOLED los píxeles negros están apagados, así que gasta muy poca batería. Se sale tocando la pantalla, con Escape o con el gesto de atrás del sistema. El contador sigue corriendo y, si una fase termina estando en pantalla completa, sigue en negro con el contador de la fase nueva.
+- **Pantalla encendida**: mientras el temporizador corre, la app pide al sistema que **no apague la pantalla** (Screen Wake Lock). Es lo que permite que el aviso suene a tiempo, porque Android puede congelar la página con la pantalla bloqueada; por eso conviene usar la pantalla completa negra, que mantiene la pantalla encendida sin gastar casi nada en AMOLED.
+- **Limitación**: si cambias a otra app o bloqueas el teléfono a mano, el navegador puede pausar la página y el aviso no sonar hasta que vuelvas; la cuenta nunca se pierde (se calcula con la hora de fin guardada, también si recargas o cierras la app). Si una fase terminó con la app cerrada, al abrirla se avanza **sin sonar**. Avisos con la pantalla bloqueada requerirían la versión APK (ver el plan en `.claude/plans`, pospuesto).
+
+### Gimnasio, Notas y Tareas
+
+Están en el menú pero **vacías por ahora** (muestran «Esta sección está vacía por ahora»); se irán desarrollando después.
 
 ### Listas y plantillas
 

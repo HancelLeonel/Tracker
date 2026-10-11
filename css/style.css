@@ -351,3 +351,21 @@ button.li:active { background: var(--surface0); }
 .home-quote p { font-size: 1.65rem; line-height: 1.35; font-weight: 500; letter-spacing: -.01em; text-wrap: balance; }
 .home-quote footer { margin-top: 18px; color: var(--subtext0); font-size: .95rem; }
 .home-quote footer::before { content: '— '; }
+
+/* Pomodoro */
+.pomo { --c: var(--mauve); display: grid; justify-items: center; gap: 18px; padding: 8px 0; text-align: center; }
+.pomo-phase { display: grid; gap: 2px; }
+.pomo-phase b { color: var(--c); font-size: 1.05rem; text-transform: uppercase; letter-spacing: .06em; }
+.pomo-clock { font-size: 5rem; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.pomo .bar { width: 100%; height: 8px; }
+.pomo .bar i { background: var(--c); transition: width .25s linear; }
+.pomo-controls { display: flex; align-items: center; gap: 22px; }
+.pomo-controls .icon { width: 54px; height: 54px; border-radius: 50%; }
+.pomo-main { display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%; background: var(--c); }
+.pomo-main:active { filter: brightness(.9); }
+.pomo-main .i { width: 2.2rem; height: 2.2rem; stroke: var(--crust); fill: none; }
+.pomo-tools { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+/* Pantalla completa: fondo negro puro (en AMOLED los píxeles negros no gastan batería) y solo el contador en blanco */
+#pomo-full { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #000; color: #fff; cursor: pointer; }
+#pomo-full[hidden] { display: none; }
+#pomo-full span { font-size: min(26vw, 38vh); font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
