@@ -65,6 +65,8 @@ js/
   purchases.js          Registro de compras
   habits.js             Hábitos
   data.js               Exportar, importar, tipos de gasto, borrado total
+tests/                  Pruebas end-to-end con Playwright y benchmarks
+CLAUDE.md               Contexto y reglas del proyecto para asistentes de código
 ```
 
 **Arquitectura.** Los datos se cargan completos en memoria (`S` en [state.js](js/state.js)) al abrir la app. Cada cambio se escribe en IndexedDB y se repinta la vista. Cada módulo exporta su vista, sus formularios y un objeto `actions`; [app.js](js/app.js) los une y despacha los clics por el atributo `data-act`.
@@ -294,7 +296,7 @@ Base de datos IndexedDB versión 3. Su nombre interno sigue siendo `mi-quincena`
 
 ## 6. Pruebas
 
-Las pruebas se hicieron de extremo a extremo con Playwright (Chromium, 390×800) contra `python3 -m http.server`. Cubrieron:
+Las pruebas son de extremo a extremo con Playwright (Chromium, 390×800) contra `python3 -m http.server`. Cubren:
 
 - Cuentas, categorías, gastos repartidos y validaciones.
 - Tarjetas: compra, apartado, pago, edición, borrado y límite de crédito.
@@ -303,9 +305,25 @@ Las pruebas se hicieron de extremo a extremo con Playwright (Chromium, 390×800)
 - Compras con adjuntos, búsqueda y garantía.
 - Reportes, exportar/importar (con y sin archivos) y migración desde la base de datos v2.
 
-Los scripts de prueba **no forman parte del repositorio**. Aún falta validar la app en un teléfono Android real.
+Los scripts están en [tests/](tests/) (ver [tests/README.md](tests/README.md) para preparar el entorno y ejecutarlos con `tests/run_all.py`). Aún falta validar la app en un teléfono Android real.
 
 ---
+
+### Rendimiento
+
+Medido en Chromium de escritorio con datos sintéticos (8 cuentas, 2 tarjetas, hasta 60,000 movimientos). En un teléfono de gama media puede ser de 3 a 5 veces más lento.
+
+| Movimientos | Carga inicial | Pantalla Cuentas | Reportes (todo) | Guardar un gasto |
+|---|---|---|---|---|
+| 5,000 | 0.26 s | 20 ms | 33 ms | 0.1 s |
+| 20,000 | 0.5 s | 17 ms | 80 ms | 0.2 s |
+| 60,000 | 1.2 s | 19 ms | 170 ms | 0.4 s |
+
+Con uso intenso (5–10 gastos al día) se llega a unos 20,000 movimientos en 5 años. Para mantener ese margen:
+
+- **Listas paginadas**: los movimientos, la lista de movimientos de una cuenta y las compras se pintan de 30 en 30 (40 en compras) con «Ver más». Antes, «Ver todos» con 20,000 movimientos tardaba 2 s y con 60,000 casi 6 s; ahora cuesta lo mismo con cualquier cantidad.
+- **Caché de lo derivado** ([state.js](js/state.js)): los movimientos ordenados y lo apartado para tarjetas se calculan una vez y se reutilizan hasta que cambian los datos. Cualquier cambio en movimientos o cuentas debe llamar a `bump()` para invalidarla; los guardados de `state.js` ya lo hacen. Con 60,000 movimientos la pantalla de Cuentas bajó de 333 ms a 19 ms.
+- Lo que sigue creciendo de forma lineal es la **carga inicial** (la app lee todos los datos al abrir) y los **reportes** (recorren el periodo). Con 60,000 movimientos siguen por debajo de 1.5 s y 200 ms.
 
 ## 7. Limitaciones conocidas
 

@@ -23,16 +23,18 @@ export function purchaseList() {
       return terms.every(t => hay.includes(t));
     })
     .sort((a, b) => b.date.localeCompare(a.date));
+  const shown = items.slice(0, S.purchaseLimit), left = items.length - shown.length;
   if (!items.length) return `<div class="card empty"><p>${S.purchases.length ? 'No hay compras que coincidan.' : 'Guarda aquí lo que valga la pena recordar: equipos, electrodomésticos, garantías…'}</p>
     ${S.purchases.length ? '' : '<button class="btn primary" data-act="new-purchase">Registrar una compra</button>'}</div>`;
-  return `<ul class="plist">${items.map(p => `
+  return `<ul class="plist">${shown.map(p => `
     <li><button class="card purchase" data-act="edit-purchase" data-id="${p.id}">
       <span class="p-main"><b>${esc(p.name)}</b>
         <small>${fmtDateY(p.date)}${p.price ? ` · ${money(p.price)}` : ''}${p.store ? ` · ${esc(p.store)}` : ''}</small>
         ${warranty(p)}
         ${p.tag ? `<small class="tag">${esc(p.tag)}</small>` : ''}</span>
       ${p.files?.length ? `<span class="p-files">${icon('clip')} ${p.files.length}</span>` : ''}
-    </button></li>`).join('')}</ul>`;
+    </button></li>`).join('')}</ul>
+    ${left > 0 ? `<button class="btn ghost block" data-act="more-purchases">Ver más (${Math.min(40, left)} de ${left} restantes)</button>` : ''}`;
 }
 
 export function purchasesView() {
@@ -72,6 +74,7 @@ export function purchaseForm(p) {
 }
 
 export const actions = {
+  'more-purchases': () => { S.purchaseLimit += 40; },
   'new-purchase': () => purchaseForm(),
   'edit-purchase': el => purchaseForm(S.purchases.find(x => x.id === el.dataset.id)),
 };

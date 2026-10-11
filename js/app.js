@@ -84,6 +84,7 @@ document.addEventListener('change', async e => {
 document.addEventListener('input', e => {
   if (e.target.id !== 'psearch') return;
   S.search = e.target.value;
+  S.purchaseLimit = 40;
   $('#plist').innerHTML = purchases.purchaseList();
 });
 

@@ -43,4 +43,5 @@ Todas las rutas son relativas, así que funciona bajo el subpath `/<repo>/`.
 
 ## Pruebas
 
-No hay build ni dependencias. Para pruebas end-to-end se usó Playwright contra `python3 -m http.server`.
+Pruebas end-to-end con Playwright en [tests/](tests/): `python tests/run_all.py` (ver [tests/README.md](tests/README.md)).
+Contexto del proyecto para asistentes de código: [CLAUDE.md](CLAUDE.md). Documentación completa: [Documentacion.md](Documentacion.md).

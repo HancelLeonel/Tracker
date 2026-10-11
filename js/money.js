@@ -2,12 +2,12 @@ import * as db from './db.js';
 import { esc, money, sum, r2, uid, today, fmtDate, toast } from './util.js';
 import {
   S, saveSettings, saveAccount, saveMove, deleteMove, findAcc, findCat, isCredit, keyOf, splitKey,
-  normalKeys, hasNormalCats, catLabel, totals, effects, balanceWithout, availWithout, kindName, reservedMap, cardPending,
+  normalKeys, hasNormalCats, catLabel, totals, effects, sortedMoves, bump, balanceWithout, availWithout, kindName, reservedMap, cardPending,
 } from './state.js';
 import { modal, catSelect, kindSelect, wireKindSelect, mountAttach, attachHtml, fileLinks } from './ui.js';
 import { icon } from './icons.js';
 
-const MOVE_LIMIT = 30;
+const PAGE = 30; // filas que se pintan por «página» en las listas largas
 
 export function moveTitle(m) {
   return m.title || m.note || { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia' }[m.type];
@@ -33,8 +33,9 @@ export function accountsView() {
   const res = reservedMap();
   const cards = S.accounts.map(a => (isCredit(a) ? creditCard(a) : normalCard(a, res))).join('');
 
-  const sorted = [...S.moves].sort((a, b) => b.date.localeCompare(a.date) || b.t - a.t);
-  const shown = S.showAllMoves ? sorted : sorted.slice(0, MOVE_LIMIT);
+  const sorted = sortedMoves();
+  const shown = sorted.slice(0, S.moveLimit);
+  const left = sorted.length - shown.length;
   const moves = shown.map(m => {
     const amt = m.type === 'expense' ? `<span class="amt out">−${money(m.total)}</span>`
       : m.type === 'income' ? `<span class="amt in">+${money(m.total)}</span>`
@@ -59,7 +60,8 @@ export function accountsView() {
     </section>
     ${cards}
     ${moves ? `<section class="card"><div class="card-h"><h3>Movimientos</h3></div><ul class="moves">${moves}</ul>
-      ${sorted.length > MOVE_LIMIT ? `<button class="btn ghost block" data-act="more-moves">${S.showAllMoves ? 'Ver menos' : `Ver todos (${sorted.length})`}</button>` : ''}</section>` : ''}`;
+      ${left > 0 ? `<button class="btn ghost block" data-act="more-moves">Ver más (${Math.min(PAGE, left)} de ${left} restantes)</button>` : ''}
+      ${S.moveLimit > PAGE ? '<button class="btn ghost block" data-act="less-moves">Ver menos</button>' : ''}</section>` : ''}`;
 }
 
 // Cabecera de cuenta: el nombre abre sus movimientos; el chevron pliega/despliega el detalle.
@@ -125,28 +127,43 @@ function creditCard(a) {
 // saldrá el dinero (sin cambiar su saldo todavía) y en la tarjeta (suma deuda).
 function accountMovesDialog(a) {
   const rows = [];
-  for (const m of S.moves) {
+  for (const m of sortedMoves()) { // ya vienen de más nuevo a más viejo
     const eff = effects(m).filter(e => e[0] === a.id);
-    const delta = sum(eff, e => e[2]);
     const viaCard = !eff.length && m.type === 'expense' && m.card && m.parts.some(p => p.acc === a.id);
     if (!eff.length && !viaCard) continue;
-    const cats = [...new Set((eff.length ? eff.map(e => e[1]) : m.parts.filter(p => p.acc === a.id).map(p => p.cat)))]
-      .map(id => findCat(a.id, id)?.name ?? '(eliminada)');
-    rows.push({ m, delta, viaCard, cats });
+    rows.push({ m, eff, viaCard });
   }
-  rows.sort((x, y) => y.m.date.localeCompare(x.m.date) || y.m.t - x.m.t);
   const total = sum(a.cats, c => c.balance);
 
-  const list = rows.map(({ m, delta, viaCard, cats }) => {
+  const rowHtml = ({ m, eff, viaCard }) => {
+    const delta = sum(eff, e => e[2]);
+    const cats = [...new Set(eff.length ? eff.map(e => e[1]) : m.parts.filter(p => p.acc === a.id).map(p => p.cat))]
+      .map(id => findCat(a.id, id)?.name ?? '(eliminada)');
     const amt = viaCard ? `<span class="amt">${money(m.parts.filter(p => p.acc === a.id).reduce((t, p) => t + p.amount, 0))}</span>`
       : `<span class="amt ${delta < 0 ? 'out' : 'in'}">${delta < 0 ? '−' : '+'}${money(Math.abs(delta))}</span>`;
     const bits = [fmtDate(m.date), m.type === 'expense' ? kindName(m.kind) : null, cats.join(', '), viaCard ? 'con tarjeta' : null].filter(Boolean);
     return `<li><button class="move" data-act="edit-move" data-id="${m.id}"><span>${esc(moveTitle(m))}${m.files?.length ? ` ${icon('clip')}` : ''}<small>${esc(bits.join(' · '))}</small></span>${amt}</button></li>`;
-  }).join('');
+  };
 
   modal(a.name, `
     <div class="acc-dlg-h"><small class="muted">${isCredit(a) ? 'Saldo' : 'Total'}</small><b class="${total < 0 ? 'neg' : ''}">${money(total)}</b></div>
-    ${rows.length ? `<ul class="moves acc-moves">${list}</ul>` : '<p class="muted">Esta cuenta aún no tiene movimientos.</p>'}`);
+    ${rows.length ? `<ul class="moves acc-moves"></ul><button type="button" class="btn ghost block" id="acc-more" hidden></button>`
+      : '<p class="muted">Esta cuenta aún no tiene movimientos.</p>'}`, {
+    afterOpen(f) {
+      const list = f.querySelector('.acc-moves'), more = f.querySelector('#acc-more');
+      if (!list) return;
+      let shown = 0;
+      // Se pintan de a PAGE filas; «Ver más» agrega las siguientes sin repintar lo ya mostrado.
+      const next = () => {
+        list.insertAdjacentHTML('beforeend', rows.slice(shown, shown + PAGE).map(rowHtml).join(''));
+        shown = Math.min(rows.length, shown + PAGE);
+        more.hidden = shown >= rows.length;
+        more.textContent = `Ver más (${Math.min(PAGE, rows.length - shown)} de ${rows.length - shown} restantes)`;
+      };
+      more.onclick = next;
+      next();
+    },
+  });
 }
 
 // ---------- gasto ----------
@@ -465,6 +482,7 @@ export function accountForm(acc) {
     },
     onDelete: acc && (async () => {
       S.accounts = S.accounts.filter(a => a.id !== acc.id);
+      bump();
       await db.commit({ remove: { accounts: [acc.id] } });
     }),
   });
@@ -505,7 +523,8 @@ export const actions = {
     else if (m.type === 'transfer' && isCredit(findAcc(m.to.acc))) payCardForm(findAcc(m.to.acc), m);
     else flowForm(m.type, m);
   },
-  'more-moves': () => { S.showAllMoves = !S.showAllMoves; },
+  'more-moves': () => { S.moveLimit += PAGE; },
+  'less-moves': () => { S.moveLimit = PAGE; },
   'acc-moves': el => accountMovesDialog(findAcc(el.dataset.acc)),
   async 'toggle-acc'(el) {
     S.settings.collapsed = { ...S.settings.collapsed, [el.dataset.acc]: !isCollapsed(el.dataset.acc) };

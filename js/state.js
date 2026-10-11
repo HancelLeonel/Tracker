@@ -9,18 +9,36 @@ export const S = {
   settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {} },
   report: { kind: 'q', ref: today() },
   guide: { ref: today() }, // quincena que se ve en la guía de transferencias
-  showAllMoves: false,
+  moveLimit: 30,       // movimientos que muestra la lista principal (crece de 30 en 30)
+  purchaseLimit: 40,
+  rev: 0,              // versión de los datos: invalida lo calculado en caché
   search: '',
 };
 
 // Las vistas se registran aquí para que los formularios puedan pedir un repintado sin importar app.js.
 export const hooks = { render: () => {} };
 
+// ---------- caché de lo derivado ----------
+// Lo que se calcula recorriendo todo el historial (movimientos ordenados, lo apartado para tarjetas) se guarda
+// hasta que cambien los datos. Toda modificación de movimientos o cuentas debe llamar a bump().
+const cache = { rev: -1, sorted: null, pending: new Map(), reserved: null };
+export const bump = () => { S.rev++; };
+function fresh() {
+  if (cache.rev !== S.rev) Object.assign(cache, { rev: S.rev, sorted: null, pending: new Map(), reserved: null });
+  return cache;
+}
+// Movimientos de más nuevo a más viejo.
+export function sortedMoves() {
+  const c = fresh();
+  return (c.sorted ??= [...S.moves].sort((a, b) => b.date.localeCompare(a.date) || b.t - a.t));
+}
+
 export const DEFAULT_KINDS = ['Comida', 'Transporte', 'Servicios', 'Suscripciones', 'Salud', 'Ocio', 'Hogar', 'Otros'];
 
 export async function loadState() {
   const [habits, accounts, moves, plan, bills, purchases, files, meta] =
     await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'files', 'meta'].map(db.getAll));
+  bump();
   S.habits = habits;
   S.accounts = accounts.map(a => ({ type: 'normal', ...a })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   S.moves = moves;
@@ -37,7 +55,7 @@ export async function loadState() {
 }
 
 export const saveHabit = h => db.commit({ put: { habits: [h] } });
-export const saveAccount = a => db.commit({ put: { accounts: [a] } });
+export const saveAccount = a => { bump(); return db.commit({ put: { accounts: [a] } }); };
 export const saveSettings = () => db.commit({ put: { meta: [{ k: 'settings', v: S.settings }] } });
 
 // ---------- tipos de gasto ----------
@@ -96,6 +114,14 @@ export function balanceWithout(move, key) {
 // las compras suman a su categoría y los pagos restan primero de la categoría desde la que se paga
 // y luego (si sobra) de las más grandes. Así editar o borrar un movimiento siempre cuadra.
 export function cardPending(cardId, exclude = null) {
+  const c = fresh();
+  if (!exclude && c.pending.has(cardId)) return c.pending.get(cardId);
+  const out = computePending(cardId, exclude);
+  if (!exclude) c.pending.set(cardId, out);
+  return out;
+}
+
+function computePending(cardId, exclude) {
   const pend = new Map();
   const take = (k, rem) => {
     const v = pend.get(k) ?? 0, t = Math.min(v, rem);
@@ -121,10 +147,13 @@ export function cardPending(cardId, exclude = null) {
 
 // categoría -> dinero apartado para pagar tarjetas (todas las tarjetas juntas).
 export function reservedMap(exclude = null) {
+  const c = fresh();
+  if (!exclude && c.reserved) return c.reserved;
   const out = new Map();
   for (const a of S.accounts.filter(isCredit)) {
     for (const [k, v] of cardPending(a.id, exclude)) out.set(k, r2((out.get(k) ?? 0) + v));
   }
+  if (!exclude) c.reserved = out;
   return out;
 }
 
@@ -151,6 +180,7 @@ export function allocatePayment(card, amount, exclude = null) {
 }
 
 export async function saveMove(old, neu) {
+  bump();
   if (old) applyMove(old, -1);
   applyMove(neu, 1);
   const i = old ? S.moves.findIndex(m => m.id === old.id) : -1;
@@ -159,6 +189,7 @@ export async function saveMove(old, neu) {
   await gcFiles();
 }
 export async function deleteMove(m) {
+  bump();
   applyMove(m, -1);
   S.moves = S.moves.filter(x => x.id !== m.id);
   await db.commit({ put: { accounts: S.accounts }, remove: { moves: [m.id] } });
