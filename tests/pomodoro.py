@@ -48,9 +48,9 @@ try:
 
         # ---- menú y secciones vacías
         names = page.evaluate("(() => { document.querySelector('[data-act=menu-open]').click(); return [...document.querySelectorAll('#tabs button')].map(b => b.innerText.trim()); })()")
-        check('menú en orden con las pestañas nuevas', names == ['Inicio','Finanzas','Hábitos','Listas','Compras','Pomodoro','Gimnasio','Notas','Tareas','Datos'], names)
+        check('menú en orden con las pestañas nuevas', names == ['Inicio','Finanzas','Hábitos','Listas','Compras','Pomodoro','Gimnasio','Notas','Datos'], names)
         page.click('[data-act=menu-close] >> nth=0'); page.wait_for_timeout(300)
-        for tab, title in (('gym','Gimnasio'),('notes','Notas'),('tasks','Tareas')):
+        for tab, title in (('gym','Gimnasio'),):
             go(tab)
             check(f'{title}: título y sección vacía', page.locator('#topbar h1').inner_text()==title and 'vacía' in txt() and page.locator('#view .card').count()==1, txt())
 

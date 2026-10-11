@@ -7,16 +7,18 @@
 //   purchases -> { id, name, date, price, store, tag, warrantyMonths, notes, files }
 //   templates -> { id, name, color, freq, items: [{ text, head? }] }   (plantillas de listas)
 //   lists     -> { id, name, tplId, color, created, t, items: [{ id, text, head?, done?, extra? }] }
+//   noteGroups-> { id, name, color, icon, fields: [{ id, name, type, list?, options? }] }   (grupos de notas con campos propios)
+//   notes     -> { id, group, title, values: { [fieldId]: valor }, tags, created, updated }
 //   files     -> { id, blob, mime, name, size }
 //   meta      -> { k: 'settings', v: {...} }
 // El nombre interno se conserva tras el cambio de nombre a Tracker para no perder los datos ya guardados en el teléfono.
 const DB_NAME = 'mi-quincena';
-const STORES = ['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'files', 'meta'];
+const STORES = ['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'files', 'meta'];
 let opened;
 
 function open() {
   opened ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 4);
+    const req = indexedDB.open(DB_NAME, 5);
     req.onupgradeneeded = () => {
       const db = req.result;
       for (const s of STORES) {
@@ -59,7 +61,7 @@ export function replaceAll(data) {
   const clear = files ? STORES : STORES.filter(s => s !== 'files');
   return run(STORES, 'readwrite', tx => {
     clear.forEach(s => tx.objectStore(s).clear());
-    for (const s of ['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists']) data[s].forEach(v => tx.objectStore(s).put(v));
+    for (const s of ['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes']) data[s].forEach(v => tx.objectStore(s).put(v));
     files?.forEach(v => tx.objectStore('files').put(v));
     tx.objectStore('meta').put({ k: 'settings', v: settings });
   });

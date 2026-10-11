@@ -1,6 +1,6 @@
 # CLAUDE.md — Tracker
 
-PWA personal para Android (inicio con frases, finanzas por quincena, hábitos, listas con plantillas, pomodoro, compras). **Vanilla JS + IndexedDB, sin build ni dependencias**, publicada en GitHub Pages. Todo el texto de la interfaz, los comentarios y la documentación están en **español**; moneda en quetzales (`Q`). La documentación de usuario/proyecto completa está en [Documentacion.md](Documentacion.md): léela antes de cambiar comportamiento de finanzas.
+PWA personal para Android (inicio con frases, finanzas por quincena, hábitos, listas con plantillas, pomodoro, notas con campos propios, compras). **Vanilla JS + IndexedDB, sin build ni dependencias**, publicada en GitHub Pages. Todo el texto de la interfaz, los comentarios y la documentación están en **español**; moneda en quetzales (`Q`). La documentación de usuario/proyecto completa está en [Documentacion.md](Documentacion.md): léela antes de cambiar comportamiento de finanzas.
 
 ## Comandos
 
@@ -25,6 +25,7 @@ No hay Node. Para validar cualquier cambio de interfaz se usa Playwright (Chromi
 | `js/money.js` | Cuentas, gasto, ingreso, mover, pago de tarjeta, movimientos por cuenta |
 | `js/plan.js` | Guía de transferencias por quincena |
 | `js/home.js` | Pantalla de inicio (la predeterminada, `S.tab = 'home'`): saludo, fecha y frases |
+| `js/notes.js` | Notas: grupos con campos propios (`FIELD_TYPES`), notas, búsqueda y etiquetas |
 | `js/pomodoro.js` | Temporizador Pomodoro (fases, aviso, Wake Lock) y pantalla completa negra (`#pomo-full`) |
 | `js/bills.js` · `reports.js` · `purchases.js` · `habits.js` · `lists.js` · `data.js` | Pagos pendientes · reportes · compras · hábitos · listas y plantillas · respaldo/ajustes |
 | `sw.js` | Service worker (network-first con respaldo offline) |
@@ -44,7 +45,7 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - Las listas largas se paginan (30 en movimientos, 40 en compras). No pintes listas completas.
 
 **Datos y compatibilidad**
-- Base `mi-quincena` v4 (nombre interno heredado, **no lo renombres**: perdería datos guardados). Si añades un store o cambias esquema, sube la versión en `db.js` y migra en `onupgradeneeded`.
+- Base `mi-quincena` v5 (nombre interno heredado, **no lo renombres**: perdería datos guardados). Si añades un store o cambias esquema, sube la versión en `db.js` y migra en `onupgradeneeded`.
 - Si añades campos a movimientos/cuentas/pagos/compras, actualiza `validateImport` y `buildExport` en [data.js](js/data.js). Los respaldos con `app: 'mi-quincena'` (nombre anterior) y `version: 2` se siguen aceptando.
 - Los archivos adjuntos son Blobs en el store `files`; los registros guardan solo ids. `gcFiles()` borra los huérfanos: no los dejes referenciados desde un lugar que `gcFiles` no revise.
 - Fechas como `'YYYY-MM-DD'` en hora local (helpers de `util.js`); nunca `toISOString()` para fechas de usuario.
@@ -63,7 +64,9 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 
 **Listas y plantillas** ([lists.js](js/lists.js))
 - Stores `templates` y `lists`. Al crear una lista se **copia** la plantilla (ids nuevos por elemento); después son independientes, así que editar o borrar una plantilla no toca las listas ya creadas. Los elementos `head: true` son encabezados de sección y no cuentan en el avance.
-- Lo agregado a mano lleva `extra: true` y se pinta aparte en «Adicionales». «Completada» no se guarda: se deriva (todos los elementos marcados).
+- Lo agregado a mano lleva `extra: true` y se pinta aparte en «Adicionales». «Todo marcado» se deriva (`isListDone` en `state.js`), pero **archivada es explícito**: `list.archived = 'YYYY-MM-DD'`, que solo pone la acción `list-finish` (botón «Finalizar lista», visible solo con todo marcado) y quita `list-restore`. Una lista archivada es de solo lectura en la interfaz.
+- Elementos: `due` (fecha límite, se fija con el `<input type="date" data-change="li-due">` transparente sobre el icono de calendario: tocarlo abre el selector nativo) y `doneAt` (se pone al marcar y se borra al desmarcar). **Lo hecho baja al final de su sección solo al pintar** (`sink()`): el orden de `l.items` nunca cambia, así desmarcar lo devuelve a su lugar. Los eventos `change` de campos se despachan por `data-change` (`changes` de `lists.js` + `data.js` en `app.js`).
+- **Migración única** (`archiveOldCompletedLists` en `state.js`, marca `settings.listsArchiveMigrated`): las listas que ya estaban completas antes de existir «Finalizar» se archivan solas con su fecha de creación. Por esa marca, importar un respaldo nuevo no re-archiva nada.
 - «Ya toca» se deriva de la última `created` de las listas con ese `tplId` y de `freq`; no hay notificaciones.
 - El campo de agregar es un `<form data-noform>` (`app.js` evita su envío) y tras agregar `S.focusNew` devuelve el foco al campo en el repintado.
 
@@ -71,13 +74,20 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - La app abre en `S.tab = 'home'`. Las pruebas que asumen Finanzas deben navegar con el menú (`#tabs [data-tab=money]`) tras cargar/recargar; la espera de carga es `#view .home`, no `#view .card`.
 - La frase **no** se elige en `homeView()` (se repinta con cada acción, y cambiaría al abrir el menú): se elige con `nextQuote()` al iniciar, al elegir la pestaña Inicio, al tocar la frase y en `visibilitychange`. Es una bolsa mezclada (sin repetir hasta agotar `QUOTES`).
 
+**Notas** ([notes.js](js/notes.js))
+- Stores `noteGroups` (`fields: [{ id, name, type, list?, options? }]`) y `notes` (`values` indexado por **id de campo**, no por nombre: renombrar un campo no pierde datos). Solo se guardan valores con contenido (`has()`); los campos quitados se borran de las notas al guardar el grupo. Los tipos están en `FIELD_TYPES`, que `data.js` usa para sanear al importar: **si añades un tipo, hay que tratarlo en `short()`, `full()`, `fieldInput()` y el guardado de `noteForm`**.
+- Los valores pueden no corresponder al tipo actual del campo (cambiar el tipo conserva los datos): `short()`/`full()`/`rate()` toleran valores raros y nunca deben lanzar.
+- **Solo se enlazan URLs http(s)** (`safeUrl`); los demás esquemas (`javascript:`) se muestran como texto. Todo texto de usuario va con `esc()`, también en `aria-label` y atributos.
+- El buscador (`#nsearch`) repinta solo `#nlist` (como `#psearch` en Compras). Los botones de estrella del formulario no son `data-act`: se manejan con un listener dentro del diálogo.
+- En la vista de un grupo la barra superior tiene «volver» en lugar del menú: las pruebas deben volver (`note-back`) antes de usar el menú.
+
 **Pomodoro** ([pomodoro.js](js/pomodoro.js))
 - Estado en `S.settings.pomo` (`cfg`, `run`, `day`), así que viaja en el respaldo sin tocar `data.js`. **`cfg()` y `run()` corrigen cualquier valor inválido al leerlo** (un respaldo manipulado no debe dejar la cuenta en cero).
 - La cuenta se **deriva de `run.endsAt`** (hora absoluta), nunca de un contador: sobrevive a temporizadores atrasados, recargas y app cerrada. El `setInterval` solo repinta `[data-pomo-clock]`/`[data-pomo-bar]` (no hace `render()` completo salvo al cambiar de fase) y se detiene solo cuando no hay `endsAt`.
 - `resume()` (al iniciar o importar) continúa el temporizador, o si terminó con la app cerrada avanza **sin sonar**. La vibración solo se intenta tras un toque (`navigator.userActivation`): Chrome la bloquea y deja un error en consola si no.
 - La pantalla completa es un `<div id="pomo-full">` fuera de `#view` (sobrevive a los repintados) con `data-act="pomo-exit"`; solo debe contener el contador (la prueba lo exige). Mantiene Wake Lock mientras corre.
-- Gimnasio, Notas y Tareas son pestañas **vacías a propósito** (`EMPTY` en `app.js`); cuando se desarrollen, pasar a su propio módulo y añadirlo a `SHELL` y a los `modulepreload`.
-- Los avisos con la pantalla bloqueada no son posibles como PWA: ver el plan pospuesto del APK (memoria del proyecto).
+- Gimnasio es una pestaña **vacía a propósito** (`EMPTY` en `app.js`); no hay pestaña de Tareas: las tareas se llevan con Listas. Cuando se desarrolle Gimnasio, pasar a su propio módulo y añadirlo a `SHELL` y a los `modulepreload`.
+- Los avisos con la pantalla bloqueada no son posibles como PWA (sin servidor push); el diseño asume que la pantalla se queda encendida (Wake Lock). No se contempla una versión APK.
 
 **Compartir respaldo**
 - `navigator.share` solo acepta ciertos tipos de archivo y **gasta el permiso en el primer intento** (no se puede reintentar). Por eso se comparte como `text/plain` (`.json.txt`) y, ante cualquier fallo distinto de `AbortError` (o si no hay soporte), el respaldo se **descarga** y se avisa el motivo. El importador acepta `.json` y `.txt`. No se pudo reproducir en Brave Android: las pruebas simulan Web Share.

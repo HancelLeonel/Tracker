@@ -5,6 +5,9 @@ export const MONTHS_FULL = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio
 export const byName = (a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base', numeric: true });
 export const byText = (a, b) => a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true });
 
+// Texto sin tildes ni mayúsculas, para buscar.
+export const norm = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2, 8);

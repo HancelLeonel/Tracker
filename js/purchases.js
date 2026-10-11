@@ -1,10 +1,8 @@
 import * as db from './db.js';
-import { esc, money, r2, uid, today, addMonths, daysBetween, fmtDateY } from './util.js';
+import { esc, money, r2, uid, today, addMonths, daysBetween, fmtDateY, norm } from './util.js';
 import { S, savePurchase, gcFiles } from './state.js';
 import { modal, mountAttach, attachHtml } from './ui.js';
 import { icon } from './icons.js';
-
-const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 function warranty(p) {
   if (!p.warrantyMonths) return '';

@@ -369,3 +369,55 @@ button.li:active { background: var(--surface0); }
 #pomo-full { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #000; color: #fff; cursor: pointer; }
 #pomo-full[hidden] { display: none; }
 #pomo-full span { font-size: min(26vw, 38vh); font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+
+/* Notas: grupos con campos propios */
+.ngroup { --c: var(--mauve); width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; color: inherit; }
+.ngroup:active { background: var(--surface0); }
+.ng-main { display: grid; gap: 2px; min-width: 0; }
+.ng-main b { font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-bar { display: flex; gap: 8px; align-items: center; }
+.note-bar .search { flex: 1; min-width: 0; margin: 0; }
+.note-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.note-row { display: flex; gap: 8px; align-items: stretch; }
+.card.note { flex: 1; min-width: 0; display: grid; gap: 3px; padding: 12px 14px; text-align: left; color: inherit; }
+.card.note:active { background: var(--surface0); }
+.card.note b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.n-sum { color: var(--subtext0); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.n-sum.tag { color: var(--blue); }
+.note-row > .icon { width: 48px; height: auto; flex: none; border-radius: 14px; }
+.chip-tag.on { background: var(--mauve); color: var(--crust); font-weight: 650; }
+.chip-tag.static { padding: 4px 10px; font-size: .85rem; color: var(--blue); }
+.note-fields { display: grid; gap: 12px; margin: 0; }
+.note-fields dt { font-size: .8rem; color: var(--subtext0); }
+.note-fields dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.note-fields a { color: var(--blue); }
+.pre-wrap { white-space: pre-wrap; }
+.code-wrap { display: grid; gap: 8px; justify-items: start; }
+pre.code { margin: 0; width: 100%; padding: 10px 12px; border-radius: 10px; background: var(--crust); font: .9rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+textarea.code-in { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; }
+.stars-in { display: flex; gap: 2px; }
+button.star { display: grid; place-items: center; width: 44px; height: 44px; }
+.star .i { width: 1.5rem; height: 1.5rem; }
+.star.on .i { stroke: var(--yellow); fill: var(--yellow); }
+.stars-ro { display: inline-flex; }
+.stars-ro .star .i { width: 1.1rem; height: 1.1rem; }
+.fields-ed { display: grid; gap: 10px; margin: 8px 0; }
+.frow { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--surface0); border-radius: 12px; background: var(--mantle); }
+.frow-tools { display: flex; align-items: center; gap: 6px; }
+.frow-tools .check { flex: 1; }
+
+/* Listas: fechas, hechos al final, finalizar y archivo */
+.li { padding: 0; }
+.li-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 4px; text-align: left; color: inherit; }
+.li-main:active { background: var(--surface0); }
+.li.static, .li.editing { padding: 6px 4px; }
+.li-body { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.li-meta { font-size: .78rem; }
+.li-cal { position: relative; flex: none; display: grid; place-items: center; width: 44px; height: 44px; color: var(--subtext0); }
+.li-cal input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.li-cal.has .i { stroke: var(--blue); }
+.li-cal.late .i { stroke: var(--red); }
+.li.done .li-meta { color: var(--overlay1); }
+.card.finish, .card.archived-note { display: grid; gap: 10px; text-align: center; border-color: var(--green); }
+.card.archived-note { border-color: var(--surface1); }
+.card.finish p, .card.archived-note p { display: flex; align-items: center; justify-content: center; gap: 6px; }

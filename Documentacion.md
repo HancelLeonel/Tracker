@@ -6,7 +6,8 @@
 - **Finanzas**: cuentas con dinero real repartido en categorías, tarjetas de crédito, guía de transferencias de cada quincena, pagos pendientes y reportes.
 - **Hábitos**: seguimiento diario con rachas, iconos, momentos del día y orden propio.
 - **Pomodoro**: temporizador de trabajo y descansos con modo de pantalla completa en negro.
-- **Gimnasio**, **Notas** y **Tareas**: secciones reservadas en el menú, todavía vacías.
+- **Notas**: grupos de notas con **campos propios** (enlaces guardados, comandos, libros…), cada uno adaptable a lo que necesites.
+- **Gimnasio**: sección reservada en el menú, todavía vacía. (Las tareas se llevan con **Listas**.)
 - **Listas**: listas de tareas o compras que se crean a partir de **plantillas** reutilizables (el súper quincenal, la limpieza semanal…).
 - **Compras**: registro buscable de lo que vale la pena recordar (con garantía y facturas).
 - **Datos**: respaldo (exportar/importar) y ajustes.
@@ -73,6 +74,7 @@ js/
   home.js               Inicio: saludo, fecha y frases célebres
   habits.js             Hábitos (iconos, momentos del día, orden)
   pomodoro.js           Temporizador Pomodoro y pantalla completa negra
+  notes.js              Notas: grupos con campos propios
   lists.js              Listas y plantillas
   data.js               Exportar, importar, tipos de gasto, borrado total
 tests/                  Pruebas end-to-end con Playwright y benchmarks
@@ -200,19 +202,33 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 - **Aviso**: al terminar una fase suena un tono de tres pitidos, vibra el teléfono y se muestra un aviso en pantalla; luego queda lista la fase siguiente (o arranca sola si lo activaste).
 - **Pantalla completa**: el botón **Pantalla completa** cubre todo con **negro puro** y deja **solo el contador en blanco**. En pantallas AMOLED los píxeles negros están apagados, así que gasta muy poca batería. Se sale tocando la pantalla, con Escape o con el gesto de atrás del sistema. El contador sigue corriendo y, si una fase termina estando en pantalla completa, sigue en negro con el contador de la fase nueva.
 - **Pantalla encendida**: mientras el temporizador corre, la app pide al sistema que **no apague la pantalla** (Screen Wake Lock). Es lo que permite que el aviso suene a tiempo, porque Android puede congelar la página con la pantalla bloqueada; por eso conviene usar la pantalla completa negra, que mantiene la pantalla encendida sin gastar casi nada en AMOLED.
-- **Limitación**: si cambias a otra app o bloqueas el teléfono a mano, el navegador puede pausar la página y el aviso no sonar hasta que vuelvas; la cuenta nunca se pierde (se calcula con la hora de fin guardada, también si recargas o cierras la app). Si una fase terminó con la app cerrada, al abrirla se avanza **sin sonar**. Avisos con la pantalla bloqueada requerirían la versión APK (ver el plan en `.claude/plans`, pospuesto).
+- **Limitación**: si cambias a otra app o bloqueas el teléfono a mano, el navegador puede pausar la página y el aviso no sonar hasta que vuelvas; la cuenta nunca se pierde (se calcula con la hora de fin guardada, también si recargas o cierras la app). Si una fase terminó con la app cerrada, al abrirla se avanza **sin sonar**. Por eso se recomienda la pantalla completa negra, que mantiene la pantalla encendida con muy poco gasto en AMOLED.
 
-### Gimnasio, Notas y Tareas
+### Notas
 
-Están en el menú pero **vacías por ahora** (muestran «Esta sección está vacía por ahora»); se irán desarrollando después.
+**Menú → Notas.** En vez de una sola libreta, las notas se organizan en **grupos** y **cada grupo decide qué datos lleva cada nota**: uno puede ser un guardador de enlaces, otro una lista de comandos, otro tus libros…
+
+- **Grupo nuevo (+)**: nombre, icono y color. Puedes **empezar con un ejemplo** (Enlaces, Comandos, Libros o Notas libres), que rellena todo y se puede cambiar después, o con un grupo en blanco.
+- **Campos**: toda nota tiene un **título** y los campos que definas. Tipos: **texto corto**, **texto largo**, **código o comando** (letra monoespaciada y botón **Copiar**), **enlace**, **número**, **fecha**, **opciones** (una lista que tú escribes separada por comas, p. ej. «Por leer, Leyendo, Leído»), **casilla** (sí/no) y **calificación** (1 a 5 estrellas; tocar la misma estrella otra vez la quita). Cada campo puede marcarse **«En la lista»** para verlo debajo del título sin abrir la nota.
+- **Configurar el grupo** (botón de ajustes junto al buscador): cambia nombre, icono y color, y **agrega, renombra, reordena (↑ ↓), cambia de tipo o quita campos**. Quitar un campo borra ese dato de las notas del grupo; cambiar el tipo conserva los datos. Borrar el grupo borra también sus notas (se avisa cuántas).
+- **Dentro de un grupo**: buscador (título, campos y etiquetas, sin importar mayúsculas ni tildes), **etiquetas** (se escriben separadas por coma en la nota y aparecen como filtros arriba; tocar una filtra y otra vez quita el filtro) y las notas de la más reciente a la más antigua, de 40 en 40 con «Ver más».
+- **Acciones rápidas en la lista**: si la nota tiene un campo de enlace, un botón la **abre** en una pestaña nueva; si no, y tiene un campo de código, un botón **copia** el comando. Tocar la nota abre el detalle con todo y el botón **Editar**.
+- **Seguridad**: solo se abren enlaces `http://` y `https://`; algo como `javascript:…` se guarda como texto y nunca se vuelve clicable. Un enlace escrito sin esquema («ejemplo.com/pagina») se guarda con `https://`.
+
+### Gimnasio
+
+Está en el menú pero **vacía por ahora** (muestra «Esta sección está vacía por ahora»); se irá desarrollando después.
 
 ### Listas y plantillas
 
 Pensado para lo que repites cada cierto tiempo (el súper cada 15 días, tareas semanales o mensuales). En vez de reescribir la lista, la guardas una vez como **plantilla** y cada vez creas una **lista** nueva copiada de ella; la lista es independiente, así que marcas y agregas lo extra sin tocar la plantilla.
 
 - **Plantilla**: nombre, color, elementos y, opcionalmente, cada cuánto se repite (**cada semana**, **cada 15 días** o **cada mes**). Los elementos se escriben **uno por línea**; una línea que empieza con `#` es un encabezado de sección (por ejemplo `# Lácteos`), que no cuenta como elemento.
-- **Lista**: copia de los elementos de una plantilla (o vacía). Tocar un elemento lo marca o desmarca; el avance se ve como «3/12» con barra. Lo que agregues con el campo **Agregar algo adicional…** (un elemento a la vez, con Enter o con el botón) queda en la sección **Adicionales**.
-- Una lista con todo marcado pasa a **Completadas** (se muestran de 10 en 10); si le agregas algo vuelve a estar activa. El botón **Editar** de la lista permite quitar elementos con la X; el lápiz de la barra superior cambia el nombre, elimina la lista o la **guarda como plantilla**: abre el formulario de plantilla con los elementos fijos de la lista (sin los adicionales) para que lo ajustes y guardes.
+- **Lista**: copia de los elementos de una plantilla (o vacía). Tocar un elemento lo marca o desmarca; el avance se ve como «3/12» con barra. Lo que agregues con el campo **Agregar algo adicional…** (un elemento a la vez, con Enter o con el botón) queda en la sección **Adicionales**. Sirve igual como lista de **tareas**.
+- **Lo hecho baja al final**: al marcar un elemento pasa al final de su sección (los encabezados `#` y «Adicionales» son secciones), tachado y con «Hecho el 11 oct»; los pendientes conservan su orden. Si lo desmarcas vuelve a su lugar. El orden guardado no cambia.
+- **Fechas**: cada elemento pendiente tiene un **icono de calendario** a la derecha: tocarlo abre el selector de fecha y fija una **fecha límite**. Debajo del texto se ve «Vence el 16 oct (en 5 días)», «Vence mañana», «Vence hoy» o «Venció el 8 oct (hace 3 días)» en rojo. Al marcar un elemento se **registra el día en que se hizo**. En la vista general, cada lista muestra cuántas tareas están **vencidas** o la **próxima** fecha.
+- **Editar** (botón junto al avance): permite cambiar el **texto y la fecha** de un elemento con el lápiz (ahí también hay «Quitar fecha»), o quitarlo con la X; la plantilla no cambia. El lápiz de la barra superior cambia el nombre de la lista, la elimina o la **guarda como plantilla**: abre el formulario de plantilla con los elementos fijos de la lista (sin los adicionales) para que lo ajustes y guardes.
+- **Finalizar y archivo**: cuando todos los elementos están marcados aparece el botón **Finalizar lista**. Al tocarlo la lista se **archiva** con la fecha de hoy y se vuelve a la vista general. Si antes de finalizar agregas un elemento nuevo, el botón desaparece hasta que lo marques. Las listas archivadas están en la pestaña **Archivo** (con su contador), de la más reciente a la más antigua, de 10 en 10; se pueden abrir (solo lectura, con sus fechas) y **Restaurar** para volver a editarlas. Las listas que ya estaban completas antes de existir esta función se archivaron solas una única vez.
 - **Ya toca**: si la plantilla tiene periodo y ya pasó desde la última lista creada con ella, en **Listas** aparece un aviso con el botón **Crear lista**; en **Plantillas** se muestra «Toca en N días» o «Ya toca». Sin listas previas no hay aviso.
 
 ### Compras
@@ -318,7 +334,7 @@ En **Datos**:
 
 ## 5. Modelo de datos
 
-Base de datos IndexedDB versión 4 (la 4 agregó `templates` y `lists`; se migra sola). Su nombre interno sigue siendo `mi-quincena` (el de antes de llamarse Tracker) para no perder los datos ya guardados.
+Base de datos IndexedDB versión 5 (la 4 agregó `templates` y `lists`, la 5 `noteGroups` y `notes`; se migra sola). Su nombre interno sigue siendo `mi-quincena` (el de antes de llamarse Tracker) para no perder los datos ya guardados.
 
 | Store | Contenido |
 |---|---|
@@ -329,7 +345,9 @@ Base de datos IndexedDB versión 4 (la 4 agregó `templates` y `lists`; se migra
 | `purchases` | `{ id, name, date, price, store, tag, warrantyMonths, notes, files }` |
 | `habits` | `{ id, name, color, icon, slot: 'morning'｜'day'｜'night'｜'', order, dates: { 'YYYY-MM-DD': 1 } }` |
 | `templates` | `{ id, name, color, freq: ''｜'weekly'｜'biweekly'｜'monthly', items: [{ text, head? }] }` |
-| `lists` | `{ id, name, tplId?, color, created, t, items: [{ id, text, head?, done?, extra? }] }`. Una lista se copia de la plantilla al crearla; no queda ligada a ella |
+| `lists` | `{ id, name, tplId?, color, created, t, archived?, items: [{ id, text, head?, done?, doneAt?, due?, extra? }] }` (`archived`, `doneAt` y `due` son fechas `YYYY-MM-DD`; `archived` = día en que se finalizó). Una lista se copia de la plantilla al crearla; no queda ligada a ella |
+| `noteGroups` | `{ id, name, color, icon, fields: [{ id, name, type: 'text'｜'long'｜'code'｜'url'｜'number'｜'date'｜'choice'｜'check'｜'rating', list?, options? }] }` |
+| `notes` | `{ id, group, title, values: { [idDelCampo]: texto｜número｜true }, tags: [], created, updated }` (marcas de tiempo en ms). Solo se guardan los campos con valor |
 | `files` | `{ id, blob, mime, name, size }` |
 | `meta` | `{ k: 'settings', v: { lastExport, includeFiles, types, leftover, lastKind } }` |
 
@@ -338,7 +356,7 @@ Base de datos IndexedDB versión 4 (la 4 agregó `templates` y `lists`; se migra
 - Un gasto con tarjeta lleva `card`; sus `parts` indican la categoría apartada, pero **no modifican su saldo**: solo suma deuda a la tarjeta.
 - Lo apartado por tarjeta **no se guarda**: se deriva del historial (`cardPending` en [state.js](js/state.js)). Las compras suman a su categoría y los pagos restan primero de la categoría desde la que se paga y luego de las mayores. Por eso editar o borrar siempre cuadra.
 - Un gasto repartido guarda varias entradas en `parts`.
-- Los respaldos se exportan con `version: 3`. También se aceptan los de la versión 2 y los que no traen `templates` ni `lists`.
+- Los respaldos se exportan con `version: 3`. También se aceptan los de la versión 2 y los que no traen `templates`, `lists`, `noteGroups` ni `notes`. Al importar, los grupos y notas se **sanean**: tipo de campo desconocido pasa a texto, icono o color inválido se corrige, los valores que no sean texto, número o sí/no se descartan y las notas cuyo grupo no existe se omiten.
 
 ### Formato del respaldo
 
@@ -349,7 +367,7 @@ Base de datos IndexedDB versión 4 (la 4 agregó `templates` y `lists`; se migra
   "exportedAt": "2026-10-10T18:00:00.000Z",
   "includesFiles": false,
   "settings": {}, "habits": [], "accounts": [], "moves": [],
-  "plan": [], "bills": [], "purchases": [], "templates": [], "lists": [],
+  "plan": [], "bills": [], "purchases": [], "templates": [], "lists": [], "noteGroups": [], "notes": [],
   "files": [{ "id": "…", "mime": "image/jpeg", "name": "…", "data": "data:…;base64,…" }]
 }
 ```
@@ -367,6 +385,7 @@ Las pruebas son de extremo a extremo con Playwright (Chromium, 390×800) contra 
 - Guía de transferencias: avance por línea y por cuenta, parcial, por quincena y con categoría de paso.
 - Pagos: vencidos, mensuales, pagar, omitir y deshacer.
 - Compras con adjuntos, búsqueda y garantía.
+- Notas: grupos con campos propios (ejemplos, tipos de campo, configurar y reordenar campos, búsqueda, etiquetas, copiar, enlaces seguros), paginación, exportar/importar y saneo de respaldos raros.
 - Listas y plantillas: crear desde plantilla, marcar, adicionales, aviso «Ya toca», completar y exportar/importar.
 - Reportes, exportar/importar (con y sin archivos) y migración desde la base de datos v2.
 

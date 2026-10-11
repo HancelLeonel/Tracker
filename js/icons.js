@@ -31,6 +31,9 @@ const PATHS = {
   sort: '<path d="M8 20V4M4 8l4-4 4 4M16 4v16M12 16l4 4 4-4"/>',
   checklist: '<path d="M10 6h10M10 12h10M10 18h10M3.5 6l1.5 1.5L7.5 4.5M3.5 12l1.5 1.5 2.5-3M3.5 18l1.5 1.5 2.5-3"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  terminal: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>',
   timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 3h5M12 3v2"/>',
   play: '<path d="M8 5l11 7-11 7z"/>',
   pause: '<path d="M9 5v14M15 5v14"/>',
@@ -38,7 +41,6 @@ const PATHS = {
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   sliders: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   note: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
-  tasks: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9.5 13l2 2 3.5-4"/>',
   // ---- iconos para hábitos ----
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   drop: '<path d="M12 3c3.5 4.5 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 2.5-6.5 6-11z"/>',
@@ -66,5 +68,9 @@ const PATHS = {
 // Iconos que se pueden elegir para un hábito (el primero es el predeterminado).
 export const HABIT_ICONS = ['habits', 'target', 'drop', 'book', 'dumbbell', 'run', 'bike', 'heart', 'leaf', 'apple', 'coffee',
   'pill', 'sparkle', 'music', 'phone', 'bed', 'smile', 'star', 'sun', 'moon', 'clock', 'edit'];
+
+// Iconos que se pueden elegir para un grupo de notas (el primero es el predeterminado).
+export const NOTE_ICONS = ['note', 'link', 'terminal', 'book', 'file', 'star', 'heart', 'bag', 'coin', 'music', 'leaf', 'apple',
+  'coffee', 'dumbbell', 'bed', 'phone', 'smile', 'target', 'sparkle', 'clock', 'sun', 'moon'];
 
 export const icon = name => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${PATHS[name] ?? ''}</svg>`;

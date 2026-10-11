@@ -1,6 +1,6 @@
 import * as db from './db.js';
-import { esc, uid, today, addDays, addMonths, daysBetween, fmtDate, toast, $ } from './util.js';
-import { S, saveTemplate, saveList } from './state.js';
+import { esc, uid, today, addDays, addMonths, daysBetween, fmtDate, fmtDateY, parseYmd, toast, $ } from './util.js';
+import { S, saveTemplate, saveList, isListDone } from './state.js';
 import { modal } from './ui.js';
 import { icon } from './icons.js';
 import { COLORS } from './habits.js';
@@ -16,8 +16,7 @@ const freqOf = t => FREQS.find(f => f[0] === t.freq) ?? FREQS[0];
 
 const real = l => l.items.filter(i => !i.head);
 const progress = l => { const r = real(l); return { done: r.filter(i => i.done).length, total: r.length }; };
-// Una lista está completa cuando todos sus elementos están marcados (al agregar uno nuevo vuelve a estar activa).
-const isDone = l => { const p = progress(l); return p.total > 0 && p.done === p.total; };
+const isDone = isListDone;
 const pl = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 
 export const current = () => S.lists.find(l => l.id === S.listId) ?? null;
@@ -143,25 +142,52 @@ function listOptions(l) {
   });
 }
 
-function listCard(l, compact = false) {
+// Fecha corta: sin año si es de este año.
+const dshort = d => (parseYmd(d).getFullYear() === new Date().getFullYear() ? fmtDate(d) : fmtDateY(d));
+
+// Cuándo vence una tarea pendiente (o cuándo se hizo una terminada): { cls, text } o null.
+function metaOf(i) {
+  if (i.done) return i.doneAt ? { cls: 'muted', text: `Hecho el ${dshort(i.doneAt)}` } : null;
+  if (!i.due) return null;
+  const n = daysBetween(today(), i.due);
+  if (n < 0) return { cls: 'neg', text: `Venció el ${dshort(i.due)} (hace ${pl(-n, 'día')})` };
+  if (n === 0) return { cls: 'warn', text: 'Vence hoy' };
+  if (n === 1) return { cls: 'warn', text: 'Vence mañana' };
+  return { cls: 'muted', text: `Vence el ${dshort(i.due)} (en ${n} días)` };
+}
+
+// Resumen de fechas de una lista para su tarjeta: tareas vencidas o la próxima por vencer.
+function dueSummary(l) {
+  const dated = real(l).filter(i => !i.done && i.due).map(i => i.due).sort();
+  if (!dated.length) return '';
+  const late = dated.filter(d => d < today()).length;
+  if (late) return `<small class="neg">${pl(late, 'vencida')}</small>`;
+  return `<small class="muted">Próxima: ${dshort(dated[0])}</small>`;
+}
+
+function listCard(l, archived = false) {
   const p = progress(l);
+  const meta = archived ? `<small class="muted">Finalizada el ${dshort(l.archived)}</small>`
+    : isDone(l) ? '<small class="pos">Lista para finalizar</small>' : dueSummary(l);
   return `
-    <button class="card list-card ${compact ? 'compact' : ''}" style="--c:var(--${l.color})" data-act="open-list" data-id="${l.id}">
+    <button class="card list-card ${archived ? 'compact' : ''}" style="--c:var(--${l.color})" data-act="open-list" data-id="${l.id}">
       <span class="lc-top"><b>${esc(l.name)}</b><small>${p.done}/${p.total}</small></span>
-      ${compact ? '' : `<span class="bar"><i style="width:${p.total ? (p.done / p.total) * 100 : 0}%"></i></span>`}
+      ${archived ? '' : `<span class="bar"><i style="width:${p.total ? (p.done / p.total) * 100 : 0}%"></i></span>`}
+      ${meta}
     </button>`;
 }
 
-function listsOverview() {
-  const active = S.lists.filter(l => !isDone(l)).sort((a, b) => b.created.localeCompare(a.created) || b.t - a.t);
-  const done = S.lists.filter(isDone).sort((a, b) => b.created.localeCompare(a.created) || b.t - a.t);
-  const late = S.templates.filter(t => dueInfo(t)?.late);
-  const shown = done.slice(0, S.listLimit), left = done.length - shown.length;
+const byNewest = (a, b) => b.created.localeCompare(a.created) || b.t - a.t;
 
-  if (!S.lists.length && !late.length) {
-    return `<div class="card empty"><p>Aún no tienes listas.</p>
-      <small>${S.templates.length ? 'Crea una a partir de una de tus plantillas.' : 'Empieza creando una plantilla con lo que repites seguido.'}</small>
-      ${S.templates.length ? '<button class="btn primary" data-act="new-list">Crear una lista</button>' : '<button class="btn primary" data-act="new-tpl">Crear una plantilla</button>'}</div>`;
+function listsOverview() {
+  const active = S.lists.filter(l => !l.archived).sort(byNewest);
+  const late = S.templates.filter(t => dueInfo(t)?.late);
+
+  if (!S.lists.filter(l => !l.archived).length && !late.length) {
+    return `<div class="card empty"><p>No tienes listas activas.</p>
+      <small>${S.templates.length ? 'Crea una a partir de una de tus plantillas o una lista vacía.' : 'Empieza creando una plantilla con lo que repites seguido, o una lista vacía.'}</small>
+      <button class="btn primary" data-act="new-list">Crear una lista</button>
+      ${S.templates.length ? '' : '<button class="btn" data-act="new-tpl">Crear una plantilla</button>'}</div>`;
   }
   return `
     ${late.map(t => `
@@ -169,52 +195,110 @@ function listsOverview() {
         <div><b>${esc(t.name)}</b><br><small class="warn">Ya toca (${freqOf(t)[1].toLowerCase()})</small></div>
         <button class="btn primary sm" data-act="use-tpl" data-id="${t.id}">Crear lista</button>
       </section>`).join('')}
-    ${active.map(l => listCard(l)).join('')}
-    ${done.length ? `<h2 class="slot-h">${icon('done')}<span>Completadas</span><small>${done.length}</small></h2>
-      ${shown.map(l => listCard(l, true)).join('')}
-      ${left > 0 ? `<button class="btn ghost block" data-act="more-lists">Ver más (${Math.min(10, left)} de ${left} restantes)</button>` : ''}` : ''}`;
+    ${active.map(l => listCard(l)).join('')}`;
+}
+
+// Listas finalizadas, de la más reciente a la más antigua.
+function archiveView() {
+  const all = S.lists.filter(l => l.archived).sort((a, b) => b.archived.localeCompare(a.archived) || byNewest(a, b));
+  if (!all.length) return '<div class="card empty"><p>Aquí aparecen las listas que finalices.</p><small>Cuando marques todo, la lista muestra el botón «Finalizar lista» y se guarda en el archivo.</small></div>';
+  const shown = all.slice(0, S.listLimit), left = all.length - shown.length;
+  return `${shown.map(l => listCard(l, true)).join('')}
+    ${left > 0 ? `<button class="btn ghost block" data-act="more-lists">Ver más (${Math.min(10, left)} de ${left} restantes)</button>` : ''}`;
 }
 
 export function listsView() {
-  const seg = `<div class="seg" role="tablist">${[['lists', 'Listas'], ['templates', 'Plantillas']].map(([k, name]) =>
-    `<button class="${k === S.listSub ? 'on' : ''}" data-act="list-sub" data-sub="${k}">${name}</button>`).join('')}</div>`;
-  return seg + (S.listSub === 'templates' ? templatesView() : listsOverview());
+  const archived = S.lists.filter(l => l.archived).length;
+  const seg = `<div class="seg" role="tablist">${[['lists', 'Listas'], ['templates', 'Plantillas'], ['archive', 'Archivo']].map(([k, name]) =>
+    `<button class="${k === S.listSub ? 'on' : ''}" data-act="list-sub" data-sub="${k}">${name}${k === 'archive' && archived ? ` <small>${archived}</small>` : ''}</button>`).join('')}</div>`;
+  return seg + (S.listSub === 'templates' ? templatesView() : S.listSub === 'archive' ? archiveView() : listsOverview());
 }
 
 // ---------- detalle de una lista ----------
-function itemRow(i, edit) {
-  const inner = `<span class="dot ${i.done ? 'on' : ''}">${i.done ? icon('check') : ''}</span><span class="li-t">${esc(i.text)}</span>`;
-  return edit
-    ? `<div class="li editing">${inner}<button class="icon sm" data-act="li-del" data-id="${i.id}" aria-label="Quitar ${esc(i.text)}">${icon('close')}</button></div>`
-    : `<button class="li ${i.done ? 'done' : ''}" data-act="li-toggle" data-id="${i.id}" aria-pressed="${!!i.done}">${inner}</button>`;
+// Los elementos hechos bajan al final de su sección (por orden en que se marcaron); los pendientes conservan su orden.
+// El orden guardado no cambia: al desmarcar, el elemento vuelve a su lugar.
+function sink(items) {
+  const pending = items.filter(i => !i.done);
+  const done = items.filter(i => i.done).map((i, k) => [i, k]).sort((a, b) => (a[0].doneAt ?? '').localeCompare(b[0].doneAt ?? '') || a[1] - b[1]).map(x => x[0]);
+  return [...pending, ...done];
+}
+
+// Parte los elementos en secciones, una por encabezado (la primera puede no tener).
+function sections(items) {
+  const out = [{ head: null, items: [] }];
+  for (const i of items) { if (i.head) out.push({ head: i, items: [] }); else out.at(-1).items.push(i); }
+  return out.filter(s => s.head || s.items.length);
+}
+
+function itemRow(i, mode) {
+  const m = metaOf(i);
+  const body = `<span class="li-body"><span class="li-t">${esc(i.text)}</span>${m ? `<small class="li-meta ${m.cls}">${m.text}</small>` : ''}</span>`;
+  const dot = `<span class="dot ${i.done ? 'on' : ''}">${i.done ? icon('check') : ''}</span>`;
+  if (mode === 'archived') return `<div class="li static ${i.done ? 'done' : ''}">${dot}${body}</div>`;
+  if (mode === 'edit') {
+    return `<div class="li editing">${dot}${body}
+      <button class="icon sm" data-act="li-edit-item" data-id="${i.id}" aria-label="Editar ${esc(i.text)}">${icon('edit')}</button>
+      <button class="icon sm" data-act="li-del" data-id="${i.id}" aria-label="Quitar ${esc(i.text)}">${icon('close')}</button></div>`;
+  }
+  // Calendario: el campo de fecha va transparente encima del icono, así tocarlo abre el selector de fechas del teléfono.
+  const cal = i.done ? '' : `<label class="li-cal ${i.due ? 'has' : ''} ${i.due && i.due < today() ? 'late' : ''}" aria-label="Fecha límite de ${esc(i.text)}">${icon('calendar')}
+      <input type="date" data-change="li-due" data-id="${i.id}" value="${i.due ?? ''}" aria-label="Fecha límite de ${esc(i.text)}"></label>`;
+  return `<div class="li ${i.done ? 'done' : ''}">
+    <button class="li-main" data-act="li-toggle" data-id="${i.id}" aria-pressed="${!!i.done}">${dot}${body}</button>${cal}</div>`;
 }
 
 export function listDetail(l) {
-  const p = progress(l), edit = S.listEdit;
+  const p = progress(l), edit = S.listEdit && !l.archived;
+  const mode = l.archived ? 'archived' : edit ? 'edit' : 'normal';
   const base = l.items.filter(i => !i.extra), extras = l.items.filter(i => i.extra);
-  const rows = items => items.map(i => (i.head ? `<h2 class="slot-h">${esc(i.text)}</h2>` : itemRow(i, edit))).join('');
+  const body = items => sections(items).map(sec =>
+    `${sec.head ? `<h2 class="slot-h">${esc(sec.head.text)}</h2>` : ''}<div class="li-list">${sink(sec.items).map(i => itemRow(i, mode)).join('')}</div>`).join('');
+  const complete = isDone(l);
   return `
     <div class="slot" style="--c:var(--${l.color})">
     <section class="card progress-ring">
       <b>${p.done}/${p.total}</b>
       <div class="bar"><i style="width:${p.total ? (p.done / p.total) * 100 : 0}%"></i></div>
-      <button class="btn sm" data-act="list-edit" aria-pressed="${edit}">${icon(edit ? 'check' : 'edit')} ${edit ? 'Listo' : 'Editar'}</button>
+      ${l.archived ? '' : `<button class="btn sm" data-act="list-edit" aria-pressed="${edit}">${icon(edit ? 'check' : 'edit')} ${edit ? 'Listo' : 'Editar'}</button>`}
     </section>
-    ${p.total && p.done === p.total ? `<p class="pos center">${icon('done')} Lista completa</p>` : ''}
-    <form class="add-row" data-noform>
+    ${l.archived ? `<section class="card archived-note"><p>${icon('done')} Lista finalizada el ${dshort(l.archived)}</p>
+        <button class="btn block" data-act="list-restore">${icon('reset')} Restaurar lista</button></section>`
+      : complete ? `<section class="card finish"><p class="pos">${icon('done')} Todo listo</p>
+        <button class="btn primary block" data-act="list-finish">${icon('check')} Finalizar lista</button></section>` : ''}
+    ${l.archived ? '' : `<form class="add-row" data-noform>
       <input name="text" id="li-new" maxlength="80" placeholder="Agregar algo adicional…" autocomplete="off" enterkeyhint="done">
       <button class="btn primary" data-act="li-add" aria-label="Agregar">${icon('plus')}</button>
-    </form>
-    ${edit ? '<p class="muted note">Toca la X para quitar un elemento de esta lista. La plantilla no cambia.</p>' : ''}
-    <div class="li-list">${rows(base)}</div>
-    ${extras.length ? `<h2 class="slot-h">${icon('plus')}<span>Adicionales</span><small>${extras.filter(i => i.done).length}/${extras.length}</small></h2>
-      <div class="li-list">${rows(extras)}</div>` : ''}
+    </form>`}
+    ${edit ? '<p class="muted note">Toca el lápiz para cambiar el texto o la fecha de un elemento, o la X para quitarlo de esta lista. La plantilla no cambia.</p>' : ''}
+    ${body(base)}
+    ${extras.length ? `<h2 class="slot-h">${icon('plus')}<span>Adicionales</span><small>${extras.filter(i => i.done).length}/${extras.length}</small></h2>${body(extras)}` : ''}
     ${!l.items.length ? '<div class="card empty"><p>La lista está vacía.</p><small>Agrega elementos con el campo de arriba.</small></div>' : ''}
     </div>`;
 }
 
+// Edita el texto y la fecha límite de un elemento.
+function itemForm(l, i) {
+  modal('Editar elemento', `
+    <label>Texto <input name="text" required maxlength="80" value="${esc(i.text)}"></label>
+    <label>Fecha límite (opcional) <input name="due" type="date" value="${i.due ?? ''}"></label>
+    <button type="button" class="btn sm" id="clear-due">Quitar fecha</button>
+    ${i.done && i.doneAt ? `<small class="muted">Hecho el ${dshort(i.doneAt)}</small>` : ''}`, {
+    afterOpen: f => { f.querySelector('#clear-due').onclick = () => { f.elements.due.value = ''; }; },
+    async onSubmit(fd) {
+      const text = fd.get('text').trim();
+      if (!text) return false;
+      i.text = text;
+      if (fd.get('due')) i.due = fd.get('due'); else delete i.due;
+      await saveList(l);
+    },
+    onDelete: async () => { l.items = l.items.filter(x => x.id !== i.id); await saveList(l); },
+    deleteLabel: 'Quitar',
+    confirmText: '¿Quitar este elemento de la lista?',
+  });
+}
+
 export const actions = {
-  'list-sub': el => { S.listSub = el.dataset.sub; },
+  'list-sub': el => { S.listSub = el.dataset.sub; S.listLimit = 10; },
   'more-lists': () => { S.listLimit += 10; },
   'new-tpl': () => { S.listSub = 'templates'; templateForm(); },
   'edit-tpl': el => templateForm(S.templates.find(t => t.id === el.dataset.id)),
@@ -229,9 +313,12 @@ export const actions = {
     templateForm(null, { name: l.name.replace(/ · \d{1,2} [a-z]{3}$/, ''), color: l.color, items: l.items.filter(i => !i.extra).map(({ text, head }) => ({ text, ...(head ? { head } : {}) })) });
   },
   'list-edit': () => { S.listEdit = !S.listEdit; },
+  'li-edit-item': el => { const l = current(); itemForm(l, l.items.find(x => x.id === el.dataset.id)); },
+  // Al marcar se guarda el día; al desmarcar se borra.
   async 'li-toggle'(el) {
     const l = current(), i = l.items.find(x => x.id === el.dataset.id);
     i.done = !i.done;
+    if (i.done) i.doneAt = today(); else delete i.doneAt;
     await saveList(l);
   },
   async 'li-del'(el) {
@@ -245,6 +332,32 @@ export const actions = {
     if (!text) return;
     const l = current();
     l.items.push({ id: uid(), text, done: false, extra: true });
+    await saveList(l);
+  },
+  // Finalizar: la lista completa se archiva con la fecha de hoy y se vuelve a la vista general.
+  async 'list-finish'() {
+    const l = current();
+    if (!isDone(l)) return;
+    l.archived = today();
+    await saveList(l);
+    S.listId = null;
+    S.listEdit = false;
+    window.scrollTo(0, 0);
+    toast('Lista finalizada y archivada');
+  },
+  async 'list-restore'() {
+    const l = current();
+    delete l.archived;
+    await saveList(l);
+    toast('Lista restaurada');
+  },
+};
+
+// Cambios en campos (la fecha límite de un elemento): app.js los busca por data-change.
+export const changes = {
+  async 'li-due'(el) {
+    const l = current(), i = l.items.find(x => x.id === el.dataset.id);
+    if (el.value) i.due = el.value; else delete i.due;
     await saveList(l);
   },
 };

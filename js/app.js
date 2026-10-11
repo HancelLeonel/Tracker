@@ -11,6 +11,7 @@ import * as habits from './habits.js';
 import * as lists from './lists.js';
 import * as home from './home.js';
 import * as pomodoro from './pomodoro.js';
+import * as notes from './notes.js';
 import * as data from './data.js';
 import { esc } from './util.js';
 
@@ -19,9 +20,9 @@ const SUB_TITLES = { accounts: 'Finanzas', plan: 'Guía de transferencias', bill
 const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], plan: ['new-line', 'Nueva línea'], bills: ['new-bill', 'Nuevo pago'] };
 
 const TABS = [['home', 'Inicio', 'home'], ['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'],
-  ['pomodoro', 'Pomodoro', 'timer'], ['gym', 'Gimnasio', 'dumbbell'], ['notes', 'Notas', 'note'], ['tasks', 'Tareas', 'tasks'], ['data', 'Datos', 'data']];
+  ['pomodoro', 'Pomodoro', 'timer'], ['gym', 'Gimnasio', 'dumbbell'], ['notes', 'Notas', 'note'], ['data', 'Datos', 'data']];
 // Secciones aún sin contenido: título (para la barra superior) y mensaje.
-const EMPTY = { gym: 'Gimnasio', notes: 'Notas', tasks: 'Tareas' };
+const EMPTY = { gym: 'Gimnasio' };
 
 const menuOpen = open => {
   document.body.classList.toggle('menu-open', open);
@@ -71,6 +72,16 @@ function render() {
   } else if (S.tab === 'pomodoro') {
     top.innerHTML = topbar('Pomodoro');
     view.innerHTML = pomodoro.pomodoroView();
+  } else if (S.tab === 'notes') {
+    const g = S.noteGroup && notes.currentGroup();
+    if (g) {
+      top.innerHTML = `<button class="icon" data-act="note-back" aria-label="Volver a los grupos">${icon('left')}</button><h1>${esc(g.name)}</h1>
+        <button class="icon" data-act="new-note" aria-label="Nueva nota">${icon('plus')}</button>`;
+      view.innerHTML = notes.groupView(g);
+    } else {
+      top.innerHTML = topbar('Notas', ['new-ngroup', 'Nuevo grupo']);
+      view.innerHTML = notes.notesHome();
+    }
   } else if (EMPTY[S.tab]) {
     top.innerHTML = topbar(EMPTY[S.tab]);
     view.innerHTML = '<div class="card empty"><p>Esta sección está vacía por ahora.</p></div>';
@@ -91,7 +102,7 @@ const actions = {
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
   'open-file': el => openFile(el.dataset.id),
-  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...pomodoro.actions, ...data.actions,
+  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...pomodoro.actions, ...notes.actions, ...data.actions,
 };
 
 document.addEventListener('click', async e => {
@@ -104,13 +115,15 @@ document.addEventListener('click', async e => {
   if (!isOpen()) render();
 });
 
+const changes = { ...data.changes, ...lists.changes };
 document.addEventListener('change', async e => {
-  const fn = data.changes[e.target.dataset.change];
+  const fn = changes[e.target.dataset.change];
   if (fn) { await fn(e.target); render(); }
 });
 
-// La búsqueda de compras solo repinta la lista para no perder el foco del campo.
+// Las búsquedas (compras, notas) solo repintan su lista para no perder el foco del campo.
 document.addEventListener('input', e => {
+  if (e.target.id === 'nsearch') return notes.onSearch(e.target.value);
   if (e.target.id !== 'psearch') return;
   S.search = e.target.value;
   S.purchaseLimit = 40;
