@@ -34,6 +34,7 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | `inicio.py` | Inicio: pantalla predeterminada, saludo y fecha, frase que cambia cada vez que se muestra sin repetirse hasta agotarlas |
 | `pomodoro.py` | Menú con las pestañas nuevas, secciones vacías y Pomodoro: configuración, iniciar/pausar, ciclo con descanso largo, saltar/reiniciar, pantalla completa negra, inicio automático, persistencia y respaldo (reloj simulado) |
 | `notas.py` | Notas: grupos con campos propios (ejemplos, tipos de campo, configurar/reordenar/quitar campos), notas, búsqueda, etiquetas, copiar, enlaces seguros, paginación, exportar/importar y saneo de respaldos raros |
+| `arranque.py` | Que la app nunca se quede muda en el logo: base bloqueada por otra ventana, otra ventana que actualiza la base, módulo que no carga (aviso con botones) y dato dañado en Inicio |
 | `listas.py` | Listas y plantillas: crear desde plantilla, marcar (lo hecho baja al final, con fecha), fechas límite y vencidas, editar elementos, finalizar y archivo (restaurar), migración, aviso «Ya toca», guardar lista como plantilla, exportar/importar y saneo de fechas |
 | `benchmark_carga.py` | Tiempos de carga, pantallas, reportes y guardado con 1k–60k movimientos (no es parte de `run_all`) |
 | `benchmark_listas.py` | Tiempos de las listas largas con 1k–60k movimientos (no es parte de `run_all`) |

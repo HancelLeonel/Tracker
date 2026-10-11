@@ -51,12 +51,15 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - Fechas como `'YYYY-MM-DD'` en hora local (helpers de `util.js`); nunca `toISOString()` para fechas de usuario.
 
 **Interfaz**
-- **Nada de emojis ni símbolos como iconos**: usa `icon('nombre')` de `icons.js` (trazo blanco). Añade el icono nuevo a `PATHS`. Solo sobre fondos pastel (`.btn.primary`, `.fab`, `.dot`) el trazo es oscuro.
+- **Nada de emojis ni símbolos como iconos**: usa `icon('nombre')` de `icons.js`. El trazo toma el color de texto del tema (`var(--text)`); sobre el acento (`.btn.primary`, `.fab`, `.dot`) usa `--accent-ink`, y en los badges de color (`.h-ic`) el color del propio elemento. Añade el icono nuevo a `PATHS`.
 - Toda acción es un `data-act="nombre"` en el HTML y una función con ese nombre en el `actions` del módulo. Tras la acción, `app.js` repinta si no hay un diálogo abierto.
 - Diálogos con `modal(titulo, html, { onSubmit, onDelete, afterOpen, ... })`. `onSubmit` devuelve `false` para dejar el diálogo abierto. `modal()` cierra el diálogo previo, así que se puede abrir un formulario desde otro diálogo.
 - En formularios usa `f.elements.nombre`, **no** `f.nombre` (`f.title`, `f.type`… chocan con propiedades del DOM).
 - Escapa todo texto de usuario con `esc()`.
-- Paleta Catppuccin Macchiato vía variables CSS (`--mauve`, `--base`…). Interfaz pensada para móvil (390 px), con áreas táctiles ≥ 44 px.
+- **Tema Grafito** (oscuro, sobrio): neutros casi negros (`--base`, `--mantle` para tarjetas, `--crust` para campos, `--surface0..2`, `--line` para bordes finos) y **un solo acento** (`--accent`, con `--accent-ink` para el texto sobre él): botones primarios, FAB, foco, barras de progreso y enlaces. **No uses `--mauve` & co. para el chrome**: esos nombres (heredados de Catppuccin) son los **colores elegibles** de hábitos, listas y grupos (`var(--${color})` en el JS) y están atenuados; el color solo debe aparecer donde significa algo (rojo/verde/amarillo apagados = vencido/positivo/aviso). No hay tema claro. `tests/interfaz.py` comprueba el contraste de los pares clave (texto ≥ 7:1, el resto ≥ 4.5:1): si cambias un token, vuelve a correrla.
+- Interfaz pensada para móvil (390 px), con áreas táctiles ≥ 44 px. Jerarquía con espacio y líneas finas (`.card` = relleno + borde `--line`), etiquetas de sección en mayúsculas pequeñas (`.overline`, `.slot-h`), botones de icono fantasma (`.icon` sin relleno; si necesitas relleno, añádelo explícitamente como `.note-row > .icon`).
+- **Formularios como hoja inferior**: `dialog` va anclado abajo (ancho completo en móvil, máx. 520 px), con esquinas superiores redondeadas, asa y animación corta (respeta `prefers-reduced-motion`); `#viewer` queda a pantalla completa. No fijes alturas en el contenido de un `modal()`: la hoja tiene `max-height: 92dvh` y hace scroll.
+- **Iconos de la app** (`icons/*.png`): se generaron renderizando `icons/icon.svg` con Playwright (fondo `#111317`, aro `#e8eaee`, palomita `--accent`); el maskable lleva la marca al 80 %. Si cambias la marca, regenera los tres PNG y `theme-color`/`background_color` (`index.html`, `manifest.webmanifest`); el nombre, icono y splash instalados solo cambian al reinstalar.
 - **Orden alfabético** en Finanzas: cuentas y categorías se guardan ordenadas (`sortAccounts()` dentro de `saveAccount`, y al cargar), y las listas de nombres usan `byName`/`byText` de `util.js` (insensibles a tildes y mayúsculas, con números naturales). Si añades una lista de entidades nombradas, ordénala así; las listas con orden propio (movimientos y pagos por fecha, rankings por monto) no.
 - **Hábitos**: `icon` (nombre de `HABIT_ICONS`), `slot` (`morning`/`day`/`night`/`''`) y `order` (único; se intercambia con el vecino del mismo `slot` al reordenar). `normalizeHabits()` en `state.js` asigna `order` a los antiguos. Si añades un icono elegible, agrégalo a `PATHS` y a `HABIT_ICONS`; `validateImport` ignora los que no existan.
 - **Carrusel de hábitos**: cada momento del día es una tarjeta (`.slot-card`) dentro de `#hcar` (scroll horizontal con *scroll-snap*). `render()` reemplaza el `innerHTML` y eso reinicia el scroll, por eso `S.habitSlot` guarda la tarjeta visible y `restoreCarousel()` (llamada desde `app.js` tras pintar) la restaura; `onCarouselScroll` (listener de `scroll` en captura, porque no burbujea) lo mantiene al día y los botones superiores (`data-slotpill`, **no** son `data-act` para no repintar y poder animar el desplazamiento) llaman a `goSlot`. Los días anteriores se marcan desde el formulario de edición (tira `#wk`, que repinta la vista de fondo tras cada cambio).
@@ -71,7 +74,7 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - El campo de agregar es un `<form data-noform>` (`app.js` evita su envío) y tras agregar `S.focusNew` devuelve el foco al campo en el repintado.
 
 **Inicio** ([home.js](js/home.js))
-- La app abre en `S.tab = 'home'`. Las pruebas que asumen Finanzas deben navegar con el menú (`#tabs [data-tab=money]`) tras cargar/recargar; la espera de carga es `#view .home`, no `#view .card`.
+- La app abre en `S.tab = 'home'`. Inicio muestra: fecha (overline) y saludo, la frase, el botón **«Nuevo gasto»** (`data-act="new-exp"`, reutiliza `expenseForm`), dos tarjetas (**Hábitos** de hoy y **Pagos**, de `billsSummary()` en `bills.js`) y **«Tareas de hoy»** (`todayTasks()` en `lists.js`: elementos pendientes de listas activas con `due <= hoy`; la casilla usa `agenda-toggle`, que fija `doneAt`, y el texto `agenda-open`). Son solo lecturas; no guardes estado nuevo ahí. Las pruebas que asumen Finanzas deben navegar con el menú (`#tabs [data-tab=money]`) tras cargar/recargar; la espera de carga es `#view .home`, no `#view .card`.
 - La frase **no** se elige en `homeView()` (se repinta con cada acción, y cambiaría al abrir el menú): se elige con `nextQuote()` al iniciar, al elegir la pestaña Inicio, al tocar la frase y en `visibilitychange`. Es una bolsa mezclada (sin repetir hasta agotar `QUOTES`).
 
 **Notas** ([notes.js](js/notes.js))
@@ -95,7 +98,13 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 **Instalación / splash**
 - El nombre y el icono de la app instalada y el *splash* del sistema salen del manifiesto **al instalar**: tras cambiar nombre o iconos hay que desinstalar y reinstalar en el teléfono (Brave no actualiza accesos directos). `index.html` trae una pantalla de carga propia (`.boot`) que reemplaza la primera vista; mantenla alineada con el logo.
 
+**Arranque (no debe quedarse mudo en el logo)**
+- `db.js` abre la base con `onblocked` (evento `db-blocked` → `app.js` explica que hay otra ventana con la versión anterior; la apertura sigue esperando y continúa sola) y `onversionchange` (cierra y recarga). **Cada vez que subas la versión de la base, una ventana vieja (sin este código) seguirá bloqueando hasta cerrarse**: es esperable, y por eso existe el aviso.
+- `index.html` trae un *watchdog* en script clásico (no depende de los módulos): a los 10 s (`window.__bootWatchdogMs` en pruebas) reemplaza el logo por «Tracker no pudo iniciar» con el último error y los botones Reintentar / Actualizar la app. `init()` captura también los errores de `render()`.
+- **Inicio es la primera pantalla**: sus secciones van envueltas en `safe()` para que un dato raro omita esa parte en vez de impedir que la app abra. Mantén ese patrón si agregas secciones a Inicio. `tests/arranque.py` cubre estos casos.
+
 **Service worker**
+- El `fetch` del service worker usa `cache: 'no-cache'` (revalida con el servidor): sin eso la caché HTTP de GitHub Pages (10 min) puede mezclar módulos viejos y nuevos tras publicar y dejar la app sin arrancar.
 - Si añades un archivo `.js`/`.css`, agrégalo a `SHELL` en [sw.js](sw.js) y sube el nombre de `CACHE`.
 - Si añades un archivo `.js` también agrégalo a los `<link rel="modulepreload">` de [index.html](index.html) (descarga los módulos en paralelo; sin ellos el arranque por red es más lento). `tests/smoke.py` falla si `js/`, `SHELL` y `index.html` no coinciden.
 - Antes de "optimizar" el código de datos, mide: la revisión de oct 2026 mostró que, salvo la lectura de IndexedDB, todo está por debajo de 100 ms con 60,000 movimientos (ver «Rendimiento» en [Documentacion.md](Documentacion.md)).
@@ -112,6 +121,26 @@ Estado: probado en Chromium de escritorio con teléfono simulado; **falta valida
 - **El usuario hace el `push` manualmente** (no hay credenciales de GitHub en esta máquina). Haz commit cuando te lo pida; no intentes el push salvo que lo pida explícitamente.
 - Mensajes de commit en español, con resumen + lista de cambios, y la línea `Co-Authored-By` indicada por el entorno.
 - Mantén [Documentacion.md](Documentacion.md) y este archivo al día cuando cambie el comportamiento o las reglas.
+
+## Pendientes (actualizado el 11 oct 2026)
+
+**Por validar en un Android real** (todo se probó solo en Chromium de escritorio con teléfono simulado): carrusel de hábitos con el dedo, Pomodoro (pantalla completa negra, Wake Lock, sonido y vibración), calendario de fechas límite en Listas, copiar al portapapeles en Notas, hojas inferiores con el teclado abierto y el *safe-area*, y el arranque tras actualizar la base de datos. Para ver el icono y el *splash* nuevos hay que desinstalar y reinstalar la app.
+
+**Siguiente en el menú**
+- **Gimnasio** (hoy vacío): rutinas como plantillas (mismo patrón que Listas), series × repeticiones × peso, historial y progreso, y descanso programable entre series reutilizando el núcleo del Pomodoro (hora de fin guardada, tono, vibración, Wake Lock). Será IndexedDB v6.
+
+**Mejoras pequeñas anotadas**
+- Endurecer los datos dañados fuera de Inicio: `billsAlert()` (Finanzas) llama a `pending()` sin protección; un pago con datos raros rompería esa pantalla (Inicio ya lo tolera con `safe()`).
+- Listas: ordenar los pendientes por fecha límite (opcional por lista) y una vista de agenda con todas las fechas; plantillas con fechas relativas («+3 días»).
+- Inicio: dinero total con opción de ocultarlo; tarjeta del Pomodoro (hoy / contador en vivo).
+- Notas: orden alternativo (alfabético) y recibir enlaces desde «Compartir» de Android (*Web Share Target*, requiere reinstalar la PWA; sin verificar en Brave).
+- Service worker: si la red no responde en ~3 s, servir la copia guardada (hoy espera a la red en cada apertura).
+- Tema claro automático (descartado por ahora; las variables CSS ya lo permitirían).
+
+**Decisiones tomadas**
+- **No habrá APK**: se descartó (10 oct). Los avisos con la pantalla bloqueada no son posibles como PWA; el diseño asume pantalla encendida.
+- No hay pestaña de **Tareas**: se llevan con Listas.
+- Sin sincronización entre dispositivos ni varios usuarios.
 
 ## Contexto de producto (decisiones ya tomadas)
 

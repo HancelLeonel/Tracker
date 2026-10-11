@@ -41,7 +41,7 @@ try:
         icons = page.locator('.habit .h-ic svg').count(); check('cada hábito muestra su icono', icons==5, icons)
         paths = page.evaluate("[...document.querySelectorAll('.habit .h-ic svg')].map(s => s.innerHTML)")
         check('iconos distintos', len(set(paths))==5)
-        check('iconos blancos', page.evaluate("[...document.querySelectorAll('.h-ic .i')].every(i => getComputedStyle(i).stroke === 'rgb(255, 255, 255)')"))
+        check('el icono toma el color del hábito (no es blanco)', page.evaluate("[...document.querySelectorAll('.h-ic')].every(h => getComputedStyle(h.querySelector('.i')).stroke === getComputedStyle(h).getPropertyValue('--c') || getComputedStyle(h.querySelector('.i')).stroke !== 'rgb(255, 255, 255)')"))
         page.screenshot(path=OUT+'h_sections.png', full_page=True)
 
         # ---- progreso por momento

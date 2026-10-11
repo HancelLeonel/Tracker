@@ -2,7 +2,7 @@
 
 **Tracker** es una PWA pensada para Android que reúne varias herramientas personales en una sola app:
 
-- **Inicio**: la pantalla con la que abre la app; saludo, fecha y una frase célebre distinta cada vez.
+- **Inicio**: la pantalla con la que abre la app; saludo, frase célebre, gasto rápido y lo pendiente de hoy.
 - **Finanzas**: cuentas con dinero real repartido en categorías, tarjetas de crédito, guía de transferencias de cada quincena, pagos pendientes y reportes.
 - **Hábitos**: seguimiento diario con rachas, iconos, momentos del día y orden propio.
 - **Pomodoro**: temporizador de trabajo y descansos con modo de pantalla completa en negro.
@@ -12,12 +12,13 @@
 - **Compras**: registro buscable de lo que vale la pena recordar (con garantía y facturas).
 - **Datos**: respaldo (exportar/importar) y ajustes.
 
-Todo funciona sin conexión y los datos se guardan **solo en el teléfono** (IndexedDB). Tema Catppuccin Macchiato, moneda en quetzales (`Q`).
+Todo funciona sin conexión y los datos se guardan **solo en el teléfono** (IndexedDB). Tema oscuro **Grafito** (neutros casi negros y un solo acento suave), moneda en quetzales (`Q`).
 
 ### Navegación e iconos
 
 - Se navega con un **menú lateral**: el botón de tres líneas, a la izquierda del título de cada pantalla (por ejemplo «Finanzas»), lo despliega. Se cierra al elegir una herramienta, al tocar fuera o con Escape.
-- Los iconos son SVG minimalistas de trazo **blanco**, en línea (estilo Whicons), definidos en [icons.js](js/icons.js). Solo sobre botones de fondo pastel (los primarios, el botón flotante y los círculos de hábitos marcados) el trazo es oscuro para que se vea.
+- Los iconos son SVG minimalistas de trazo fino, en línea (estilo Whicons), definidos en [icons.js](js/icons.js). Usan el color de texto del tema; sobre el acento (botones primarios, botón flotante) el trazo es oscuro, y los iconos de hábitos y grupos toman el color elegido.
+- **Diseño**: base casi negra neutra, tarjetas apenas más claras con borde fino, **un solo acento** (índigo suave) para lo principal, y color solo donde significa algo (rojo = vencido o negativo, verde = positivo, amarillo = aviso). Los formularios se abren como **hoja que sube desde abajo**.
 
 ---
 
@@ -47,6 +48,8 @@ Todas las rutas son relativas, así que funciona bajo el subpath `/<repo>/`.
 La app se actualiza sola al abrirla con conexión. Lo que **no** se actualiza solo es el **nombre y el icono de la pantalla de inicio ni la pantalla de carga del sistema** (el *splash* de Android): se toman del manifiesto en el momento de instalar. Si cambias el nombre o el icono, hay que **desinstalar la app del teléfono y volver a instalarla** (Brave, en particular, no actualiza los accesos directos instalados). Mientras la app arranca también se muestra una pantalla de carga propia con el logo y el nombre actuales.
 
 
+**Si la app se queda en el logo.** Lo más común tras una actualización que cambia la base de datos: otra ventana de Tracker (otra pestaña, o la app instalada en segundo plano) sigue abierta con la versión anterior y **impide actualizar la base**. La app lo detecta y muestra «Tracker está abierto en otra ventana con una versión anterior»; basta cerrar esa otra ventana (en recientes, quitar la app) y la nueva abre sola. Si el arranque falla por otra causa, a los 10 segundos aparece «Tracker no pudo iniciar» con el detalle del error y dos botones: **Reintentar** y **Actualizar la app** (borra la caché y el service worker; los datos no se tocan). Desde esta versión, además, una ventana nueva ya no queda bloqueada por una más reciente: la vieja cierra su conexión y se recarga sola.
+
 El service worker usa *network-first*: con conexión siempre descarga la versión nueva y sin conexión usa la copia guardada. Si añades un archivo `.js` nuevo, agrégalo a la lista `SHELL` de [sw.js](sw.js) para que también funcione offline.
 
 ---
@@ -57,12 +60,12 @@ El service worker usa *network-first*: con conexión siempre descarga la versió
 index.html              Estructura: barra superior, contenido, menú lateral, diálogos
 manifest.webmanifest    Nombre, colores e iconos de la PWA
 sw.js                   Service worker (funcionamiento offline)
-css/style.css           Estilos y paleta Catppuccin Macchiato
+css/style.css           Estilos y tema Grafito (variables CSS)
 icons/                  Iconos (SVG y PNG, incluido maskable para Android)
 js/
   app.js                Arranque, pestañas, repintado y despacho de acciones
   util.js               Fechas, periodos, formato de moneda, helpers
-  icons.js              Iconos SVG (trazo blanco)
+  icons.js              Iconos SVG
   db.js                 Capa sobre IndexedDB
   state.js              Estado en memoria y lógica de dinero (saldos, tarjetas, archivos)
   ui.js                 Diálogos, selectores, adjuntos y visor de archivos
@@ -71,7 +74,7 @@ js/
   bills.js              Pagos que debo realizar
   reports.js            Reportes
   purchases.js          Registro de compras
-  home.js               Inicio: saludo, fecha y frases célebres
+  home.js               Inicio: saludo, frase, gasto rápido y lo pendiente de hoy
   habits.js             Hábitos (iconos, momentos del día, orden)
   pomodoro.js           Temporizador Pomodoro y pantalla completa negra
   notes.js              Notas: grupos con campos propios
@@ -188,7 +191,13 @@ Las transferencias y los pagos de tarjeta no cuentan como gasto.
 
 ### Inicio
 
-Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inicio** en el menú lateral) se ve un saludo según la hora («Buenos días» hasta las 12, «Buenas tardes» hasta las 19, «Buenas noches» después), la fecha y una frase célebre con su autor.
+Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inicio** en el menú lateral) se ve, de arriba abajo:
+
+- La **fecha** y un **saludo** según la hora («Buenos días» hasta las 12, «Buenas tardes» hasta las 19, «Buenas noches» después).
+- Una **frase célebre** con su autor, compacta.
+- El botón **Nuevo gasto**: abre el formulario de gasto sobre Inicio, sin ir a Finanzas (si aún no hay cuentas con categorías, avisa).
+- Dos tarjetas: **Hábitos** (cuántos llevas hoy, p. ej. «2/5», con barra; toca para ir a Hábitos) y **Pagos** (cuántos están **vencidos** en rojo, o el próximo por vencer —«Vence mañana», «Vence el 15 oct»—, o «Al día»; toca para ir a Finanzas › Pagos).
+- **Tareas de hoy**: los elementos de tus listas activas con **fecha límite de hoy o ya vencida**, el más atrasado primero, con el nombre de su lista. La casilla de la izquierda la **marca como hecha** sin salir de Inicio; tocar el texto abre la lista. Se muestran 6 y un enlace «Ver N más en Listas». Sin pendientes dice «Nada pendiente para hoy».
 
 - **La frase cambia cada vez que se muestra la pantalla**: al abrir la app, al volver a Inicio desde otra herramienta y al regresar a la app desde segundo plano. También cambia **tocando la frase** (no hay botón visible, para mantener la pantalla limpia). Abrir o cerrar el menú no la cambia.
 - Las frases se reparten **mezcladas, sin repetir ninguna hasta haberlas visto todas** (34 frases en [home.js](js/home.js), lista `QUOTES`). Para agregar una basta con añadir `['texto', 'Autor']`; conviene usar solo frases con autoría documentada (obras, discursos o refranes).

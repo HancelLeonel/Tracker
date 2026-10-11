@@ -26,7 +26,15 @@ function open() {
       }
       if (db.objectStoreNames.contains('quincenas')) db.deleteObjectStore('quincenas');
     };
-    req.onsuccess = () => resolve(req.result);
+    // Otra pestaña (o la app instalada) con una versión anterior mantiene abierta la base y impide actualizarla: se avisa
+    // y la apertura sigue esperando, así que continúa sola en cuanto esa ventana se cierre.
+    req.onblocked = () => window.dispatchEvent(new Event('db-blocked'));
+    req.onsuccess = () => {
+      const db = req.result;
+      // Si otra ventana con una versión más nueva necesita actualizar la base, esta se aparta y se recarga.
+      db.onversionchange = () => { db.close(); location.reload(); };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
   });
   return opened;

@@ -99,7 +99,32 @@ try:
             check(f'sin emojis en {tab}', not EMOJI.search(body), EMOJI.findall(body))
         page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_timeout(150)
         strokes = page.evaluate("""() => [...document.querySelectorAll('.i')].filter(i=>!i.closest('.btn.primary, .fab')).map(i=>getComputedStyle(i).stroke)""")
-        check('todos los iconos son blancos', strokes and all(s=='rgb(255, 255, 255)' for s in strokes), set(strokes))
+        check('los iconos usan el color de texto del tema (claro, no blanco puro)', strokes and all(s in ('rgb(232, 234, 238)', 'rgb(154, 161, 173)') for s in strokes), set(strokes))
+        # --- tema Grafito: contraste (fórmula WCAG) de los pares clave, leídos de las variables CSS
+        V = page.evaluate("""() => { const s = getComputedStyle(document.documentElement); const g = n => s.getPropertyValue(n).trim();
+          return Object.fromEntries(['text','subtext0','base','mantle','accent','accent-ink','red','green','yellow','mauve','blue','peach','pink','teal','lavender'].map(n => [n, g('--' + n)])); }""")
+        def lum(h):
+            h = h.lstrip('#'); c = [int(h[i:i+2], 16) / 255 for i in (0, 2, 4)]
+            c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+            return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+        ratio = lambda a, b: (max(lum(a), lum(b)) + 0.05) / (min(lum(a), lum(b)) + 0.05)
+        pairs = [('text', 'mantle', 7), ('text', 'base', 7), ('subtext0', 'mantle', 4.5), ('subtext0', 'base', 4.5), ('accent-ink', 'accent', 4.5),
+                 ('accent', 'mantle', 4.5), ('red', 'mantle', 4.5), ('green', 'mantle', 4.5), ('yellow', 'mantle', 4.5)] + [(c, 'mantle', 3) for c in ('mauve','blue','peach','pink','teal','lavender')]
+        bad = [(x, y, round(ratio(V[x], V[y]), 2), need) for x, y, need in pairs if ratio(V[x], V[y]) < need]
+        check('contraste del tema: texto ≥ 7:1, secundario/semánticos/acento ≥ 4.5:1, colores de iconos ≥ 3:1', not bad, bad)
+        # --- hoja inferior y áreas de toque
+        page.click('[data-act=edit-acc] >> nth=0'); page.wait_for_timeout(300)
+        geo = page.evaluate("(() => { const r = document.querySelector('#dlg').getBoundingClientRect(); return { bottom: r.bottom, h: innerHeight, w: r.width, vw: innerWidth, top: r.top, rad: getComputedStyle(document.querySelector('#dlg')).borderTopLeftRadius }; })()")
+        check('los formularios son una hoja pegada abajo, de ancho completo y con esquinas superiores redondeadas', abs(geo['bottom'] - geo['h']) < 2 and geo['w'] >= geo['vw'] - 1 and geo['rad'] == '24px' and geo['top'] > 0, geo)
+        page.locator('#dlg #cancel').click(); page.wait_for_timeout(150)
+        small = page.evaluate("[...document.querySelectorAll('#topbar button')].map(b => b.getBoundingClientRect()).filter(r => r.width < 44 || r.height < 44).length")
+        check('botones de la barra superior ≥ 44 px', small == 0, small)
+        page.click('[data-act=menu-open]'); page.wait_for_timeout(300)
+        small = page.evaluate("[...document.querySelectorAll('#tabs button')].map(b => b.getBoundingClientRect()).filter(r => r.height < 44).length")
+        check('opciones del menú ≥ 44 px de alto', small == 0, small)
+        check('la opción activa del menú se distingue', page.evaluate("getComputedStyle(document.querySelector('#tabs button.on'), '::before').backgroundColor === 'rgb(154, 167, 245)'"))
+        page.keyboard.press('Escape'); page.wait_for_timeout(300)
+        check('el botón de menú es fantasma (sin relleno)', page.evaluate("getComputedStyle(document.querySelector('#topbar .icon')).backgroundColor") in ('rgba(0, 0, 0, 0)', 'transparent'))
         page.click('[data-act=sub][data-sub=reports]'); page.screenshot(path=OUT + 'x_reports.png', full_page=True)
         print('errors:', errs); b.close()
 finally:

@@ -1,6 +1,6 @@
 // Network-first con respaldo en caché: siempre trae la versión nueva si hay red
 // y sigue funcionando sin conexión. No hace falta versionar la caché a mano.
-const CACHE = 'tracker-v8';
+const CACHE = 'tracker-v9';
 const SHELL = [
   './',
   'index.html',
@@ -44,7 +44,8 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
-    fetch(req)
+    // «no-cache» revalida con el servidor: sin esto, la caché HTTP de GitHub Pages (10 min) puede mezclar módulos viejos y nuevos tras publicar.
+    fetch(req, { cache: 'no-cache' })
       .then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy));

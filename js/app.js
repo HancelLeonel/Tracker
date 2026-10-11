@@ -148,16 +148,32 @@ $('#file').addEventListener('change', async e => {
   if (f) { await data.onFilePicked(f); pomodoro.resume(); render(); }
 });
 
+// La actualización de la base de datos espera mientras otra ventana con la versión anterior siga abierta.
+window.addEventListener('db-blocked', () => {
+  if (!$('.boot')) return;
+  $('#view').innerHTML = `<div class="card empty"><p>Tracker está abierto en otra ventana con una versión anterior.</p>
+    <small>Ciérrala (en el navegador, cierra la otra pestaña de Tracker; si la instalaste, quítala de las apps recientes). Esta se abrirá sola en cuanto lo hagas.</small></div>`;
+});
+
+const fatal = (msg, err) => {
+  $('#view').innerHTML = `<div class="card empty"><p>${msg}</p><small>${esc(err?.message ?? '')}</small>
+    <button class="btn primary" onclick="location.reload()">Reintentar</button></div>`;
+};
+
 (async function init() {
   try {
     await loadState();
     await gcFiles();
   } catch (err) {
-    $('#view').innerHTML = `<div class="card empty"><p>No se pudo abrir el almacenamiento local.</p><small>${esc(err.message)}</small></div>`;
-    return;
+    return fatal('No se pudo abrir el almacenamiento local.', err);
   }
-  render();
-  pomodoro.resume(); // si el temporizador estaba corriendo al cerrar la app, sigue o avanza
+  try {
+    render();
+    pomodoro.resume(); // si el temporizador estaba corriendo al cerrar la app, sigue o avanza
+  } catch (err) {
+    console.error(err);
+    return fatal('Tracker no pudo mostrar la pantalla.', err);
+  }
 
   // Pide almacenamiento persistente para que Android no lo borre por falta de espacio.
   navigator.storage?.persist?.();

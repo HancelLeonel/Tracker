@@ -1,7 +1,7 @@
 # Tracker
 
-PWA para Android: tracker de hábitos + gestor de gastos quincenales. Sin build, sin dependencias.
-Datos en IndexedDB (locales al teléfono), con exportación/importación JSON desde la pestaña **Datos**.
+PWA personal para Android: finanzas por quincena, hábitos, listas y tareas, notas, pomodoro y compras en una sola app.
+Sin build y sin dependencias (JavaScript vanilla + IndexedDB). Los datos viven en el teléfono; se respaldan desde **Datos**.
 
 ## Probar en local
 
@@ -15,33 +15,33 @@ Abre http://localhost:8000 (el service worker funciona en `localhost`).
 
 1. Sube el contenido de esta carpeta a un repositorio (la raíz debe contener `index.html`).
 2. En GitHub: **Settings → Pages → Deploy from a branch → `main` / `/ (root)`**.
-3. Abre `https://<usuario>.github.io/<repo>/` en Chrome del teléfono → menú ⋮ → **Instalar aplicación**.
+3. Abre `https://<usuario>.github.io/<repo>/` en el navegador del teléfono → menú ⋮ → **Instalar aplicación**.
 
-Todas las rutas son relativas, así que funciona bajo el subpath `/<repo>/`.
+Todas las rutas son relativas, así que funciona bajo el subpath `/<repo>/`. Si cambia el esquema de la base de datos, cierra
+las demás ventanas de Tracker antes de abrir la versión nueva (la app avisa si hay una abierta).
 
 ## Qué incluye
 
-- **Finanzas → Cuentas**: cuentas con categorías que guardan tu dinero real. Un gasto se descuenta de una categoría
-  y, si no alcanza, se reparte entre varias. Cada gasto lleva título y un *tipo de gasto* (en qué se usó).
-  Las **tarjetas de crédito** acumulan deuda; «Pagar tarjeta» mueve dinero de tus cuentas a la tarjeta
-  sin volver a contarlo como gasto.
-- **Guía**: lista de transferencias que debes hacer cada quincena (por cuenta y categoría) con avance. El pago entra a una cuenta y tú lo repartes poco a poco.
-- **Pagos**: pagos pendientes, vencidos y realizados, con comprobante y opción de descontarlos de tus cuentas.
-- **Reportes**: por quincena, mes, año o todo el tiempo.
-- **Compras**: registro buscable de lo que vale la pena recordar, con cálculo de garantía.
-- **Hábitos** y **Datos** (exportar/importar JSON; los adjuntos se incluyen solo si lo marcas).
+- **Inicio**: saludo, frase célebre, botón de gasto rápido, hábitos de hoy, pagos pendientes y tareas de hoy.
+- **Finanzas**: cuentas con categorías que guardan dinero real, gastos repartibles, tarjetas de crédito, **guía** de
+  transferencias por quincena, **pagos** pendientes y **reportes**.
+- **Hábitos**: carrusel por momento del día, rachas, iconos y orden propio.
+- **Listas**: listas y tareas creadas desde plantillas, con fechas límite, lo hecho al final y archivo de listas finalizadas.
+- **Pomodoro**: temporizador con descansos y pantalla completa en negro (ahorra batería en AMOLED).
+- **Notas**: grupos con campos propios (enlaces, comandos, libros…), búsqueda y etiquetas.
+- **Compras**: registro buscable con garantía y facturas.
+- **Datos**: exportar/importar JSON (los adjuntos van solo si lo marcas) y ajustes.
+- **Gimnasio**: reservado en el menú, todavía vacío.
+
+Tema oscuro **Grafito** (neutros y un solo acento), pensado para móvil.
 
 ## Modelo de datos
 
-- **Cuenta**: `{ name, type: 'normal'|'credit', limit?, cats }`. En una tarjeta, `cats[0].balance` es la deuda (negativa).
-- **Categoría**: `{ name, balance }`, el dinero real que hay ahí (no un presupuesto).
-- **Movimiento**: `expense` (`title`, `kind`, repartible con `parts`), `income` o `transfer`.
-  Editar o borrar un movimiento revierte su efecto sobre los saldos y aplica el nuevo.
-- **Plan**: líneas `{ name, amount, key, when: both|q1|q2 }`. **Pago**: `{ title, freq, paid: {...} }`.
-  **Compra**: `{ name, date, warrantyMonths, files }`. **Archivo**: Blob en el store `files`.
-- Moneda: quetzales, mostrada como `Q`.
+IndexedDB `mi-quincena` v5 (nombre interno heredado). Stores: `habits`, `accounts`, `moves`, `plan`, `bills`, `purchases`,
+`templates`, `lists`, `noteGroups`, `notes`, `files`, `meta`. Las categorías guardan **dinero real**, no presupuesto; editar o
+borrar un movimiento revierte su efecto sobre los saldos. Moneda: quetzales (`Q`). Detalle en [Documentacion.md](Documentacion.md).
 
 ## Pruebas
 
-Pruebas end-to-end con Playwright en [tests/](tests/): `python tests/run_all.py` (ver [tests/README.md](tests/README.md)).
-Contexto del proyecto para asistentes de código: [CLAUDE.md](CLAUDE.md). Documentación completa: [Documentacion.md](Documentacion.md).
+Pruebas end-to-end con Playwright en [tests/](tests/): `.venv/bin/python tests/run_all.py` (ver [tests/README.md](tests/README.md)).
+Contexto para asistentes de código: [CLAUDE.md](CLAUDE.md), que también lleva la lista de **pendientes**.

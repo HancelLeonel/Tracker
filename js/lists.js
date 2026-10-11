@@ -297,7 +297,26 @@ function itemForm(l, i) {
   });
 }
 
+// Elementos pendientes con fecha límite de hoy o anterior, de las listas activas (para «Tareas de hoy» en Inicio).
+export function todayTasks() {
+  const t = today();
+  return S.lists.filter(l => !l.archived)
+    .flatMap(l => l.items.filter(i => !i.head && !i.done && i.due && i.due <= t).map(i => ({ list: l, item: i })))
+    .sort((a, b) => a.item.due.localeCompare(b.item.due) || a.list.created.localeCompare(b.list.created));
+}
+export { metaOf as dueMeta };
+
 export const actions = {
+  // Desde Inicio: marcar una tarea como hecha, o abrir su lista.
+  async 'agenda-toggle'(el) {
+    const l = S.lists.find(x => x.id === el.dataset.list), i = l?.items.find(x => x.id === el.dataset.id);
+    if (!i) return;
+    i.done = true;
+    i.doneAt = today();
+    await saveList(l);
+    toast('Tarea hecha');
+  },
+  'agenda-open': el => { S.tab = 'lists'; S.listSub = 'lists'; S.listId = el.dataset.list; S.listEdit = false; window.scrollTo(0, 0); },
   'list-sub': el => { S.listSub = el.dataset.sub; S.listLimit = 10; },
   'more-lists': () => { S.listLimit += 10; },
   'new-tpl': () => { S.listSub = 'templates'; templateForm(); },

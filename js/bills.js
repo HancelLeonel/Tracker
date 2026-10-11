@@ -40,6 +40,13 @@ function pending() {
   return items.sort((a, b) => a.due.localeCompare(b.due));
 }
 
+// Resumen para Inicio: cuántos pagos están vencidos y cuál es el próximo por vencer (dentro de los próximos 30 días).
+export function billsSummary() {
+  const t = today(), items = pending();
+  const overdue = items.filter(i => i.due < t);
+  return { total: S.bills.filter(b => b.active !== false).length, overdue: overdue.length, next: items.find(i => i.due >= t) ?? null };
+}
+
 // Cantidad de pagos vencidos o que vencen en los próximos 3 días (para el aviso de la pestaña).
 export function billsAlert() {
   const t = today(), soon = addDays(t, 3);
