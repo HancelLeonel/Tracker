@@ -1,7 +1,7 @@
 import * as db from './db.js';
 import { $, esc, money, toast, uid } from './util.js';
 import { icon } from './icons.js';
-import { S, hooks, isCredit, addFile, saveSettings } from './state.js';
+import { S, hooks, isCredit, addFile, saveSettings, sortedKinds } from './state.js';
 
 const dlg = $('#dlg');
 const viewer = $('#viewer');
@@ -71,7 +71,7 @@ export function catSelect(name, selected, bal, attrs = '', { credit = true, only
 
 export function kindSelect(name, selected) {
   return `<select name="${name}">
-    ${S.settings.types.map(t => `<option value="${t.id}" ${t.id === selected ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
+    ${sortedKinds().map(t => `<option value="${t.id}" ${t.id === selected ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
     <option value="__new">+ Nuevo tipo…</option></select>`;
 }
 

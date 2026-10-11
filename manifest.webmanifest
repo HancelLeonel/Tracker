@@ -2,6 +2,7 @@
   "name": "Tracker",
   "short_name": "Tracker",
   "description": "Finanzas, hábitos y compras",
+  "id": "./",
   "lang": "es",
   "start_url": "./",
   "scope": "./",

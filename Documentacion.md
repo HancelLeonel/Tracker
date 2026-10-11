@@ -39,6 +39,9 @@ Todas las rutas son relativas, así que funciona bajo el subpath `/<repo>/`.
 
 ### Actualizar la app instalada
 
+La app se actualiza sola al abrirla con conexión. Lo que **no** se actualiza solo es el **nombre y el icono de la pantalla de inicio ni la pantalla de carga del sistema** (el *splash* de Android): se toman del manifiesto en el momento de instalar. Si cambias el nombre o el icono, hay que **desinstalar la app del teléfono y volver a instalarla** (Brave, en particular, no actualiza los accesos directos instalados). Mientras la app arranca también se muestra una pantalla de carga propia con el logo y el nombre actuales.
+
+
 El service worker usa *network-first*: con conexión siempre descarga la versión nueva y sin conexión usa la copia guardada. Si añades un archivo `.js` nuevo, agrégalo a la lista `SHELL` de [sw.js](sw.js) para que también funcione offline.
 
 ---
@@ -104,6 +107,10 @@ Una tarjeta es un **método de pago**, no una categoría. Al registrar un gasto 
 - **Pagar tarjeta** propone pagar cada categoría con lo que se gastó de ella con la tarjeta. Al pagar se libera lo apartado y baja la deuda.
 - El gasto se cuenta **una sola vez** en los reportes (al comprar). Pagar la tarjeta es una transferencia, no un gasto.
 - Si la tarjeta tiene **límite**, se avisa al superarlo. Se puede definir una deuda inicial; esa parte aparece «Sin categoría (saldo inicial)».
+
+### Orden alfabético
+
+En **Finanzas** las listas de nombres van siempre en orden alfabético (sin distinguir mayúsculas ni tildes, y con números naturales: «Cat 2» antes que «Cat 10»): cuentas, categorías, selectores de categoría, tipos de gasto, líneas de la guía y el desglose por categoría de las tarjetas. Se reordenan solas al crear o renombrar. Mantienen su propio orden las listas donde el orden significa algo: movimientos y pagos por fecha, y los rankings de reportes por monto.
 
 ### Movimientos
 
@@ -245,9 +252,9 @@ Cada cuenta tiene un botón con una flecha para **ocultar o mostrar sus categor�
 
 En **Datos**:
 
-- **Exportar a archivo** descarga un JSON con todo. **Compartir respaldo** lo envía a otra app (Drive, WhatsApp…).
+- **Exportar a archivo** descarga un JSON con todo. **Compartir respaldo** lo envía a otra app (Drive, WhatsApp…). Los navegadores móviles solo permiten compartir ciertos tipos de archivo, así que se comparte como texto plano con nombre `tracker-fecha.json.txt` (la app lo importa igual). Si compartir falla o el navegador no lo permite, el respaldo se **descarga** automáticamente y se avisa el motivo; cerrar el menú de compartir no cuenta como error.
 - La casilla **Incluir archivos adjuntos** decide si el respaldo lleva también fotos y PDF. Sin ella es ligero; con ella es completo pero más pesado.
-- **Importar desde archivo** valida el respaldo y **reemplaza todos los datos actuales** (pide confirmación). Si el respaldo no trae adjuntos, se conservan los que ya hay en el teléfono.
+- **Importar desde archivo** (acepta `.json` y `.txt`) valida el respaldo y **reemplaza todos los datos actuales** (pide confirmación). Si el respaldo no trae adjuntos, se conservan los que ya hay en el teléfono.
 - Se muestra la fecha del último respaldo.
 
 > **Recomendación:** exporta un respaldo de vez en cuando. Si borras los datos del navegador, se pierden.

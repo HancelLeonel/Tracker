@@ -269,3 +269,7 @@ body.menu-open #drawer { transform: none; visibility: visible; transition: trans
 .card-tools { display: flex; gap: 6px; }
 .fold { margin-top: 8px; font-size: .85rem; }
 .acc-dlg-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+
+/* Pantalla de carga */
+.boot { display: grid; place-content: center; justify-items: center; gap: 16px; min-height: 70dvh; }
+.boot b { font-size: 1.6rem; letter-spacing: .04em; }

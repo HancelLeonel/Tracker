@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { r2, sum, uid, today } from './util.js';
+import { r2, sum, uid, today, byName } from './util.js';
 
 export const S = {
   tab: 'money',
@@ -40,7 +40,8 @@ export async function loadState() {
     await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'files', 'meta'].map(db.getAll));
   bump();
   S.habits = habits;
-  S.accounts = accounts.map(a => ({ type: 'normal', ...a })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  S.accounts = accounts.map(a => ({ type: 'normal', ...a }));
+  sortAccounts();
   S.moves = moves;
   S.plan = plan;
   S.bills = bills;
@@ -55,7 +56,15 @@ export async function loadState() {
 }
 
 export const saveHabit = h => db.commit({ put: { habits: [h] } });
-export const saveAccount = a => { bump(); return db.commit({ put: { accounts: [a] } }); };
+// Cuentas y categorías siempre en orden alfabético (se reordenan al crear o renombrar).
+export function sortAccounts() {
+  S.accounts.sort(byName);
+  S.accounts.forEach(a => a.cats.sort(byName));
+}
+// Tipos de gasto en orden alfabético (sin tocar el orden guardado).
+export const sortedKinds = () => [...S.settings.types].sort(byName);
+
+export const saveAccount = a => { bump(); sortAccounts(); return db.commit({ put: { accounts: [a] } }); };
 export const saveSettings = () => db.commit({ put: { meta: [{ k: 'settings', v: S.settings }] } });
 
 // ---------- tipos de gasto ----------

@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { esc, money, sum, r2, uid, today, periodFor, shiftRef, toast } from './util.js';
+import { esc, money, sum, r2, uid, today, periodFor, shiftRef, toast, byName } from './util.js';
 import { S, savePlanLine, allKeys, hasCats, catLabel, balanceWithout, findAcc, findCat, isCredit, splitKey } from './state.js';
 import { modal, catSelect } from './ui.js';
 import { flowForm, payCardForm } from './money.js';
@@ -30,7 +30,7 @@ const icon = (done, total) => `<span class="status-i">${svg(done >= total - 0.00
 
 export function planView() {
   const p = periodFor('q', S.guide.ref);
-  const lines = S.plan.filter(l => applies(l, p.half) && lineValid(l));
+  const lines = S.plan.filter(l => applies(l, p.half) && lineValid(l)).sort(byName);
   const { into, cross } = progress(p);
   const received = sum(S.moves.filter(m => m.type === 'income' && m.date >= p.start && m.date <= p.end), m => m.total);
 
@@ -82,7 +82,7 @@ export function planView() {
     </section>`).join('');
 
   const planned = half => sum(S.plan.filter(l => applies(l, half)), l => l.amount);
-  const all = S.plan.map(l => `
+  const all = [...S.plan].sort(byName).map(l => `
     <li><button class="move" data-act="edit-line" data-id="${l.id}">
       <span>${esc(l.name)}<small>${esc(WHEN[l.when])} · ${esc(lineValid(l) ? catLabel(splitKey(l.key)) : '(categoría eliminada)')}</small></span>
       <span class="amt">${money(l.amount)}</span></button></li>`).join('');

@@ -1,6 +1,6 @@
 import * as db from './db.js';
 import { esc, uid, today, toast, $ } from './util.js';
-import { S, loadState, saveSettings, gcFiles } from './state.js';
+import { S, loadState, saveSettings, gcFiles, sortedKinds } from './state.js';
 import { modal } from './ui.js';
 import { icon } from './icons.js';
 import { COLORS } from './habits.js';
@@ -34,7 +34,7 @@ export function dataView() {
     </section>
     <section class="card stack">
       <div class="card-h"><h3>Tipos de gasto</h3><button class="btn sm" data-act="new-kind">${icon('plus')} Nuevo</button></div>
-      <div class="chips">${S.settings.types.map(t => `<button class="chip-tag" data-act="edit-kind" data-id="${t.id}">${esc(t.name)}</button>`).join('')}</div>
+      <div class="chips">${sortedKinds().map(t => `<button class="chip-tag" data-act="edit-kind" data-id="${t.id}">${esc(t.name)}</button>`).join('')}</div>
     </section>
     <section class="card stack">
       <h3>Zona de peligro</h3>
@@ -89,9 +89,8 @@ async function markExported() {
   await saveSettings();
 }
 
-async function doExport() {
-  toast('Preparando respaldo…');
-  const file = await fileForExport();
+// Descarga el archivo en el teléfono (carpeta Descargas).
+function download(file) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(file);
   a.download = file.name;
@@ -99,18 +98,39 @@ async function doExport() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+async function doExport() {
+  toast('Preparando respaldo…');
+  const file = await fileForExport();
+  download(file);
   await markExported();
   toast(`Respaldo exportado (${fileSize(file.size)})`);
 }
 
+// Compartir: los navegadores móviles solo dejan compartir ciertos tipos de archivo (JSON suele no estar en la lista),
+// así que se envía como texto plano (.json.txt, que la app también sabe importar). El permiso de compartir se gasta en
+// el primer intento, por lo que no se reintenta: si algo falla, el respaldo se descarga para no perderlo.
 async function doShare() {
-  const file = await fileForExport();
-  if (!navigator.canShare({ files: [file] })) return toast('Este dispositivo no puede compartir archivos');
+  if (!navigator.share) return toast('Este navegador no puede compartir. Usa «Exportar a archivo».');
+  toast('Preparando respaldo…');
+  const json = await fileForExport();
+  const txt = new File([json], json.name + '.txt', { type: 'text/plain' });
+  const file = [txt, json].find(f => navigator.canShare?.({ files: [f] }));
+  if (!file) {
+    download(json);
+    await markExported();
+    return toast('Este navegador no permite compartir archivos: se descargó el respaldo.');
+  }
   try {
     await navigator.share({ files: [file], title: 'Respaldo Tracker' });
     await markExported();
+    toast('Respaldo compartido');
   } catch (err) {
-    if (err.name !== 'AbortError') toast('No se pudo compartir');
+    if (err.name === 'AbortError') return; // la persona cerró el menú de compartir
+    download(json);
+    await markExported();
+    toast(`No se pudo compartir (${err.name}). Se descargó el respaldo.`);
   }
 }
 

@@ -14,7 +14,17 @@
 </head>
 <body>
   <header id="topbar"></header>
-  <main id="view"></main>
+  <main id="view">
+    <!-- Pantalla de carga: se muestra al instante y la reemplaza la primera vista -->
+    <div class="boot" role="status" aria-label="Cargando Tracker">
+      <svg viewBox="0 0 512 512" width="96" height="96" aria-hidden="true">
+        <rect width="512" height="512" rx="112" fill="#24273a"/>
+        <circle cx="256" cy="256" r="184" fill="none" stroke="#fff" stroke-width="28"/>
+        <path d="M175 262l62 66 102-116" fill="none" stroke="#fff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <b>Tracker</b>
+    </div>
+  </main>
   <button id="fab" class="fab" data-act="new-exp" aria-label="Nuevo gasto" hidden></button>
 
   <div id="scrim" data-act="menu-close"></div>
@@ -23,7 +33,7 @@
   <dialog id="dlg"></dialog>
   <dialog id="viewer"></dialog>
   <div id="toast" role="status"></div>
-  <input type="file" id="file" accept="application/json,.json" hidden>
+  <input type="file" id="file" accept="application/json,.json,text/plain,.txt" hidden>
 
   <script type="module" src="js/app.js"></script>
 </body>

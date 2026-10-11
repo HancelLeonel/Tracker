@@ -59,17 +59,17 @@ try:
         check('cuenta Efectivo completa', 'Completo' in t, t[:600])
         check('líneas aún pendientes', t.count('Q0.00 / Q')>=3, t[:900])
         # paso 2: repartir dentro de Efectivo, poco a poco
-        page.click('[data-act=guide-do] >> nth=0')   # Internet 200
+        page.click('[data-act=guide-do]:has-text("Internet")')   # Internet 200
         check('precarga monto 200', dlg.locator('[name=amount]').input_value()=='200')
         pick('from', 'Por distribuir'); save()
         t = txt(); check('Internet cumplida', 'Internet\nQ200.00 / Q200.00' in t, t[:700])
-        page.click('[data-act=guide-do] >> nth=1')   # Comida 600, solo 300 por ahora
+        page.click('[data-act=guide-do]:has-text("Comida")')   # Comida 600, solo 300 por ahora
         dlg.locator('[name=amount]').fill('300'); pick('from', 'Por distribuir'); save()
         t = txt(); check('Comida parcial 300/600', 'Q300.00 / Q600.00' in t, t[:800])
-        page.click('[data-act=guide-do] >> nth=1')   # restante
+        page.click('[data-act=guide-do]:has-text("Comida")')   # restante
         check('precarga lo que falta 300', dlg.locator('[name=amount]').input_value()=='300', dlg.locator('[name=amount]').input_value())
         pick('from', 'Por distribuir'); save()
-        page.click('[data-act=guide-do] >> nth=2'); pick('from', 'Por distribuir'); save()
+        page.click('[data-act=guide-do]:has-text("Varios")'); pick('from', 'Por distribuir'); save()
         t = txt(); check('todo cumplido', t.count('/ Q')>=3 and 'Q0.00\nde Q1,200.00' in t, t[:900])
         # saldos reales
         page.click('[data-act=sub][data-sub=accounts]'); t = txt()

@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { esc, money, sum, r2, uid, today, fmtDate, toast } from './util.js';
+import { esc, money, sum, r2, uid, today, fmtDate, toast, byText } from './util.js';
 import {
   S, saveSettings, saveAccount, saveMove, deleteMove, findAcc, findCat, isCredit, keyOf, splitKey,
   normalKeys, hasNormalCats, catLabel, totals, effects, sortedMoves, bump, balanceWithout, availWithout, kindName, reservedMap, cardPending,
@@ -105,7 +105,7 @@ function normalCard(a, res) {
 function creditCard(a) {
   const bal = a.cats[0]?.balance ?? 0;
   const free = a.limit > 0 ? r2(a.limit + bal) : null;
-  const pend = [...cardPending(a.id)].sort((x, y) => y[1] - x[1]);
+  const pend = [...cardPending(a.id)].sort((x, y) => byText(catLabel(splitKey(x[0])), catLabel(splitKey(y[0]))));
   const other = r2(-bal - sum(pend, p => p[1]));
   const pendHtml = pend.length || other > 0.004 ? `
       <ul class="cats">
@@ -377,7 +377,7 @@ export function payCardForm(card, move) {
   const opt = { credit: false };
   const rows = move
     ? move.parts.map(p => ({ key: keyOf(p), amount: p.amount }))
-    : (pend.size ? [...pend].sort((a, b) => b[1] - a[1]).map(([key, amount]) => ({ key, amount })) : [{ key: normalKeys()[0], amount: Math.max(0, debt) }]);
+    : (pend.size ? [...pend].sort((a, b) => byText(catLabel(splitKey(a[0])), catLabel(splitKey(b[0])))).map(([key, amount]) => ({ key, amount })) : [{ key: normalKeys()[0], amount: Math.max(0, debt) }]);
   const untracked = r2(debt - sum([...pend], p => p[1]));
 
   modal(move ? `Editar pago de ${card.name}` : `Pagar ${card.name}`, `
