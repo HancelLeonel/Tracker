@@ -38,7 +38,7 @@ try:
             tx.oncomplete = () => { db.close(); res(); }; tx.onerror = () => rej(tx.error); };
           r.onerror = () => rej(r.error); })""")
         page.goto('http://localhost:8765/')
-        page.wait_for_selector('#view .card')
+        page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
         t = page.locator('#view').inner_text()
         check('migración: cuenta vieja visible', 'Viejo Banco' in t and 'Q150.00' in t, t[:300])
         check('migración: movimiento viejo sin título', 'Gasto viejo' in t, t[:500])

@@ -40,7 +40,8 @@ try:
             page = ctx.new_page(); page.on('dialog', lambda d: d.accept())
             page.goto('http://localhost:8765/icons/icon.svg')
             page.evaluate(SEED, N)
-            t0 = time.time(); page.goto('http://localhost:8765/'); page.wait_for_selector('#view .card'); load = (time.time()-t0)*1000
+            t0 = time.time(); page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); load = (time.time()-t0)*1000
+            page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
             # tiempo de repintado de cuentas
             def click_t(sel):
                 return page.evaluate("""async (sel) => { const t = performance.now(); document.querySelector(sel).click();

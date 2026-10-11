@@ -31,6 +31,7 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | `interfaz.py` | Menú lateral, cuentas plegables, movimientos por cuenta, selector de gasto, iconos blancos, nombre Tracker |
 | `paginacion_y_cache.py` | Listas paginadas y que la caché se invalide al agregar/editar/borrar |
 | `habitos.py` | Hábitos: iconos, carrusel de momentos del día, filas compactas, marcar días anteriores, reordenar, persistencia, exportar/importar y respaldos antiguos |
+| `inicio.py` | Inicio: pantalla predeterminada, saludo y fecha, frase que cambia cada vez que se muestra sin repetirse hasta agotarlas |
 | `listas.py` | Listas y plantillas: crear desde plantilla, marcar, adicionales, aviso «Ya toca», completar, guardar lista como plantilla, exportar/importar |
 | `benchmark_carga.py` | Tiempos de carga, pantallas, reportes y guardado con 1k–60k movimientos (no es parte de `run_all`) |
 | `benchmark_listas.py` | Tiempos de las listas largas con 1k–60k movimientos (no es parte de `run_all`) |

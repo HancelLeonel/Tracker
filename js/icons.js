@@ -1,5 +1,6 @@
 // Iconos minimalistas de trazo blanco (estilo Whicons). Son SVG en línea: no hay imágenes que cargar.
 const PATHS = {
+  home: '<path d="M4 11l8-7 8 7M6 9.5V20h12V9.5M10 20v-5h4v5"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   minus: '<path d="M5 12h14"/>',

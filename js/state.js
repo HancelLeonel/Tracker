@@ -2,7 +2,7 @@ import * as db from './db.js';
 import { r2, sum, uid, today, byName } from './util.js';
 
 export const S = {
-  tab: 'money',
+  tab: 'home',     // pantalla predeterminada: Inicio
   sub: 'accounts', // accounts | plan | bills | reports
   habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [],
   files: new Map(), // id -> { mime, name, size } (el contenido se lee bajo demanda)

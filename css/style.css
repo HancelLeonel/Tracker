@@ -341,3 +341,13 @@ button.li:active { background: var(--surface0); }
 .mini i.on { background: var(--c); }
 .hrow .dot { flex: none; width: 44px; height: 44px; max-width: none; }
 .hrow.sorting .name { display: block; }
+
+/* Inicio: saludo y una frase que cambia cada vez que se muestra */
+.home { min-height: calc(100dvh - 150px); display: grid; grid-template-rows: auto 1fr; gap: 8px; }
+.home-top h2 { font-size: 1.6rem; font-weight: 650; }
+.home-quote { display: grid; align-content: center; padding: 0 4px 12vh; text-align: left; color: inherit; }
+.home-quote blockquote { margin: 0; }
+.home-quote blockquote::before { content: ''; display: block; width: 36px; height: 3px; margin-bottom: 20px; border-radius: 99px; background: var(--mauve); }
+.home-quote p { font-size: 1.65rem; line-height: 1.35; font-weight: 500; letter-spacing: -.01em; text-wrap: balance; }
+.home-quote footer { margin-top: 18px; color: var(--subtext0); font-size: .95rem; }
+.home-quote footer::before { content: '— '; }

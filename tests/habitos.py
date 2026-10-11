@@ -19,7 +19,7 @@ try:
         page.on('pageerror', lambda e: errs.append(str(e)))
         page.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
         page.on('dialog', lambda d: d.accept())
-        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .card')
+        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
         dlg = page.locator('#dlg')
         def save(): dlg.locator('button.primary').click(); page.wait_for_timeout(150)
         txt = lambda: page.locator('#view').inner_text()
@@ -69,7 +69,7 @@ try:
         page.evaluate("document.querySelector('#hcar').scrollTo({left: 0, behavior: 'instant'})"); page.wait_for_timeout(500)
         check('al deslizar al inicio se marca «Mañana»', page.locator('[data-slotpill].on').get_attribute('data-slotpill')=='morning' and inview('morning'))
         page.click('[data-slotpill=day]'); page.wait_for_timeout(700)
-        page.reload(); page.wait_for_selector('#view .card'); go('habits')
+        page.reload(); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card'); go('habits')
         check('al volver a abrir arranca según la hora del día, no en la última', page.locator('[data-slotpill].on').count()==1)
         page.screenshot(path=OUT+'h_carousel.png', full_page=True)
 
@@ -103,7 +103,7 @@ try:
         page.click('.habit:has-text("Meditar") [data-act=habit-up]'); page.wait_for_timeout(100)
         page.click('[data-act=habits-sort]'); page.wait_for_timeout(100)
         check('al salir vuelven los botones de marcar', page.locator('[data-act=toggle]').count()==5)
-        page.reload(); page.wait_for_selector('#view .card'); go('habits')
+        page.reload(); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card'); go('habits')
         check('el orden persiste al recargar', names()[:2]==['Meditar','Tomar agua'], names())
 
         # ---- cambiar de momento por edición
@@ -137,7 +137,7 @@ try:
         go('habits')
         check('respaldo antiguo: orden alfabético estable y sin encabezados', names()==['Alfa','Zeta'] and page.locator('.slot-h').count()==0, (names(), page.locator('.slot-h').count()))
         check('respaldo antiguo: valores inválidos se corrigen', page.locator('.habit .h-ic svg').count()==2)
-        page.reload(); page.wait_for_selector('#view .card'); go('habits')
+        page.reload(); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card'); go('habits')
         check('orden estable tras recargar', names()==['Alfa','Zeta'])
 
         # ---- eliminar

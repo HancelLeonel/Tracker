@@ -19,7 +19,7 @@ try:
         page.on('pageerror', lambda e: errs.append(str(e)))
         page.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
         page.on('dialog', lambda d: d.accept())
-        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .card')
+        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
         dlg = page.locator('#dlg')
         def save(): dlg.locator('button.primary').click(); page.wait_for_timeout(150)
         txt = lambda: page.locator('#view').inner_text()
@@ -71,7 +71,7 @@ try:
         check('la lista activa muestra su avance', '2/6' in txt(), txt())
 
         # ---- persistencia
-        page.reload(); page.wait_for_selector('#view .card'); go('lists')
+        page.reload(); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card'); go('lists')
         check('persiste tras recargar', '2/6' in txt())
         page.click('[data-act=open-list]'); page.wait_for_timeout(100)
         check('persisten los marcados', page.locator('.li.done').count()==2 and rows()[-1]=='Detergente')
@@ -101,7 +101,7 @@ try:
           for (const l of all) { l.created = '2020-01-01'; st.put(l); }
           await new Promise(r => tx.oncomplete = r);
         }""")
-        page.reload(); page.wait_for_selector('#view .card'); go('lists')
+        page.reload(); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card'); go('lists')
         check('plantilla vencida: aviso «Ya toca» en Listas', page.locator('.card.due').count()==1 and 'Ya toca' in txt(), txt())
         page.screenshot(path=OUT+'l_due.png', full_page=True)
         page.click('.card.due [data-act=use-tpl]'); page.wait_for_timeout(150)

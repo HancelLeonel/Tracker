@@ -1,7 +1,8 @@
 # Tracker — Documentación
 
-**Tracker** es una PWA pensada para Android que reúne cinco herramientas personales en una sola app:
+**Tracker** es una PWA pensada para Android que reúne seis herramientas personales en una sola app:
 
+- **Inicio**: la pantalla con la que abre la app; saludo, fecha y una frase célebre distinta cada vez.
 - **Finanzas**: cuentas con dinero real repartido en categorías, tarjetas de crédito, guía de transferencias de cada quincena, pagos pendientes y reportes.
 - **Hábitos**: seguimiento diario con rachas, iconos, momentos del día y orden propio.
 - **Listas**: listas de tareas o compras que se crean a partir de **plantillas** reutilizables (el súper quincenal, la limpieza semanal…).
@@ -67,6 +68,7 @@ js/
   bills.js              Pagos que debo realizar
   reports.js            Reportes
   purchases.js          Registro de compras
+  home.js               Inicio: saludo, fecha y frases célebres
   habits.js             Hábitos (iconos, momentos del día, orden)
   lists.js              Listas y plantillas
   data.js               Exportar, importar, tipos de gasto, borrado total
@@ -178,6 +180,13 @@ En **Finanzas → Reportes**, por **quincena, mes, año o todo el tiempo** (con 
 - Cuentas con más movimiento y gastos más grandes.
 
 Las transferencias y los pagos de tarjeta no cuentan como gasto.
+
+### Inicio
+
+Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inicio** en el menú lateral) se ve un saludo según la hora («Buenos días» hasta las 12, «Buenas tardes» hasta las 19, «Buenas noches» después), la fecha y una frase célebre con su autor.
+
+- **La frase cambia cada vez que se muestra la pantalla**: al abrir la app, al volver a Inicio desde otra herramienta y al regresar a la app desde segundo plano. También cambia **tocando la frase** (no hay botón visible, para mantener la pantalla limpia). Abrir o cerrar el menú no la cambia.
+- Las frases se reparten **mezcladas, sin repetir ninguna hasta haberlas visto todas** (34 frases en [home.js](js/home.js), lista `QUOTES`). Para agregar una basta con añadir `['texto', 'Autor']`; conviene usar solo frases con autoría documentada (obras, discursos o refranes).
 
 ### Listas y plantillas
 

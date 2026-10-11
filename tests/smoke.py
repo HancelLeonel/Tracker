@@ -24,7 +24,7 @@ try:
         page.on('pageerror', lambda e: errs.append(str(e)))
         page.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
         page.goto('http://localhost:8765/')
-        page.wait_for_selector('#view .card')
+        page.wait_for_selector('#view .home')
         page.screenshot(path=OUT + 's0.png')
         print('errors:', errs)
         b.close()

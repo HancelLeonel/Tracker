@@ -9,6 +9,7 @@ import * as reports from './reports.js';
 import * as purchases from './purchases.js';
 import * as habits from './habits.js';
 import * as lists from './lists.js';
+import * as home from './home.js';
 import * as data from './data.js';
 import { esc } from './util.js';
 
@@ -16,7 +17,7 @@ const SUBS = [['accounts', 'Cuentas'], ['plan', 'Guía'], ['bills', 'Pagos'], ['
 const SUB_TITLES = { accounts: 'Finanzas', plan: 'Guía de transferencias', bills: 'Pagos', reports: 'Reportes' };
 const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], plan: ['new-line', 'Nueva línea'], bills: ['new-bill', 'Nuevo pago'] };
 
-const TABS = [['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'], ['data', 'Datos', 'data']];
+const TABS = [['home', 'Inicio', 'home'], ['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'], ['data', 'Datos', 'data']];
 
 const menuOpen = open => {
   document.body.classList.toggle('menu-open', open);
@@ -38,7 +39,10 @@ function render() {
   fab.hidden = !(S.tab === 'money' && S.sub === 'accounts' && hasNormalCats());
   fab.innerHTML = icon('plus');
 
-  if (S.tab === 'money') {
+  if (S.tab === 'home') {
+    top.innerHTML = topbar('Inicio');
+    view.innerHTML = home.homeView();
+  } else if (S.tab === 'money') {
     const alerts = bills.billsAlert();
     top.innerHTML = topbar(SUB_TITLES[S.sub], SUB_ACTION[S.sub]);
     const seg = `<div class="seg" role="tablist">${SUBS.map(([k, name]) =>
@@ -72,12 +76,12 @@ function render() {
 hooks.render = render;
 
 const actions = {
-  tab: el => { S.tab = el.dataset.tab; S.habitsSort = false; S.listEdit = false; menuOpen(false); window.scrollTo(0, 0); },
+  tab: el => { S.tab = el.dataset.tab; if (S.tab === 'home') home.nextQuote(); S.habitsSort = false; S.listEdit = false; menuOpen(false); window.scrollTo(0, 0); },
   'menu-open': () => menuOpen(true),
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
   'open-file': el => openFile(el.dataset.id),
-  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...data.actions,
+  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...data.actions,
 };
 
 document.addEventListener('click', async e => {
@@ -108,6 +112,11 @@ document.addEventListener('scroll', e => { if (e.target.id === 'hcar') habits.on
 
 // Formularios en línea (agregar a una lista): se gestionan con data-act, sin enviar la página.
 document.addEventListener('submit', e => { if (e.target.matches('[data-noform]')) e.preventDefault(); });
+
+// Cada vez que se vuelve a mostrar Inicio (por ejemplo al regresar a la app desde otra) se elige otra frase.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && S.tab === 'home' && !isOpen()) { home.nextQuote(); render(); }
+});
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') menuOpen(false); });
 

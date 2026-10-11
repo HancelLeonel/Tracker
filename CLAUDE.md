@@ -1,6 +1,6 @@
 # CLAUDE.md — Tracker
 
-PWA personal para Android (finanzas por quincena, hábitos, listas con plantillas, compras). **Vanilla JS + IndexedDB, sin build ni dependencias**, publicada en GitHub Pages. Todo el texto de la interfaz, los comentarios y la documentación están en **español**; moneda en quetzales (`Q`). La documentación de usuario/proyecto completa está en [Documentacion.md](Documentacion.md): léela antes de cambiar comportamiento de finanzas.
+PWA personal para Android (inicio con frases, finanzas por quincena, hábitos, listas con plantillas, compras). **Vanilla JS + IndexedDB, sin build ni dependencias**, publicada en GitHub Pages. Todo el texto de la interfaz, los comentarios y la documentación están en **español**; moneda en quetzales (`Q`). La documentación de usuario/proyecto completa está en [Documentacion.md](Documentacion.md): léela antes de cambiar comportamiento de finanzas.
 
 ## Comandos
 
@@ -24,6 +24,7 @@ No hay Node. Para validar cualquier cambio de interfaz se usa Playwright (Chromi
 | `js/util.js` | Fechas, periodos, `money()`, `toast()` |
 | `js/money.js` | Cuentas, gasto, ingreso, mover, pago de tarjeta, movimientos por cuenta |
 | `js/plan.js` | Guía de transferencias por quincena |
+| `js/home.js` | Pantalla de inicio (la predeterminada, `S.tab = 'home'`): saludo, fecha y frases |
 | `js/bills.js` · `reports.js` · `purchases.js` · `habits.js` · `lists.js` · `data.js` | Pagos pendientes · reportes · compras · hábitos · listas y plantillas · respaldo/ajustes |
 | `sw.js` | Service worker (network-first con respaldo offline) |
 
@@ -64,6 +65,10 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - Lo agregado a mano lleva `extra: true` y se pinta aparte en «Adicionales». «Completada» no se guarda: se deriva (todos los elementos marcados).
 - «Ya toca» se deriva de la última `created` de las listas con ese `tplId` y de `freq`; no hay notificaciones.
 - El campo de agregar es un `<form data-noform>` (`app.js` evita su envío) y tras agregar `S.focusNew` devuelve el foco al campo en el repintado.
+
+**Inicio** ([home.js](js/home.js))
+- La app abre en `S.tab = 'home'`. Las pruebas que asumen Finanzas deben navegar con el menú (`#tabs [data-tab=money]`) tras cargar/recargar; la espera de carga es `#view .home`, no `#view .card`.
+- La frase **no** se elige en `homeView()` (se repinta con cada acción, y cambiaría al abrir el menú): se elige con `nextQuote()` al iniciar, al elegir la pestaña Inicio, al tocar la frase y en `visibilitychange`. Es una bolsa mezclada (sin repetir hasta agotar `QUOTES`).
 
 **Compartir respaldo**
 - `navigator.share` solo acepta ciertos tipos de archivo y **gasta el permiso en el primer intento** (no se puede reintentar). Por eso se comparte como `text/plain` (`.json.txt`) y, ante cualquier fallo distinto de `AbortError` (o si no hay soporte), el respaldo se **descarga** y se avisa el motivo. El importador acepta `.json` y `.txt`. No se pudo reproducir en Brave Android: las pruebas simulan Web Share.

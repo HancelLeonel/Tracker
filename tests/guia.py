@@ -18,7 +18,7 @@ try:
         page.on('pageerror', lambda e: errs.append(str(e)))
         page.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
         page.on('dialog', lambda d: d.accept())
-        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .card')
+        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
         dlg = page.locator('#dlg')
         def save(): dlg.locator('button.primary').click(); page.wait_for_timeout(150)
         txt = lambda: page.locator('#view').inner_text()

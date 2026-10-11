@@ -40,7 +40,7 @@ try:
         page.on('pageerror', lambda e: errs.append(str(e))); page.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
         page.on('dialog', lambda d: d.accept())
         page.goto('http://localhost:8765/icons/icon.svg'); page.evaluate(SEED, 200)
-        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .card')
+        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
         dlg = page.locator('#dlg')
         rows = lambda: page.locator('#view .moves .move').count()
         check('lista principal: 30 filas', rows()==30, rows())
@@ -79,7 +79,7 @@ try:
         # compras paginadas
         page.evaluate("""async () => { const db = await new Promise(r => { const q = indexedDB.open('mi-quincena'); q.onsuccess = () => r(q.result); });
           await new Promise(r => { const tx = db.transaction('purchases','readwrite'); for (let i=0;i<95;i++) tx.objectStore('purchases').put({id:'p'+i,name:'Compra '+i,date:'2025-01-01',price:0,store:'',tag:'',warrantyMonths:0,notes:'',files:[]}); tx.oncomplete = r; }); }""")
-        page.reload(); page.wait_for_selector('#view .card')
+        page.reload(); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
         page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=purchases]'); page.wait_for_timeout(150)
         pc = lambda: page.locator('#plist .purchase').count()
         check('compras: 40 filas', pc()==40, pc())
