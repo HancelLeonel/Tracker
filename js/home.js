@@ -1,5 +1,6 @@
 import { esc, today, fmtDate, daysBetween, pl } from './util.js';
 import { S } from './state.js';
+import { isDone, isSkip } from './habits.js';
 import { icon } from './icons.js';
 import { billsSummary } from './bills.js';
 import { todayTasks, taskRow } from './lists.js';
@@ -65,12 +66,12 @@ const MAX_TASKS = 6;
 
 // Tarjeta «Hábitos»: cuántos van hoy.
 function habitsTile() {
-  const t = today(), total = S.habits.length, done = S.habits.filter(h => h.dates[t]).length;
+  const t = today(), due = S.habits.filter(h => !isSkip(h, t)), total = due.length, done = due.filter(h => isDone(h, t)).length; // los que hoy «no tocan» no cuentan
   return `
     <button class="tile" data-act="tab" data-tab="habits">
       <span class="overline">Hábitos</span>
       ${total ? `<b class="tile-n">${done}<small>/${total}</small></b><span class="bar"><i style="width:${(done / total) * 100}%"></i></span>`
-        : '<b class="tile-n muted">—</b><small>Crea tu primer hábito</small>'}
+        : S.habits.length ? '<b class="tile-n muted">—</b><small>Hoy ninguno toca</small>' : '<b class="tile-n muted">—</b><small>Crea tu primer hábito</small>'}
     </button>`;
 }
 

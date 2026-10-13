@@ -13,13 +13,24 @@ export const SLOT_KEYS = SLOTS.map(s => s[0]);
 const slotOf = h => (SLOT_KEYS.includes(h.slot) ? h.slot : '');
 const iconOf = h => (HABIT_ICONS.includes(h.icon) ? h.icon : HABIT_ICONS[0]);
 
+// Cada día de un hábito puede estar sin marcar, hecho (1) o «no toca» (2: ese día no aplica, p. ej. el día de descanso del gimnasio).
+// Un día «no toca» no rompe la racha ni cuenta en el avance de hoy.
+export const SKIP = 2;
+export const isSkip = (h, d) => h.dates[d] === SKIP;
+export const isDone = (h, d) => !!h.dates[d] && !isSkip(h, d);
+// Siguiente estado al tocar: sin marcar → hecho → no toca → sin marcar.
+const nextState = v => (!v ? 1 : v === SKIP ? 0 : SKIP);
+const cls = (h, d) => (isSkip(h, d) ? 'skip' : isDone(h, d) ? 'on' : '');
+const mark = (h, d) => (isSkip(h, d) ? icon('minus') : isDone(h, d) ? icon('check') : '');
+const label = (h, d) => (isSkip(h, d) ? 'no toca' : isDone(h, d) ? 'hecho' : 'sin marcar');
+
 const weekDays = () => Array.from({ length: 7 }, (_, i) => addDays(today(), i - 6));
 
 function streak(h) {
   let d = today();
   if (!h.dates[d]) d = addDays(d, -1);
   let n = 0;
-  while (h.dates[d]) { n++; d = addDays(d, -1); }
+  while (h.dates[d]) { if (!isSkip(h, d)) n++; d = addDays(d, -1); } // los días «no toca» se saltan sin cortar la racha
   return n;
 }
 
@@ -33,7 +44,7 @@ const badge = h => `<span class="h-ic" style="--c:var(--${h.color})">${icon(icon
 
 // Los 6 días anteriores a hoy como puntos pequeños (hoy se marca con el botón grande de la fila).
 const miniDots = (h, t) => `<span class="mini" aria-hidden="true">${Array.from({ length: 6 }, (_, i) =>
-  `<i class="${h.dates[addDays(t, i - 6)] ? 'on' : ''}"></i>`).join('')}</span>`;
+  `<i class="${cls(h, addDays(t, i - 6))}"></i>`).join('')}</span>`;
 
 // Fila compacta: icono, nombre con racha e historial reciente, y botón para marcar hoy.
 function habitRow(h, t, sorting, first, last) {
@@ -46,7 +57,7 @@ function habitRow(h, t, sorting, first, last) {
         </div>
       </div>`;
   }
-  const s = streak(h), on = !!h.dates[t];
+  const s = streak(h), on = isDone(h, t), skip = isSkip(h, t);
   return `
     <div class="habit hrow" style="--c:var(--${h.color})">
       ${badge(h)}
@@ -54,7 +65,7 @@ function habitRow(h, t, sorting, first, last) {
         <span class="n">${esc(h.name)}</span>
         <span class="sub">${miniDots(h, t)}${s ? `<span class="streak">${icon('flame')} ${s} ${s === 1 ? 'día' : 'días'}</span>` : ''}</span>
       </button>
-      <button class="dot ${on ? 'on' : ''}" data-act="toggle" data-id="${h.id}" data-date="${t}" aria-pressed="${on}" aria-label="${esc(h.name)} hoy">${on ? icon('check') : ''}</button>
+      <button class="dot ${cls(h, t)}" data-act="toggle" data-id="${h.id}" data-date="${t}" aria-pressed="${skip ? 'mixed' : on}" aria-label="${esc(h.name)} hoy: ${label(h, t)}">${mark(h, t)}</button>
     </div>`;
 }
 
@@ -71,11 +82,12 @@ export function habitsView() {
     return `<div class="card empty"><p>Aún no tienes hábitos.</p><button class="btn primary" data-act="new-habit">Crear el primero</button></div>`;
   }
   const t = today();
-  const done = S.habits.filter(h => h.dates[t]).length;
+  const due = S.habits.filter(h => !isSkip(h, t)); // los que hoy «no tocan» no cuentan
+  const done = due.filter(h => isDone(h, t)).length;
   const sorting = S.habitsSort;
   const { all, flat } = groups();
   const cur = currentSlot(all.map(g => g.key));
-  const count = g => `${g.items.filter(h => h.dates[t]).length}/${g.items.length}`;
+  const count = g => { const d = g.items.filter(h => !isSkip(h, t)); return `${d.filter(h => isDone(h, t)).length}/${d.length}`; };
 
   // Cada momento del día es una tarjeta independiente; se pasa de una a otra deslizando (o con los botones de arriba).
   const cards = all.map(g => `
@@ -88,8 +100,8 @@ export function habitsView() {
 
   return `
     <section class="card progress-ring">
-      <b>Hoy ${done}/${S.habits.length}</b>
-      <div class="bar"><i style="width:${(done / S.habits.length) * 100}%"></i></div>
+      <b>Hoy ${done}/${due.length}</b>
+      <div class="bar"><i style="width:${due.length ? (done / due.length) * 100 : 0}%"></i></div>
       <button class="btn sm" data-act="habits-sort" aria-pressed="${sorting}">${icon(sorting ? 'check' : 'sort')} ${sorting ? 'Listo' : 'Ordenar'}</button>
     </section>
     ${pills}
@@ -129,6 +141,11 @@ export function goSlot(el) {
   car.scrollTo({ left: i * stepOf(car), behavior: 'smooth' });
 }
 
+function setDay(h, d) {
+  const n = nextState(h.dates[d]);
+  if (n) h.dates[d] = n; else delete h.dates[d];
+}
+
 export function habitForm(habit) {
   const color = habit?.color ?? 'mauve';
   const ic = habit ? iconOf(habit) : HABIT_ICONS[0];
@@ -141,8 +158,9 @@ export function habitForm(habit) {
     ${habit ? `<div><small class="muted">Últimos 7 días</small>
       <div class="week" id="wk">${weekDays().map(d => `
         <div class="day ${d === today() ? 'today' : ''}"><small>${WEEKDAYS[parseYmd(d).getDay()]}</small>
-          <button type="button" class="dot ${habit.dates[d] ? 'on' : ''}" data-d="${d}" aria-pressed="${!!habit.dates[d]}" aria-label="${fmtDate(d)}">${habit.dates[d] ? icon('check') : ''}</button></div>`).join('')}
-      </div></div>` : ''}
+          <button type="button" class="dot ${cls(habit, d)}" data-d="${d}" aria-pressed="${isSkip(habit, d) ? 'mixed' : isDone(habit, d)}" aria-label="${fmtDate(d)}: ${label(habit, d)}">${mark(habit, d)}</button></div>`).join('')}
+      </div>
+      <small class="muted">Toca un día para marcarlo como hecho y otra vez para «no toca» (un día que no aplica: no corta la racha ni cuenta en el avance).</small></div>` : ''}
     <div><small class="muted">Icono</small>
       <div class="icon-grid" role="radiogroup" aria-label="Icono">
         ${HABIT_ICONS.map(n => `<label><input type="radio" name="icon" value="${n}" ${n === ic ? 'checked' : ''} aria-label="${n}"><span>${icon(n)}</span></label>`).join('')}
@@ -156,11 +174,11 @@ export function habitForm(habit) {
     afterOpen: f => habit && f.querySelector('#wk').addEventListener('click', async e => {
       const b = e.target.closest('[data-d]');
       if (!b) return;
-      if (habit.dates[b.dataset.d]) delete habit.dates[b.dataset.d]; else habit.dates[b.dataset.d] = 1;
-      const on = !!habit.dates[b.dataset.d];
-      b.classList.toggle('on', on);
-      b.setAttribute('aria-pressed', on);
-      b.innerHTML = on ? icon('check') : '';
+      setDay(habit, b.dataset.d);
+      b.className = `dot ${cls(habit, b.dataset.d)}`;
+      b.setAttribute('aria-pressed', isSkip(habit, b.dataset.d) ? 'mixed' : isDone(habit, b.dataset.d));
+      b.setAttribute('aria-label', `${fmtDate(b.dataset.d)}: ${label(habit, b.dataset.d)}`);
+      b.innerHTML = mark(habit, b.dataset.d);
       await saveHabit(habit);
       hooks.render(); // la vista de fondo refleja el cambio aunque el diálogo se cierre con Cancelar
     }),
@@ -194,8 +212,7 @@ async function move(id, dir) {
 export const actions = {
   async toggle(el) {
     const h = S.habits.find(h => h.id === el.dataset.id);
-    const d = el.dataset.date;
-    if (h.dates[d]) delete h.dates[d]; else h.dates[d] = 1;
+    setDay(h, el.dataset.date);
     await saveHabit(h);
   },
   'new-habit': () => habitForm(),

@@ -3,7 +3,7 @@
 //   accounts  -> { id, name, type: 'normal'|'credit', limit?, cats: [{ id, name, balance }] }
 //   moves     -> { id, t, date, type: 'expense'|'income'|'transfer', title?, note, kind?, total, parts, to?, files? }
 //   plan      -> { id, name, amount, key: 'acc|cat', when: 'both'|'q1'|'q2' }
-//   bills     -> { id, title, amount, freq, day, dueDate, start, card?, paid: { [due]: {...} } }
+//   bills     -> { id, title, amount, freq: 'once'|'monthly'|'biweekly'|'yearly', day, month? (solo anual), dueDate, start, card?, paid: { [due]: {...} } }
 //   purchases -> { id, name, date, price, store, tag, warrantyMonths, notes, files }
 //   templates -> { id, name, color, freq, items: [{ text, head? }] }   (plantillas de listas)
 //   lists     -> { id, name, tplId, color, created, t, items: [{ id, text, head?, done?, extra? }] }

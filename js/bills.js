@@ -7,7 +7,7 @@ import {
 import { modal, catSelect, kindSelect, wireKindSelect, mountAttach, attachHtml, fileLinks } from './ui.js';
 import { icon } from './icons.js';
 
-const FREQ = { once: 'Una sola vez', monthly: 'Cada mes', biweekly: 'Cada quincena' };
+const FREQ = { once: 'Una sola vez', monthly: 'Cada mes', biweekly: 'Cada quincena', yearly: 'Cada año' };
 const LOOKAHEAD = 30;
 const HISTORY = 15;
 
@@ -19,7 +19,8 @@ function occurrences(b, from, to) {
   const [y0, m0] = from.split('-').map(Number);
   for (let d = new Date(y0, m0 - 1, 1); ymd(d) <= to; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
     const last = lastDayOf(d.getFullYear(), d.getMonth());
-    const days = b.freq === 'monthly' ? [b.day] : [b.day, b.day + 15];
+    if (b.freq === 'yearly' && d.getMonth() + 1 !== b.month) continue; // anual: solo el mes elegido
+    const days = b.freq === 'biweekly' ? [b.day, b.day + 15] : [b.day];
     for (const day of days) {
       const s = ymd(new Date(d.getFullYear(), d.getMonth(), Math.min(day, last)));
       if (s >= from && s <= to && !out.includes(s)) out.push(s);
@@ -88,10 +89,22 @@ export function billsView() {
   const history = S.bills.flatMap(b => Object.entries(b.paid ?? {}).map(([due, e]) => ({ bill: b, due, e })))
     .sort((a, b) => b.e.on.localeCompare(a.e.on) || b.due.localeCompare(a.due)).slice(0, HISTORY);
 
+  // Los anuales casi nunca caen en los próximos 30 días: se listan todos con su próxima fecha para poder verlos y editarlos.
+  const yearly = S.bills.filter(b => b.freq === 'yearly' && b.active !== false).map(bill => {
+    let due = null;
+    try { due = occurrences(bill, bill.start ?? '0000-01-01', addDays(t, 800)).find(d => !bill.paid?.[d]) ?? null; } catch { /* ficha dañada: sin fecha */ }
+    return { bill, due };
+  }).sort((a, b) => (a.due ?? '9').localeCompare(b.due ?? '9'));
+
   return `
     ${overdue.length ? `<section class="card alert"><div class="card-h"><h3>${icon('alert')} Vencidos</h3></div><ul class="moves">${overdue.map(row).join('')}</ul></section>` : ''}
     <section class="card"><div class="card-h"><h3>Próximos</h3></div>
       ${next.length ? `<ul class="moves">${next.map(row).join('')}</ul>` : '<small class="muted">Nada pendiente en los próximos 30 días.</small>'}</section>
+    ${yearly.length ? `<section class="card"><div class="card-h"><h3>Anuales</h3></div><ul class="moves">${yearly.map(({ bill, due }) => `
+      <li><button class="move" data-act="edit-bill" data-id="${bill.id}">
+        <span>${esc(bill.title)}<small>Cada año${due ? ` · próximo ${fmtDateY(due)}` : ''}${bill.card ? ' · tarjeta' : ''}</small></span>
+        ${bill.amount ? `<span class="amt">${money(bill.amount)}</span>` : ''}
+      </button></li>`).join('')}</ul></section>` : ''}
     ${history.length ? `<section class="card"><div class="card-h"><h3>Realizados</h3></div><ul class="moves">${history.map(({ bill, due, e }) => `
       <li><button class="move" data-act="paid-bill" data-id="${bill.id}" data-due="${due}">
         <span>${icon(e.skipped ? 'skip' : 'done')} ${esc(bill.title)}<small>${e.skipped ? 'Omitido' : `Pagado el ${fmtDateY(e.on)}`} · vencía ${fmtDate(due)}${e.files?.length ? ' · ' + icon('clip') : ''}</small></span>
@@ -100,25 +113,37 @@ export function billsView() {
     <button class="btn block" data-act="new-bill">${icon('plus')} Agregar pago</button>`;
 }
 
+// Fecha que se muestra al editar: la de un pago de una sola vez, o la próxima del año si es anual.
+function dateValue(bill) {
+  if (bill?.freq === 'once') return bill.dueDate ?? today();
+  if (bill?.freq === 'yearly') {
+    const y = parseYmd(today()).getFullYear(), at = yr => ymd(new Date(yr, bill.month - 1, Math.min(bill.day, lastDayOf(yr, bill.month - 1))));
+    return at(y) >= today() ? at(y) : at(y + 1);
+  }
+  return today();
+}
+
 export function billForm(bill) {
   const cards = S.accounts.filter(isCredit);
   const freq = bill?.freq ?? 'monthly';
+  const dated = freq === 'once' || freq === 'yearly'; // estos se piden con una fecha completa
   modal(bill ? 'Editar pago' : 'Nuevo pago', `
     <label>Qué debo pagar <input name="title" required maxlength="60" value="${esc(bill?.title ?? '')}" placeholder="Ej. Internet, Seguro, Visa…"></label>
     <label>Monto aproximado (opcional) <input name="amount" type="number" inputmode="decimal" step="0.01" min="0" value="${bill?.amount || ''}"></label>
     <label>Frecuencia
       <select name="freq">${Object.entries(FREQ).map(([k, v]) => `<option value="${k}" ${k === freq ? 'selected' : ''}>${v}</option>`).join('')}</select>
     </label>
-    <label id="f-once" ${freq === 'once' ? '' : 'hidden'}>Fecha de vencimiento <input name="dueDate" type="date" value="${bill?.dueDate ?? today()}"></label>
-    <label id="f-day" ${freq === 'once' ? 'hidden' : ''}><span id="day-hint">Día del mes en que vence</span> <input name="day" type="number" inputmode="numeric" min="1" max="${freq === 'biweekly' ? 15 : 31}" value="${bill?.day ?? parseYmd(today()).getDate()}"></label>
+    <label id="f-once" ${dated ? '' : 'hidden'}><span id="date-hint">Fecha de vencimiento</span> <input name="dueDate" type="date" value="${dateValue(bill)}"></label>
+    <label id="f-day" ${dated ? 'hidden' : ''}><span id="day-hint">Día del mes en que vence</span> <input name="day" type="number" inputmode="numeric" min="1" max="${freq === 'biweekly' ? 15 : 31}" value="${bill?.day ?? parseYmd(today()).getDate()}"></label>
     ${cards.length ? `<label>¿Es el pago de una tarjeta?
       <select name="card"><option value="">No</option>${cards.map(c => `<option value="${c.id}" ${c.id === bill?.card ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
     </label>` : ''}`, {
     afterOpen(f) {
       const sync = () => {
-        const once = f.elements.freq.value === 'once', bi = f.elements.freq.value === 'biweekly';
-        f.querySelector('#f-once').hidden = !once;
-        f.querySelector('#f-day').hidden = once;
+        const fq = f.elements.freq.value, dated = fq === 'once' || fq === 'yearly', bi = fq === 'biweekly';
+        f.querySelector('#f-once').hidden = !dated;
+        f.querySelector('#date-hint').textContent = fq === 'yearly' ? 'Próxima fecha de vencimiento (se repite cada año)' : 'Fecha de vencimiento';
+        f.querySelector('#f-day').hidden = dated;
         f.elements.day.max = bi ? 15 : 31;
         f.querySelector('#day-hint').textContent = bi ? 'Día de la 1ª quincena (el otro pago cae 15 días después)' : 'Día del mes en que vence';
       };
@@ -127,15 +152,18 @@ export function billForm(bill) {
     },
     async onSubmit(fd) {
       const f = fd.get('freq');
+      const dated = f === 'once' || f === 'yearly', date = fd.get('dueDate');
+      if (dated && !date) { alert('Indica la fecha de vencimiento.'); return false; }
       const data = {
         title: fd.get('title').trim(), amount: r2(+fd.get('amount')) || 0, freq: f,
-        dueDate: f === 'once' ? fd.get('dueDate') : null,
-        day: f === 'once' ? null : Math.min(f === 'biweekly' ? 15 : 31, Math.max(1, +fd.get('day') || 1)),
+        dueDate: f === 'once' ? date : null,
+        day: f === 'once' ? null : f === 'yearly' ? parseYmd(date).getDate() : Math.min(f === 'biweekly' ? 15 : 31, Math.max(1, +fd.get('day') || 1)),
+        month: f === 'yearly' ? parseYmd(date).getMonth() + 1 : null,
         card: fd.get('card') || null,
       };
-      if (f === 'once' && !data.dueDate) { alert('Indica la fecha de vencimiento.'); return false; }
-      if (bill) Object.assign(bill, data);
-      else S.bills.push({ id: uid(), start: today(), paid: {}, active: true, ...data });
+      // Uno anual empieza en la fecha elegida (si ya pasó, aparece vencido); al editar solo se adelanta el inicio si hace falta.
+      if (bill) { Object.assign(bill, data); if (f === 'yearly' && date < (bill.start ?? date)) bill.start = date; }
+      else S.bills.push({ id: uid(), start: f === 'yearly' ? date : today(), paid: {}, active: true, ...data });
       await saveBill(bill ?? S.bills.at(-1));
     },
     onDelete: bill && (async () => {

@@ -168,7 +168,9 @@ function accountMovesDialog(a) {
 
 // ---------- gasto ----------
 // No se asume de dónde sale el dinero: al crear un gasto hay un solo selector vacío. Si la categoría elegida no
-// alcanza, aparece «Agregar otra categoría» y solo se ofrecen categorías que tengan dinero libre.
+// alcanza, aparece «Agregar otra categoría» y solo se ofrecen categorías que tengan dinero libre. Con «Permitir saldo
+// negativo» (para un préstamo entre categorías o algo que se reintegra después) todo el gasto sale de la categoría
+// elegida aunque no alcance, y se ofrecen todas.
 export function expenseForm(move, presetKey, presetCard) {
   if (!hasNormalCats()) return toast('Primero crea una cuenta con una categoría');
   const keys = normalKeys();
@@ -178,18 +180,20 @@ export function expenseForm(move, presetKey, presetCard) {
   const cards = S.accounts.filter(isCredit);
 
   let total = move?.total ?? 0;
-  const cap = !move; // al crear, cada categoría aporta como máximo lo que tiene libre; al editar solo se ajustan montos
   let auto = !move || move.parts.length === 1;
   const rows = move
     ? move.parts.map(p => ({ key: keys.includes(keyOf(p)) ? keyOf(p) : '', amount: p.amount }))
     : [{ key: keys.includes(presetKey) ? presetKey : '', amount: 0 }];
+  // Un gasto que ya deja alguna categoría en negativo se abre con la opción marcada.
+  let allowNeg = rows.some(r => r.key && r.amount > avail(r.key) + 0.004);
+  const cap = () => !move && !allowNeg; // al crear, cada categoría aporta como máximo lo que tiene libre; al editar solo se ajustan montos
   const files = [...(move?.files ?? [])];
 
   // Reparte el total entre las filas, sin superar lo libre de cada categoría elegida.
   function autoFill() {
     let rem = total;
     rows.forEach((r, i) => {
-      r.amount = cap && r.key ? Math.min(rem, Math.max(0, avail(r.key))) : rem;
+      r.amount = cap() && r.key ? Math.min(rem, Math.max(0, avail(r.key))) : rem;
       rem = r2(rem - r.amount);
     });
   }
@@ -197,6 +201,7 @@ export function expenseForm(move, presetKey, presetCard) {
   // Categorías ofrecidas en la fila i: las que tienen dinero libre (o todas, si ninguna tiene), sin repetir.
   function choices(i) {
     const u = usedBy(i);
+    if (allowNeg) return keys.filter(k => !u.has(k));
     const free = keys.filter(k => !u.has(k) && (k === rows[i].key || avail(k) > 0.004));
     return free.length ? free : keys.filter(k => !u.has(k));
   }
@@ -214,6 +219,8 @@ export function expenseForm(move, presetKey, presetCard) {
       <div id="parts" class="parts"></div>
       <p id="remain" class="remain" aria-live="polite"></p>
       <button type="button" class="btn sm" id="addpart" hidden>${icon('plus')} Agregar otra categoría</button>
+      <label class="check"><input type="checkbox" name="neg" ${allowNeg ? 'checked' : ''}>
+        <span>Permitir saldo negativo<small>Si la categoría no alcanza, queda por debajo de cero hasta que la regularices (un préstamo entre categorías, algo que te reintegran).</small></span></label>
     </div>
     <label>Nota (opcional) <input name="note" maxlength="120" value="${esc(move?.note ?? '')}"></label>
     <label>Fecha <input name="date" type="date" required value="${move?.date ?? today()}"></label>
@@ -239,11 +246,16 @@ export function expenseForm(move, presetKey, presetCard) {
         if (total > 0 && unpicked) msg = 'Elige de qué categoría sale el dinero.';
         else if (diff > 0.004) { msg = `Falta asignar ${money(diff)}.${canAdd() ? ' Agrega otra categoría.' : ' No hay más categorías con dinero.'}`; cls = 'neg'; }
         else if (diff < -0.004) { msg = `Te pasas por ${money(-diff)}.`; cls = 'neg'; }
-        else if (neg) { msg = 'Alguna categoría quedará en negativo.'; cls = 'warn'; }
+        else if (neg) { msg = allowNeg ? 'Alguna categoría quedará en negativo hasta que la regularices.' : 'Alguna categoría quedará en negativo.'; cls = 'warn'; }
         remain.className = 'remain ' + cls;
         remain.textContent = msg;
         addBtn.hidden = !(diff > 0.004 && canAdd() && !unpicked);
       };
+      f.elements.neg.addEventListener('change', () => {
+        allowNeg = f.elements.neg.checked;
+        if (auto) autoFill();
+        paint();
+      });
       f.elements.amount.addEventListener('input', () => {
         total = r2(+f.elements.amount.value || 0);
         if (auto) autoFill();
@@ -298,6 +310,7 @@ export function expenseForm(move, presetKey, presetCard) {
         alert('Los montos de las categorías deben sumar el total del gasto.');
         return false;
       }
+      if (!allowNeg && parts.some(p => avail(keyOf(p)) < p.amount - 0.004) && !confirm('Una categoría quedará en negativo. ¿Continuar?')) return false;
       const c = card && findAcc(card);
       if (c?.limit > 0) {
         const room = r2(c.limit + (c.cats[0].balance + (move?.card === card ? move.total : 0)));

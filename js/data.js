@@ -12,7 +12,7 @@ import { fileSize } from './ui.js';
 const APP_ID = 'tracker';
 const LEGACY_IDS = ['mi-quincena']; // nombre anterior de la app: sus respaldos se siguen aceptando
 const VERSION = 3;
-const FREQS = ['once', 'monthly', 'biweekly'];
+const FREQS = ['once', 'monthly', 'biweekly', 'yearly'];
 const WHENS = ['both', 'q1', 'q2'];
 
 
@@ -173,7 +173,7 @@ export function validateImport(d) {
   const habits = arr(d.habits, 'hábitos').map(h => {
     if (!h?.id || typeof h.name !== 'string') bad('Hay un hábito inválido en el archivo.');
     return {
-      id: String(h.id), name: h.name, color: COLORS.includes(h.color) ? h.color : 'mauve', dates: h.dates && typeof h.dates === 'object' ? h.dates : {},
+      id: String(h.id), name: h.name, color: COLORS.includes(h.color) ? h.color : 'mauve', dates: Object.fromEntries(Object.entries(h.dates && typeof h.dates === 'object' ? h.dates : {}).filter(([d, v]) => /^\d{4}-\d{2}-\d{2}$/.test(d) && v).map(([d, v]) => [d, v === 2 ? 2 : 1])),
       icon: HABIT_ICONS.includes(h.icon) ? h.icon : HABIT_ICONS[0], slot: SLOT_KEYS.includes(h.slot) ? h.slot : '',
       ...(Number.isFinite(h.order) ? { order: h.order } : {}), // sin `order` (respaldos viejos) se asigna al cargar
     };
@@ -207,12 +207,14 @@ export function validateImport(d) {
     if (!l?.id || typeof l.name !== 'string' || typeof l.key !== 'string') bad('Hay una línea del plan inválida en el archivo.');
     return { id: String(l.id), name: l.name, amount: num(l.amount), key: l.key, when: WHENS.includes(l.when) ? l.when : 'both' };
   });
+  // Mes de un pago anual (1-12); si falta o es inválido se toma el del inicio, para que nunca desaparezca.
+  const yearMonth = b => (Number.isInteger(b.month) && b.month >= 1 && b.month <= 12 ? b.month : Number(String(b.start ?? today()).slice(5, 7)) || 1);
   const bills = arr(d.bills, 'pagos').map(b => {
     if (!b?.id || typeof b.title !== 'string' || !FREQS.includes(b.freq)) bad('Hay un pago inválido en el archivo.');
     const paid = {};
     for (const [due, e] of Object.entries(b.paid ?? {})) paid[due] = { on: String(e.on ?? due), amount: Number(e.amount) || 0, moveId: e.moveId ?? null, skipped: !!e.skipped, files: ids(e.files) };
     return {
-      id: String(b.id), title: b.title, amount: Number(b.amount) || 0, freq: b.freq, day: b.day ?? null, dueDate: b.dueDate ?? null,
+      id: String(b.id), title: b.title, amount: Number(b.amount) || 0, freq: b.freq, day: b.day ?? null, dueDate: b.dueDate ?? null, month: b.freq === 'yearly' ? yearMonth(b) : null,
       start: b.start ?? today(), card: b.card ?? null, active: b.active !== false, paid,
     };
   });

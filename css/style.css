@@ -163,6 +163,8 @@ small, .muted { color: var(--subtext0); }
 .dot { width: 100%; max-width: 44px; aspect-ratio: 1; border-radius: 12px; background: var(--surface0); border: 2px solid transparent; color: var(--crust); font-weight: 800; }
 .day.today .dot { border-color: var(--surface2); }
 .dot.on { background: var(--c); border-color: var(--c); }
+.dot.skip { background: transparent; border-color: var(--surface2); }
+.dot.skip .i { stroke: var(--overlay1); }
 .progress-ring { display: flex; align-items: center; gap: 12px; }
 .progress-ring .bar { flex: 1; height: 10px; }
 .progress-ring .bar i { background: var(--blue); }
@@ -386,6 +388,7 @@ button.li:active { background: var(--surface0); }
 .mini { display: inline-flex; gap: 4px; }
 .mini i { width: 8px; height: 8px; border-radius: 50%; background: var(--surface1); }
 .mini i.on { background: var(--c); }
+.mini i.skip { background: transparent; box-shadow: inset 0 0 0 1.5px var(--surface2); } /* «no toca»: aro vacío */
 .hrow .dot { flex: none; width: 44px; height: 44px; max-width: none; }
 .hrow.sorting .name { display: block; }
 

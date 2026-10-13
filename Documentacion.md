@@ -175,7 +175,8 @@ Al abrir una transferencia, la app recuerda de qué categoría moviste dinero la
 
 En **Finanzas → Pagos** registras lo que debes pagar (luz, internet, seguro, tarjeta…):
 
-- Frecuencia: **una sola vez**, **cada mes** (día X) o **cada quincena** (días X y X+15).
+- Frecuencia: **una sola vez**, **cada mes** (día X), **cada quincena** (días X y X+15) o **cada año** (para suscripciones anuales: se pide la **próxima fecha de vencimiento** completa y se repite ese día y mes cada año; un 29 de febrero cae el 28 en los años no bisiestos). Si la fecha ya pasó, aparece como vencido hasta que lo pagues.
+- Como un pago anual casi nunca cae en los próximos 30 días, la sección **Anuales** los lista todos con su próxima fecha para poder verlos y editarlos.
 - Se agrupan en **Vencidos**, **Próximos** (30 días) y **Realizados**.
 - La pestaña muestra un aviso con los vencidos o que vencen en 3 días.
 - Un pago periódico que dejaste de marcar no llena la lista: en **Vencidos** aparece una sola vez (el vencimiento más antiguo) con «y N vencimientos más»; al pagarlo aparece el siguiente. Los avisos (la pestaña y la tarjeta de Inicio) cuentan **pagos**, no meses atrasados.
@@ -306,6 +307,7 @@ Se pueden adjuntar fotos y PDF a gastos, ingresos, pagos y compras.
 4. Elige **de qué categoría sale el dinero**. La app **no lo asume**: al abrir el formulario hay un solo selector vacío, y solo ofrece categorías que tengan dinero libre (no las que están en cero).
 5. Si esa categoría no alcanza para el monto, la app te avisa cuánto falta y aparece **«Agregar otra categoría»**. El nuevo selector solo ofrece categorías con dinero disponible que aún no uses y toma el resto del monto.
 6. Opcional: nota, fecha y adjuntos (por ejemplo, la factura).
+7. **Permitir saldo negativo** (casilla bajo las categorías): para cuando prestas dinero de una categoría o pagas algo que luego te reintegran. Con ella, el gasto sale entero de la categoría elegida aunque no alcance (queda en negativo, en rojo, hasta que la regularices con un ingreso o al mover dinero de vuelta) y se ofrecen todas las categorías. Sin la casilla, si un monto supera lo libre la app pide confirmación; un gasto que ya dejó una categoría en negativo se abre con la casilla marcada.
 
 ### Ver los movimientos de una cuenta
 
@@ -343,6 +345,8 @@ Cada cuenta tiene un botón con una flecha para **ocultar o mostrar sus categor�
 **Carrusel.** Cada momento del día es una **tarjeta independiente**; se pasa de una a otra **deslizando a izquierda o derecha**, o tocando los botones de arriba (icono + contador de hoy, por ejemplo «1/2»). Al abrir la app se muestra el momento actual (antes de las 12 la mañana, hasta las 19 el día y después la noche) si tiene hábitos; si no, el primero que tenga. Al marcar un hábito el carrusel se queda donde estaba. Si ningún hábito tiene horario, se muestra una sola tarjeta sin encabezado ni botones.
 
 **Fila compacta.** Cada hábito ocupa una fila: icono, nombre, la racha, seis puntos pequeños con los **6 días anteriores** (relleno = hecho) y, a la derecha, el botón para **marcar hoy**. Arriba se ve el progreso general de hoy. Tocar el nombre abre la edición, donde también puedes **marcar o desmarcar cualquiera de los últimos 7 días** (la fila se actualiza al instante); desde ahí se elimina o se cambia su «Momento del día».
+
+**No toca.** Cada día de un hábito tiene tres estados: sin marcar → **hecho** → **«no toca»** → sin marcar (un toque cambia al siguiente, tanto en el botón de hoy como en la tira de 7 días del formulario). «No toca» sirve para un día en que el hábito no aplica (por ejemplo, el día de descanso del gimnasio): se ve como un **aro vacío**, **no corta la racha** ni suma a ella, y **no cuenta en el avance** de hoy (ni en los contadores de cada momento del día ni en la tarjeta de Inicio: con 3 hábitos y uno «no toca», el avance es x/2).
 
 **Reordenar.** El botón **Ordenar** (junto al progreso de hoy) muestra los hábitos sin botones de marcar y con flechas ↑ ↓ para subirlos o bajarlos **dentro de su momento del día**; **Listo** vuelve a la vista normal. El orden se guarda. Los hábitos creados antes de existir esta función se ordenaron alfabéticamente una sola vez.
 
@@ -400,9 +404,9 @@ Base de datos IndexedDB versión 8 (la 4 agregó `templates` y `lists`, la 5 `no
 | `accounts` | `{ id, name, type: 'normal'｜'credit', limit?, cats: [{ id, name, balance }] }`. En una tarjeta, `cats[0].balance` es la deuda (negativa) |
 | `moves` | `{ id, t, date, type: 'expense'｜'income'｜'transfer', title?, note, kind?, total, parts: [{ acc, cat, amount, line? }], to?, card?, plan?, bill?, files? }` |
 | `plan` | Líneas de la guía: `{ id, name, amount, key: 'cuenta｜categoría', when: 'both'｜'q1'｜'q2' }` |
-| `bills` | `{ id, title, amount, freq: 'once'｜'monthly'｜'biweekly', day?, dueDate?, start, card?, active, paid: { [vencimiento]: { on, amount, moveId, skipped, files } } }` |
+| `bills` | `{ id, title, amount, freq: 'once'｜'monthly'｜'biweekly'｜'yearly', day?, month? (solo anual), dueDate?, start, card?, active, paid: { [vencimiento]: { on, amount, moveId, skipped, files } } }` |
 | `purchases` | `{ id, name, date, price, store, tag, warrantyMonths, notes, files }` |
-| `habits` | `{ id, name, color, icon, slot: 'morning'｜'day'｜'night'｜'', order, dates: { 'YYYY-MM-DD': 1 } }` |
+| `habits` | `{ id, name, color, icon, slot: 'morning'｜'day'｜'night'｜'', order, dates: { 'YYYY-MM-DD': 1｜2 } }` (1 = hecho, 2 = «no toca») |
 | `templates` | `{ id, name, color, freq: ''｜'weekly'｜'biweekly'｜'monthly', items: [{ text, head? }] }` |
 | `lists` | `{ id, name, tplId?, color, created, t, archived?, items: [{ id, text, head?, done?, doneAt?, due?, extra? }] }` (`archived`, `doneAt` y `due` son fechas `YYYY-MM-DD`; `archived` = día en que se finalizó). Una lista se copia de la plantilla al crearla; no queda ligada a ella |
 | `noteGroups` | `{ id, name, color, icon, fields: [{ id, name, type: 'text'｜'long'｜'code'｜'url'｜'number'｜'date'｜'choice'｜'check'｜'rating', list?, options? }] }` |
