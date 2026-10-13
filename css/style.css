@@ -170,6 +170,7 @@ small, .muted { color: var(--subtext0); }
 /* Datos */
 .stack { display: grid; gap: 10px; }
 .kv { display: flex; justify-content: space-between; gap: 8px; }
+#sync-state[data-state=dirty] { color: var(--yellow); }
 
 /* Diálogo */
 /* Los formularios se abren como hoja que sube desde abajo (cómoda con una mano). */
