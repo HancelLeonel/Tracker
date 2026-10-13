@@ -30,6 +30,7 @@ No hay Node. Para validar cualquier cambio de interfaz se usa Playwright (Chromi
 | `js/pomodoro.js` | Temporizador Pomodoro (fases, aviso, Wake Lock) y pantalla completa negra (`#pomo-full`) |
 | `js/gym.js` | Gimnasio: rutinas, entrenamiento en curso, descanso entre series, historial, progreso y catálogo de ejercicios |
 | `js/catalogo.js` | `GROUPS`, `DEFAULT_EXERCISES` y `exKey()` (identidad de un ejercicio: nombre sin tildes/mayúsculas/espacios de más) |
+| `js/sync.js` | Sincronización con Google Drive (enviar / traer, huellas anti-pisado) |
 | `js/bills.js` · `reports.js` · `purchases.js` · `habits.js` · `lists.js` · `data.js` | Pagos pendientes · reportes · compras · hábitos · listas y plantillas · respaldo/ajustes |
 | `sw.js` | Service worker (network-first con respaldo offline) |
 
@@ -120,6 +121,13 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 **Hojas inferiores y teclado**
 - `index.html` declara `interactive-widget=resizes-content` en el viewport: sin eso Chrome en Android solo encoge el viewport *visual* y el teclado tapa la hoja anclada abajo. Con él, `max-height: 92dvh` sigue el área visible y la hoja hace scroll. `ui.js` además acerca al centro el campo que recibe el foco. No se puede probar el teclado real en Chromium de escritorio: `tests/gimnasio.py` solo comprueba que el viewport lo declare.
 
+**Sincronización con Google Drive** ([sync.js](js/sync.js))
+- Un solo archivo `tracker-sync.json` en `appDataFolder` (alcance `drive.appdata`), con el mismo formato que el respaldo (`buildExport`/`validateImport`/`restore` de `data.js`). **No se fusiona**: «Enviar» sube todo, «Traer» reemplaza todo; es para usarlo por turnos (PC en casos puntuales, el resto en el teléfono).
+- Inicio de sesión con Google Identity Services (token de 1 h, sin refresh; `requestAccessToken` debe llamarse justo tras el toque). El ID de cliente es público: constante `CLIENT_ID` (ya puesta, 12 oct) o, si estuviera vacía, se pide y se guarda en `localStorage`.
+- **El estado de sincronización va en `localStorage['tracker-sync']`, NO en `S.settings`**: `replaceAll` borra `meta` y los ajustes viajan en la nube. Guarda `md5` de la nube y `hash` (SHA-256 de los datos canónicos) de la última sincronización: nube cambiada = `md5Checksum` distinto; cambios locales = hash distinto. Antes de reemplazar algo se **descarga una copia** del lado que se pierde.
+- `DEVICE_KEYS` (font, theme, includeFiles, lastExport, pomo, gym, collapsed) no viajan ni cuentan como cambios. **Si agregas un ajuste que sea propio del dispositivo, añádelo ahí**; si no, viajará y marcará «Cambios sin enviar» sin que cambien los datos.
+- `tests/sincronizacion.py` simula Google y Drive con `page.route` (teléfono y PC = dos contextos). Hasta que el usuario cree su ID de cliente no se ha probado con Google real.
+
 **Compartir respaldo**
 - `navigator.share` solo acepta ciertos tipos de archivo y **gasta el permiso en el primer intento** (no se puede reintentar). Por eso se comparte como `text/plain` (`.json.txt`) y, ante cualquier fallo distinto de `AbortError` (o si no hay soporte), el respaldo se **descarga** y se avisa el motivo. El importador acepta `.json` y `.txt`. Se usa Chrome en Android; las pruebas simulan Web Share.
 
@@ -160,6 +168,7 @@ Estado: probado en Chromium de escritorio con teléfono simulado; **falta valida
 - ✅ Calendario de fechas límite en Listas: probado en Android.
 - ✅ Copiar en Notas: probado en Android.
 - ✅ Probado en Android: Pomodoro, fuente JetBrains Mono, nota rápida, orden manual y fijado de listas, *Web Share Target* y arranque tras actualizar la base.
+- ✅ Sincronización con Google Drive: probada con Google real en localhost (12 oct). ⬜ Falta validarla en GitHub Pages y en la app instalada en Android (la ventana de inicio de sesión de Google puede comportarse distinto).
 - ⬜ El usuario lo valida con el uso (decidido el 11 oct): **hojas inferiores con el teclado abierto** (`interactive-widget=resizes-content`), **Gimnasio** (descanso con sonido y vibración, teclado numérico, marcar series, cardio, catálogo con listas desplegables), **tema claro/automático** y selección múltiple en la Bandeja. Base v8: cerrar antes las demás ventanas.
 
 **Siguiente**
@@ -170,7 +179,7 @@ Estado: probado en Chromium de escritorio con teléfono simulado; **falta valida
 - Navegador de uso: **Chrome** en Android (se dejó de usar Brave).
 - **No habrá APK**: se descartó (10 oct). Los avisos con la pantalla bloqueada no son posibles como PWA; el diseño asume pantalla encendida.
 - No hay pestaña de **Tareas**: se llevan con Listas.
-- Sin sincronización entre dispositivos ni varios usuarios.
+- Sincronización entre dispositivos: solo por turnos con Google Drive (rama `sincronizacion-drive`, 12 oct); sin varios usuarios.
 
 ## Contexto de producto (decisiones ya tomadas)
 
@@ -178,4 +187,4 @@ Estado: probado en Chromium de escritorio con teléfono simulado; **falta valida
 - Cada gasto tiene doble categoría: **categoría apartada** (de qué dinero sale) y **tipo de gasto** (en qué se usó).
 - Pocos adjuntos (≤ 5 al mes): no hace falta optimizar el almacenamiento de archivos.
 - Respaldo: exportar/importar JSON; los adjuntos van solo si se marca «Incluir archivos adjuntos». Importar **reemplaza** todo.
-- Fuera de alcance por ahora: sincronización entre dispositivos, varios usuarios.
+- Fuera de alcance por ahora: sincronización en tiempo real o con fusión, varios usuarios.

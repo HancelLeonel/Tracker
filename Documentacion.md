@@ -83,6 +83,7 @@ js/
   notes.js              Notas: grupos con campos propios
   lists.js              Listas y plantillas
   data.js               Exportar, importar, tipos de gasto, borrado total
+  sync.js               Sincronización con Google Drive (enviar / traer)
 tests/                  Pruebas end-to-end con Playwright y benchmarks
 CLAUDE.md               Contexto y reglas del proyecto para asistentes de código
 ```
@@ -370,6 +371,24 @@ En **Configuración**:
 
 > **Recomendación:** exporta un respaldo de vez en cuando. Si borras los datos del navegador, se pierden.
 
+### Sincronización con Google Drive
+
+Para pasar los datos entre el teléfono y la PC. **Configuración → Sincronización con Google Drive**:
+
+- **Enviar a la nube** sube una copia completa a un archivo (`tracker-sync.json`) en la carpeta **privada de la app** en tu Drive (`appDataFolder`: la app no puede ver tus demás archivos y tú tampoco la ves en Mi unidad).
+- **Traer de la nube** reemplaza todo lo de este dispositivo por lo de la nube (como importar un respaldo).
+- No se fusiona nada: se usa **por turnos** (traer → editar → enviar). Las cosas puntuales (finanzas complejas, notas grandes) en la PC; lo demás en el teléfono.
+- **Protección contra pisar cambios:** cada dispositivo recuerda cómo estaban la nube y sus propios datos en la última sincronización. Si vas a enviar y la nube cambió desde entonces, o vas a traer y tienes cambios sin enviar, avisa y, si continúas, **descarga antes una copia** de lo que se va a reemplazar. «Este dispositivo» indica «Sin cambios pendientes» o «Cambios sin enviar».
+- No viajan los ajustes propios de cada dispositivo (tema, fuente, estado del Pomodoro y del descanso, secciones plegadas, casilla de adjuntos). Los adjuntos solo se sincronizan si marcas **Incluir archivos adjuntos** (igual que el respaldo).
+- Necesita conexión. El inicio de sesión dura una hora y se renueva solo; Google puede pedir elegir la cuenta.
+
+**Preparar Google Drive (una sola vez, ~5 min):**
+
+1. En [console.cloud.google.com](https://console.cloud.google.com) crea un proyecto (p. ej. «Tracker») y habilita la **Google Drive API**.
+2. *Google Auth Platform* (pantalla de consentimiento): tipo **Externo**, nombre «Tracker», tu correo; en **Público** agrega tu cuenta como **usuario de prueba**. En **Acceso a los datos** agrega el alcance `.../auth/drive.appdata`.
+3. *Clientes* → **Crear cliente** → tipo **Aplicación web**. En **Orígenes autorizados de JavaScript** añade `https://hancelleonel.github.io` y `http://localhost:8000`. No hace falta URI de redireccionamiento.
+4. Copia el **ID de cliente** (`…apps.googleusercontent.com`) y fíjalo en `CLIENT_ID` de [sync.js](js/sync.js) (ya está puesto; es público, no un secreto). Si queda vacío, la app lo pide en cada dispositivo.
+
 ---
 
 ## 5. Modelo de datos
@@ -464,7 +483,7 @@ Con uso intenso (5–10 gastos al día) se llega a unos 20,000 movimientos en 5 
 
 ## 7. Limitaciones conocidas
 
-- Los datos viven solo en el dispositivo; no hay sincronización entre dispositivos. El respaldo manual es la única copia.
+- Los datos viven en el dispositivo. La sincronización con Google Drive es por turnos y reemplaza todo (no fusiona); sin ella, el respaldo manual es la única copia.
 - Importar siempre **reemplaza** los datos; no hay combinación de respaldos.
 - Los ingresos antiguos que se repartieron automáticamente (versión anterior de la guía) solo se pueden ver o eliminar, no editar.
 - La guía mide el avance por las transferencias hacia la categoría destino: mover dinero **desde** una categoría de la guía hacia otra suma a la segunda, pero no resta de la primera.

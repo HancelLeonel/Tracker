@@ -17,7 +17,8 @@ const WHENS = ['both', 'q1', 'q2'];
 
 
 // ---------- vista ----------
-export function dataView() {
+// `extra` es HTML ya armado (la tarjeta de Sincronización, de sync.js) que se muestra después del Respaldo.
+export function dataView(extra = '') {
   const last = S.settings.lastExport ? new Date(S.settings.lastExport).toLocaleString('es-GT', { dateStyle: 'medium', timeStyle: 'short' }) : 'nunca';
   const bytes = [...S.files.values()].reduce((t, f) => t + (f.size ?? 0), 0);
   const filesInfo = S.files.size ? `${pl(S.files.size, 'archivo')} · ${fileSize(bytes)}` : 'ninguno';
@@ -46,7 +47,7 @@ export function dataView() {
     </section>
     <section class="card stack">
       <h3>Respaldo</h3>
-      <p class="muted">Los datos viven solo en este teléfono. Exporta un respaldo de vez en cuando; si borras los datos del navegador se pierden.</p>
+      <p class="muted">Los datos viven en este dispositivo. Exporta un respaldo de vez en cuando; si borras los datos del navegador se pierden.</p>
       <div class="kv"><span class="muted">Último respaldo</span><span>${last}</span></div>
       <div class="kv"><span class="muted">Contenido</span><span>${pl(S.accounts.length, 'cuenta')} · ${pl(S.moves.length, 'movimiento')} · ${pl(S.habits.length, 'hábito')} · ${pl(S.lists.length, 'lista')} · ${pl(S.notes.length, 'nota')} · ${pl(S.workouts.filter(w => w.end).length, 'entrenamiento')}</span></div>
       <div class="kv"><span class="muted">Adjuntos</span><span>${filesInfo}</span></div>
@@ -56,6 +57,7 @@ export function dataView() {
       ${navigator.canShare ? '<button class="btn block" data-act="share">Compartir respaldo…</button>' : ''}
       <button class="btn block" data-act="import">Importar desde archivo</button>
     </section>
+    ${extra}
     <section class="card stack">
       <div class="card-h"><h3>Tipos de gasto</h3><button class="btn sm" data-act="new-kind">${icon('plus')} Nuevo</button></div>
       <div class="chips">${sortedKinds().map(t => `<button class="chip-tag" data-act="edit-kind" data-id="${t.id}">${esc(t.name)}</button>`).join('')}</div>
@@ -90,8 +92,7 @@ const blobToDataUrl = blob => new Promise((resolve, reject) => {
   r.readAsDataURL(blob);
 });
 
-async function buildExport() {
-  const withFiles = S.settings.includeFiles;
+export async function buildExport(withFiles = S.settings.includeFiles) {
   const data = {
     app: APP_ID, version: VERSION, exportedAt: new Date().toISOString(), includesFiles: withFiles,
     settings: S.settings, habits: S.habits, accounts: S.accounts, moves: S.moves, plan: S.plan, bills: S.bills, purchases: S.purchases,
@@ -115,7 +116,7 @@ async function markExported() {
 }
 
 // Descarga el archivo en el teléfono (carpeta Descargas).
-function download(file) {
+export function download(file) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(file);
   a.download = file.name;
@@ -160,7 +161,7 @@ async function doShare() {
 }
 
 // ---------- importar ----------
-function validateImport(d) {
+export function validateImport(d) {
   const bad = msg => { throw new Error(msg); };
   if (!d || (d.app !== APP_ID && !LEGACY_IDS.includes(d.app))) bad('El archivo no es un respaldo de esta app.');
   if (d.version !== 2 && d.version !== VERSION) bad('Este respaldo es de una versión que ya no se puede importar.');
@@ -279,6 +280,20 @@ function validateImport(d) {
   return { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises, settings, files: d.files };
 }
 
+// Reemplaza todos los datos por los de un respaldo ya validado (`validateImport`). Lo usan la importación y la sincronización.
+export async function restore(data) {
+  if (Array.isArray(data.files)) {
+    data.files = await Promise.all(data.files.map(async f => {
+      const blob = await (await fetch(f.data)).blob();
+      return { id: String(f.id), blob, mime: f.mime || blob.type, name: String(f.name ?? 'archivo'), size: blob.size };
+    }));
+  }
+  await db.replaceAll(data);
+  delete S.settings.gymCatalogSeeded; // loadState mezcla los ajustes en memoria con los guardados: que mande el respaldo
+  await loadState();
+  await gcFiles();
+}
+
 async function doImport(file) {
   try {
     const data = validateImport(JSON.parse(await file.text()));
@@ -286,16 +301,7 @@ async function doImport(file) {
     const msg = `Se reemplazarán TODOS los datos actuales por los del archivo (${data.accounts.length} cuentas, ${data.moves.length} movimientos, ${data.habits.length} hábitos, ${data.purchases.length} compras, ${data.templates.length} plantillas, ${data.lists.length} listas, ${data.notes.length} notas, ${data.inbox.length} notas rápidas, ${data.routines.length} rutinas, ${data.workouts.length} entrenamientos). ` +
       (withFiles ? `Incluye ${data.files.length} archivos adjuntos. ` : 'El respaldo no trae adjuntos: se conservan los que ya tienes en este teléfono. ') + '¿Continuar?';
     if (!confirm(msg)) return;
-    if (withFiles) {
-      data.files = await Promise.all(data.files.map(async f => {
-        const blob = await (await fetch(f.data)).blob();
-        return { id: String(f.id), blob, mime: f.mime || blob.type, name: String(f.name ?? 'archivo'), size: blob.size };
-      }));
-    }
-    await db.replaceAll(data);
-    delete S.settings.gymCatalogSeeded; // loadState mezcla los ajustes en memoria con los guardados: que mande el respaldo
-    await loadState();
-    await gcFiles();
+    await restore(data);
     toast('Datos importados');
   } catch (err) {
     alert(err instanceof SyntaxError ? 'El archivo no es un JSON válido.' : err.message);

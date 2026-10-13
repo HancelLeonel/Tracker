@@ -46,6 +46,7 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | `configuracion.py` | Configuración: nombre del menú, fuente (sistema/JetBrains Mono, sin desbordes, respaldo) y tema oscuro/claro/automático (primer pintado, sigue al sistema, respaldo) |
 | `sw.py` | Service worker: con red lenta abre con la copia en ~3 s; sin copia espera a la red |
 | `listas.py` | Listas y plantillas: crear desde plantilla, marcar (lo hecho baja al final, con fecha), fechas límite y vencidas, editar elementos, finalizar y archivo (restaurar), migración, aviso «Ya toca», guardar lista como plantilla, exportar/importar y saneo de fechas |
+| `sincronizacion.py` | Sincronización con Google Drive (inicio de sesión y Drive simulados, teléfono y PC como dos contextos): configurar, enviar, traer, ajustes propios del dispositivo, conflictos en ambos sentidos con copia de seguridad, archivo dañado y desconectar |
 | `benchmark_carga.py` | Tiempos de carga, pantallas, reportes y guardado con 1k–60k movimientos (no es parte de `run_all`) |
 | `benchmark_listas.py` | Tiempos de las listas largas con 1k–60k movimientos (no es parte de `run_all`) |
 

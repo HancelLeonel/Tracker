@@ -15,6 +15,7 @@ import * as pomodoro from './pomodoro.js';
 import * as gym from './gym.js';
 import * as notes from './notes.js';
 import * as data from './data.js';
+import * as sync from './sync.js';
 import { esc } from './util.js';
 
 const SUBS = [['accounts', 'Cuentas'], ['plan', 'Guía'], ['bills', 'Pagos'], ['reports', 'Reportes']];
@@ -104,7 +105,7 @@ function render() {
       view.innerHTML = purchases.purchasesView();
     } else {
       top.innerHTML = topbar('Configuración');
-      view.innerHTML = data.dataView();
+      view.innerHTML = data.dataView(sync.syncView());
     }
   } catch (err) {
     top.innerHTML = topbar(TABS.find(t => t[0] === S.tab)?.[1] ?? 'Tracker'); // con el menú siempre a mano
@@ -122,7 +123,7 @@ const actions = {
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
   'open-file': el => openFile(el.dataset.id),
-  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...gym.actions, ...notes.actions, ...data.actions,
+  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...gym.actions, ...notes.actions, ...data.actions, ...sync.actions,
 };
 
 document.addEventListener('click', async e => {
