@@ -44,11 +44,11 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | `revision.py` | Datos dañados en todas las tiendas (la app arranca y todas las pantallas se muestran; red de seguridad por sección), pagos vencidos agrupados, `[hidden]` en formularios y limpieza de ajustes viejos |
 | `listas_orden.py` | Listas: orden recientes/por fecha/manual, fijar, ordenar pendientes por fecha, agenda, fechas relativas en plantillas y saneo al importar |
 | `configuracion.py` | Configuración: nombre del menú, fuente (sistema/JetBrains Mono, sin desbordes, respaldo) y tema oscuro/claro/automático (primer pintado, sigue al sistema, respaldo) |
-| `sw.py` | Service worker: con red lenta abre con la copia en ~3 s; sin copia espera a la red |
+| `sw.py` | Service worker: abre en menos de 1.5 s con la copia aunque la red tarde 6 s por archivo, versión nueva en segundo plano con aviso «Actualizar» (nada se mezcla), sin red, primera visita |
 | `listas.py` | Listas y plantillas: crear desde plantilla, marcar (lo hecho baja al final, con fecha), fechas límite y vencidas, editar elementos, finalizar y archivo (restaurar), migración, aviso «Ya toca», guardar lista como plantilla, exportar/importar y saneo de fechas |
 | `sincronizacion.py` | Sincronización con Google Drive (inicio de sesión y Drive simulados, teléfono y PC como dos contextos): configurar, enviar, traer, ajustes propios del dispositivo, conflictos en ambos sentidos con copia de seguridad, archivo dañado y desconectar |
 | `no_toca_anual_negativo.py` | Hábitos «no toca» (ciclo de tres estados, racha, avance, Inicio, formulario, respaldo e importación), pagos anuales (formulario, vencidos/próximos, sección Anuales, pagar, editar, importar) y gasto con saldo negativo (casilla, categorías ofrecidas, confirmación, editar, regularizar) |
-| `selector.py` | Selector propio en los diálogos: select nativo invisible, hoja con grupos y montos, valor y `change`, «Nuevo tipo», validación, buscador con más de 12 opciones, tema oscuro y claro |
+| `selector.py` | Selector propio en los diálogos: select nativo invisible, hoja que primero pide la cuenta y luego sus categorías (con montos y volver), valor y `change`, «Nuevo tipo», validación, buscador con más de 12 opciones, tema oscuro y claro |
 | `benchmark_carga.py` | Tiempos de carga, pantallas, reportes y guardado con 1k–60k movimientos (no es parte de `run_all`) |
 | `benchmark_listas.py` | Tiempos de las listas largas con 1k–60k movimientos (no es parte de `run_all`) |
 

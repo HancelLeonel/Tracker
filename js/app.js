@@ -45,6 +45,8 @@ function broken(err) {
     <button class="btn" data-act="tab" data-tab="home">Ir a Inicio</button></div>`;
 }
 
+let enter = false; // la próxima pintura viene de un cambio de pestaña: entra con fundido
+
 function render() {
   $('#drawer').innerHTML = `
     <div class="drawer-h"><b>Tracker</b><button class="icon" data-act="menu-close" aria-label="Cerrar menú">${icon('close')}</button></div>
@@ -114,11 +116,12 @@ function render() {
     S.noteGroup = null;
   }
   menuOpen(document.body.classList.contains('menu-open'));
+  if (enter) { enter = false; view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); }
 }
 hooks.render = render;
 
 const actions = {
-  tab: el => { S.tab = el.dataset.tab; if (S.tab === 'home') home.nextQuote(); S.habitsSort = false; S.listEdit = false; S.inboxSel = null; menuOpen(false); window.scrollTo(0, 0); },
+  tab: el => { enter = true; S.tab = el.dataset.tab; if (S.tab === 'home') home.nextQuote(); S.habitsSort = false; S.listEdit = false; S.inboxSel = null; menuOpen(false); window.scrollTo(0, 0); },
   'menu-open': () => menuOpen(true),
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
@@ -178,6 +181,23 @@ window.addEventListener('db-blocked', () => {
     <small>Ciérrala (en el navegador, cierra la otra pestaña de Tracker; si la instalaste, quítala de las apps recientes). Esta se abrirá sola en cuanto lo hagas.</small></div>`;
 });
 
+// El service worker abre con la copia guardada y baja la versión nueva en segundo plano: cuando está lista avisa aquí. No se recarga solo
+// para no tirar un formulario a medias.
+function showUpdate() {
+  if ($('#upd')) return;
+  const d = document.createElement('div');
+  d.id = 'upd';
+  d.setAttribute('role', 'status');
+  d.innerHTML = `<span>Hay una versión nueva</span><button class="btn sm primary" id="upd-go">Actualizar</button>
+    <button class="icon sm" id="upd-x" aria-label="Ahora no">${icon('close')}</button>`;
+  document.body.append(d);
+  $('#upd-go').onclick = () => location.reload();
+  $('#upd-x').onclick = () => d.remove();
+}
+
+// Se escucha desde el arranque del módulo (no desde init): la versión nueva puede estar lista antes de que termine de cargar la base.
+navigator.serviceWorker?.addEventListener('message', e => { if (e.data?.type === 'update-ready') showUpdate(); });
+
 const fatal = (msg, err) => {
   $('#view').innerHTML = `<div class="card empty"><p>${msg}</p><small>${esc(err?.message ?? '')}</small>
     <button class="btn primary" onclick="location.reload()">Reintentar</button></div>`;
@@ -223,5 +243,8 @@ async function receiveShared() {
   // Pide almacenamiento persistente para que Android no lo borre por falta de espacio.
   navigator.storage?.persist?.();
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.ready.then(r => r.active?.postMessage({ type: 'ver' })).catch(() => {}); // «¿lo que veo ya quedó viejo?»
+  }
 })();

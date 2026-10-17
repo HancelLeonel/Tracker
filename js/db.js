@@ -47,7 +47,8 @@ function open() {
 async function run(stores, mode, fn) {
   const db = await open();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(stores, mode);
+    // «relaxed»: no espera a que el sistema vacíe el disco para confirmar; con la memoria como fuente de verdad, guardar no hace esperar a la interfaz.
+    const tx = db.transaction(stores, mode, mode === 'readwrite' ? { durability: 'relaxed' } : undefined);
     const req = fn(tx);
     tx.oncomplete = () => resolve(req?.result);
     tx.onerror = tx.onabort = () => reject(tx.error);

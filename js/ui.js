@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { $, esc, money, toast, uid } from './util.js';
+import { $, esc, money, sum, toast, uid } from './util.js';
 import { icon } from './icons.js';
 import { S, hooks, isCredit, addFile, saveSettings, sortedKinds } from './state.js';
 
@@ -89,48 +89,77 @@ export function syncSelect(sel) {
   const btn = sel.parentElement?.querySelector('.sel-btn');
   if (!btn) return;
   const o = sel.options[sel.selectedIndex];
-  btn.querySelector('.sel-t').textContent = o?.text ?? '';
+  btn.querySelector('.sel-t').textContent = o && !o.disabled && 'nest' in sel.dataset ? `${o.parentElement.label} · ${o.dataset.label ?? o.text}` : o?.text ?? '';
   btn.classList.toggle('ph', !!o?.disabled);
   btn.disabled = sel.disabled;
 }
 
 function openPicker(sel, title) {
-  const opts = [...sel.options].filter(o => !o.disabled);
-  let group = null, rows = '';
-  for (const o of opts) {
-    const g = o.parentElement.label ?? '';
-    if (g !== group) { group = g; if (g) rows += `<div class="pk-g overline">${esc(g)}</div>`; }
+  const optRow = o => {
     const on = o.value === sel.value;
-    rows += `<button type="button" class="pk-o ${on ? 'on' : ''}" role="option" aria-selected="${on}" data-v="${esc(o.value)}" data-q="${esc(plain(o.text))}">
+    return `<button type="button" class="pk-o ${on ? 'on' : ''}" role="option" aria-selected="${on}" data-v="${esc(o.value)}" data-q="${esc(plain(o.text))}">
       <span class="pk-t">${esc(o.dataset.label ?? o.text)}</span>${o.dataset.sub ? `<small>${esc(o.dataset.sub)}</small>` : ''}${on ? icon('check') : ''}</button>`;
-  }
-  picker.innerHTML = `<div class="pk">
-    <h2>${esc(title || 'Elegir')}</h2>
-    ${opts.length > 12 ? '<input type="search" class="pk-q" placeholder="Buscar" autocomplete="off" aria-label="Buscar">' : ''}
-    <div class="pk-list" role="listbox">${rows || '<p class="muted">No hay opciones.</p>'}</div>
-  </div>`;
-  const list = $('.pk-list', picker);
-  list.onclick = e => {
-    const b = e.target.closest('.pk-o');
-    if (!b) return;
-    const changed = sel.value !== b.dataset.v;
-    sel.value = b.dataset.v;
-    picker.close();
-    syncSelect(sel);
-    if (changed) for (const type of ['input', 'change']) sel.dispatchEvent(new Event(type, { bubbles: true }));
-    sel.parentElement.querySelector('.sel-btn')?.focus({ preventScroll: true });
   };
-  $('.pk-q', picker)?.addEventListener('input', e => {
-    const q = plain(e.target.value.trim());
-    list.querySelectorAll('.pk-o').forEach(b => { b.hidden = !!q && !b.dataset.q.includes(q); });
-    list.querySelectorAll('.pk-g').forEach(g => {
-      let n = g.nextElementSibling, any = false;
-      while (n && !n.classList.contains('pk-g')) { any ||= !n.hidden; n = n.nextElementSibling; }
-      g.hidden = !any;
+  // Pinta una pantalla de la hoja. `back`: botón para volver a la lista de cuentas; `search`: buscador (muchas opciones).
+  const paint = (head, body, { back = false, search = false } = {}) => {
+    picker.innerHTML = `<div class="pk">
+      <div class="pk-h">${back ? `<button type="button" class="icon" data-back aria-label="Volver a las cuentas">${icon('left')}</button>` : ''}<h2>${esc(head)}</h2></div>
+      ${search ? '<input type="search" class="pk-q" placeholder="Buscar" autocomplete="off" aria-label="Buscar">' : ''}
+      <div class="pk-list" role="listbox">${body || '<p class="muted">No hay opciones.</p>'}</div>
+    </div>`;
+    const list = $('.pk-list', picker);
+    $('[data-back]', picker)?.addEventListener('click', showGroups);
+    $('.pk-q', picker)?.addEventListener('input', e => {
+      const q = plain(e.target.value.trim());
+      list.querySelectorAll('.pk-o').forEach(b => { b.hidden = !!q && !b.dataset.q.includes(q); });
+      list.querySelectorAll('.pk-g').forEach(g => {
+        let n = g.nextElementSibling, any = false;
+        while (n && !n.classList.contains('pk-g')) { any ||= !n.hidden; n = n.nextElementSibling; }
+        g.hidden = !any;
+      });
     });
-  });
+    list.onclick = e => {
+      const grp = e.target.closest('.pk-grp');
+      if (grp) return showOptions(groups[+grp.dataset.g], true);
+      const b = e.target.closest('.pk-o');
+      if (!b) return;
+      const changed = sel.value !== b.dataset.v;
+      sel.value = b.dataset.v;
+      picker.close();
+      syncSelect(sel);
+      if (changed) for (const type of ['input', 'change']) sel.dispatchEvent(new Event(type, { bubbles: true }));
+      sel.parentElement.querySelector('.sel-btn')?.focus({ preventScroll: true });
+    };
+    return list;
+  };
+
+  // Selectores de cuenta/categoría (`data-nest`): primero se elige la cuenta y luego una categoría de esa cuenta.
+  const groups = 'nest' in sel.dataset
+    ? [...sel.querySelectorAll('optgroup')].map(g => ({ g, list: [...g.children].filter(o => !o.disabled) })).filter(x => x.list.length) : null;
+  const showOptions = (grp, back) => {
+    const list = paint(grp.g.label, grp.list.map(optRow).join(''), { back, search: grp.list.length > 12 });
+    list.querySelector('.on')?.scrollIntoView({ block: 'center' });
+  };
+  const showGroups = () => paint(title && title !== 'Categoría' ? `${title}: elegir cuenta` : 'Elegir cuenta', groups.map((x, i) => {
+    const cur = x.list.some(o => o.value === sel.value);
+    return `<button type="button" class="pk-o pk-grp ${cur ? 'on' : ''}" data-g="${i}">
+      <span class="pk-t">${esc(x.g.label)}</span>${x.g.dataset.sub ? `<small>${esc(x.g.dataset.sub)}</small>` : ''}${icon('right')}</button>`;
+  }).join(''));
+
+  if (groups?.length === 1) showOptions(groups[0], false);
+  else if (groups) showGroups();
+  else {
+    const opts = [...sel.options].filter(o => !o.disabled);
+    let group = null, rows = '';
+    for (const o of opts) {
+      const g = o.parentElement.label ?? '';
+      if (g !== group) { group = g; if (g) rows += `<div class="pk-g overline">${esc(g)}</div>`; }
+      rows += optRow(o);
+    }
+    paint(title || 'Elegir', rows, { search: opts.length > 12 });
+  }
   picker.showModal();
-  list.querySelector('.on')?.scrollIntoView({ block: 'center' });
+  picker.querySelector('.pk-list .on')?.scrollIntoView({ block: 'center' });
 }
 
 function enhanceSelect(sel) {
@@ -164,8 +193,9 @@ export function catSelect(name, selected, bal, attrs = '', { credit = true, only
   const groups = S.accounts.filter(a => credit || !isCredit(a)).map(a => {
     const cats = a.cats.filter(c => !only || only.has(`${a.id}|${c.id}`));
     if (!cats.length) return '';
+    const sub = isCredit(a) ? '' : `data-sub="${esc(money(sum(cats, c => bal(`${a.id}|${c.id}`))))}"`;
     return `
-    <optgroup label="${esc(isCredit(a) ? a.name + ' (tarjeta)' : a.name)}">
+    <optgroup label="${esc(isCredit(a) ? a.name + ' (tarjeta)' : a.name)}" ${sub}>
       ${cats.map(c => {
         const k = `${a.id}|${c.id}`, b = bal(k);
         const text = isCredit(a) ? (b < 0 ? `Deuda ${money(-b)}` : `A favor ${money(b)}`) : `${c.name} · ${money(b)}`;
@@ -175,7 +205,7 @@ export function catSelect(name, selected, bal, attrs = '', { credit = true, only
     </optgroup>`;
   }).join('');
   const ph = placeholder ? `<option value="" disabled ${selected ? '' : 'selected'}>${esc(placeholder)}</option>` : '';
-  return `<select name="${name}" ${attrs}>${ph}${groups}</select>`;
+  return `<select name="${name}" data-nest ${attrs}>${ph}${groups}</select>`;
 }
 
 export function kindSelect(name, selected) {

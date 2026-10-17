@@ -32,7 +32,7 @@ No hay Node. Para validar cualquier cambio de interfaz se usa Playwright (Chromi
 | `js/catalogo.js` | `GROUPS`, `DEFAULT_EXERCISES` y `exKey()` (identidad de un ejercicio: nombre sin tildes/mayúsculas/espacios de más) |
 | `js/sync.js` | Sincronización con Google Drive (enviar / traer, huellas anti-pisado) |
 | `js/bills.js` · `reports.js` · `purchases.js` · `habits.js` · `lists.js` · `data.js` | Pagos pendientes · reportes · compras · hábitos · listas y plantillas · respaldo/ajustes |
-| `sw.js` | Service worker (network-first con respaldo offline) |
+| `sw.js` | Service worker (abre desde la copia y actualiza en segundo plano; una caché por versión) |
 
 Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `app.js` los une. Los datos se cargan **completos en memoria** al abrir; cada cambio se guarda en IndexedDB y se repinta la vista entera con `innerHTML`.
 
@@ -121,6 +121,7 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 
 **Selectores** ([ui.js](js/ui.js))
 - El `<select>` nativo de Android abre una lista del sistema que ignora el tema, así que **cada `<select>` de un diálogo se mejora solo** (`enhanceSelect`, vía `MutationObserver` sobre `#dlg`, también para filas pintadas luego con `innerHTML`): el select real se queda invisible dentro de `.sel` (conserva valor, `change`, `required` y `f.elements.nombre`) y un botón `.sel-btn` abre la hoja `#picker` con las opciones, encabezados por `<optgroup>` y buscador si hay más de 12. **Sigue escribiendo `<select>` normales**; no crees un componente aparte.
+- **Cuenta y luego categoría** (`catSelect` pone `data-nest` y `data-sub` en cada `<optgroup>`, que es la cuenta): la hoja primero lista las cuentas (con lo que suman) y al tocar una muestra solo sus categorías, con botón para volver; con una sola cuenta salta directo a sus categorías. El botón del campo muestra «Cuenta · Categoría». Aplica a gasto, ingreso, mover, guía y pago; los demás selectores (p. ej. ejercicios por grupo) siguen en una lista plana con encabezados.
 - `data-label` / `data-sub` en una `<option>` separan nombre y monto en la hoja (`catSelect` los pone). El título sale del `<label>` que lo envuelve o de `aria-label`: si el select no va dentro de un `<label>`, ponle `aria-label`.
 - Si cambias `select.value` por código, llama a `syncSelect(select)` para repintar el botón (agregar opciones y marcar `selected` sí se detectan solos). Los `<select>` fuera de diálogos no se mejoran.
 
@@ -149,9 +150,10 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - **Pagos vencidos agrupados** (`byBill()` en `bills.js`): un pago periódico olvidado aparece una vez con «y N vencimientos más»; la tarjeta de Inicio y el aviso de la pestaña cuentan pagos, no vencimientos.
 
 **Service worker**
-- **Red lenta**: solo en las navegaciones, si la red tarda más de 3 s y hay copia, se abre con la copia y durante 30 s (`slowUntil`) todo sale de la copia (así no se mezclan versiones); en segundo plano se vuelve a descargar. Sin copia (primera visita) espera a la red. `tests/sw.py` lo prueba con un servidor lento.
-- El `fetch` del service worker usa `cache: 'no-cache'` (revalida con el servidor): sin eso la caché HTTP de GitHub Pages (10 min) puede mezclar módulos viejos y nuevos tras publicar y dejar la app sin arrancar.
-- Si añades un archivo `.js`/`.css`, agrégalo a `SHELL` en [sw.js](sw.js) y sube el nombre de `CACHE`.
+- **Abre desde la copia y actualiza en segundo plano** (pasó de ~710 ms a ~70 ms con 120 ms de latencia por petición). En cada navegación `sw.js` sirve `index.html` y los módulos de la caché vigente y, sin hacer esperar a nadie, vuelve a descargar todo `SHELL` con `cache: 'no-cache'` (sin eso la caché HTTP de GitHub Pages, 10 min, trae archivos viejos). Si el contenido cambió (huella SHA-256 de los archivos), guarda **toda la versión nueva en una caché propia** (`tracker-<huella>`) y la deja como vigente en `tracker-meta`: así **nunca se mezclan módulos de versiones distintas** y **no hay que subir ningún número de versión**. Luego avisa a la página (`postMessage 'update-ready'`; además la página pregunta `'ver'` al terminar de cargar, por si la nueva estuvo lista antes de que ella existiera para recibir el aviso) y `app.js` muestra el aviso `#upd` «Hay una versión nueva · Actualizar» (recarga; no se recarga solo para no tirar un formulario a medias). **Consecuencia: una versión publicada se ve en la segunda apertura (o tocando «Actualizar»)**, no en la primera.
+- **Cada pestaña queda fijada a la versión con la que abrió** (`served`: id de cliente → versión): aunque la nueva termine de bajar a mitad de carga, todos sus archivos salen de la misma caché. Las versiones que alguna pestaña usa (o sirvieron hace menos de 60 s) no se borran (`prune`). Lo servido de la copia lleva `Cache-Control: no-cache` (`fresh`): sin eso Chrome reutiliza de su memoria interna (GitHub Pages dice «fresco 10 min») la hoja de estilos vieja al recargar tras actualizar. Las descargas del shell tienen tope de 20 s (`AbortSignal.timeout`): una red colgada no debe bloquear las comprobaciones siguientes.
+- El oyente del mensaje se registra al inicio de `app.js`, **no** en `init()`: el aviso puede llegar antes de que termine de cargar la base y se perdería. Lo que no está en `SHELL` (tipografías) se guarda al usarlo y se copia a la caché nueva en cada actualización. Sin copia (primera visita) espera a la red; sin red abre con la copia. Si una versión sale rota, «Actualizar la app» del aviso de arranque borra cachés y service worker. `tests/sw.py` lo prueba (red de 6 s por archivo, versión nueva, aviso, sin red).
+- Si añades un archivo `.js`/`.css`/imagen del shell, agrégalo a `SHELL` en [sw.js](sw.js) (no hay `CACHE` que subir).
 - Si añades un archivo `.js` también agrégalo a los `<link rel="modulepreload">` de [index.html](index.html) (descarga los módulos en paralelo; sin ellos el arranque por red es más lento). `tests/smoke.py` falla si `js/`, `SHELL` y `index.html` no coinciden.
 - Antes de "optimizar" el código de datos, mide: la revisión de oct 2026 mostró que, salvo la lectura de IndexedDB, todo está por debajo de 100 ms con 60,000 movimientos (ver «Rendimiento» en [Documentacion.md](Documentacion.md)).
 
@@ -164,7 +166,7 @@ Estado: probado en Chromium de escritorio con teléfono simulado; **falta valida
 ## Flujo de trabajo y Git
 
 - Rama `main`, remoto `origin` = `https://github.com/HancelLeonel/Tracker.git`.
-- **El usuario hace el `push` manualmente** (no hay credenciales de GitHub en esta máquina). Haz commit cuando te lo pida; no intentes el push salvo que lo pida explícitamente.
+- **Haz commit y `push` solo cuando el usuario lo pida** (el 17 oct se comprobó que el `push` a `origin main` funciona desde esta máquina). Nunca lo hagas por iniciativa propia: publicar en `main` actualiza la app que el usuario usa en el teléfono.
 - Mensajes de commit en español, con resumen + lista de cambios, y la línea `Co-Authored-By` indicada por el entorno.
 - Mantén [Documentacion.md](Documentacion.md) y este archivo al día cuando cambie el comportamiento o las reglas.
 
