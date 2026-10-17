@@ -75,6 +75,88 @@ export function modal(title, body, { submit = 'Guardar', onSubmit, onDelete, del
   dlg.showModal();
 }
 
+// ---------- selector propio ----------
+// El <select> nativo de Android abre una lista del sistema que no sigue el tema. Cada <select> de un diálogo se conserva (valor,
+// `change`, validación, `f.elements.nombre`) pero queda invisible sobre un botón que abre una hoja inferior con el diseño de la app.
+// `data-label` / `data-sub` de una <option> separan el nombre del monto en la lista; `syncSelect()` repinta el botón tras un cambio por código.
+const picker = $('#picker');
+picker.addEventListener('click', e => { if (e.target === picker) picker.close(); });
+dlg.addEventListener('close', () => picker.close());
+
+const plain = s => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+export function syncSelect(sel) {
+  const btn = sel.parentElement?.querySelector('.sel-btn');
+  if (!btn) return;
+  const o = sel.options[sel.selectedIndex];
+  btn.querySelector('.sel-t').textContent = o?.text ?? '';
+  btn.classList.toggle('ph', !!o?.disabled);
+  btn.disabled = sel.disabled;
+}
+
+function openPicker(sel, title) {
+  const opts = [...sel.options].filter(o => !o.disabled);
+  let group = null, rows = '';
+  for (const o of opts) {
+    const g = o.parentElement.label ?? '';
+    if (g !== group) { group = g; if (g) rows += `<div class="pk-g overline">${esc(g)}</div>`; }
+    const on = o.value === sel.value;
+    rows += `<button type="button" class="pk-o ${on ? 'on' : ''}" role="option" aria-selected="${on}" data-v="${esc(o.value)}" data-q="${esc(plain(o.text))}">
+      <span class="pk-t">${esc(o.dataset.label ?? o.text)}</span>${o.dataset.sub ? `<small>${esc(o.dataset.sub)}</small>` : ''}${on ? icon('check') : ''}</button>`;
+  }
+  picker.innerHTML = `<div class="pk">
+    <h2>${esc(title || 'Elegir')}</h2>
+    ${opts.length > 12 ? '<input type="search" class="pk-q" placeholder="Buscar" autocomplete="off" aria-label="Buscar">' : ''}
+    <div class="pk-list" role="listbox">${rows || '<p class="muted">No hay opciones.</p>'}</div>
+  </div>`;
+  const list = $('.pk-list', picker);
+  list.onclick = e => {
+    const b = e.target.closest('.pk-o');
+    if (!b) return;
+    const changed = sel.value !== b.dataset.v;
+    sel.value = b.dataset.v;
+    picker.close();
+    syncSelect(sel);
+    if (changed) for (const type of ['input', 'change']) sel.dispatchEvent(new Event(type, { bubbles: true }));
+    sel.parentElement.querySelector('.sel-btn')?.focus({ preventScroll: true });
+  };
+  $('.pk-q', picker)?.addEventListener('input', e => {
+    const q = plain(e.target.value.trim());
+    list.querySelectorAll('.pk-o').forEach(b => { b.hidden = !!q && !b.dataset.q.includes(q); });
+    list.querySelectorAll('.pk-g').forEach(g => {
+      let n = g.nextElementSibling, any = false;
+      while (n && !n.classList.contains('pk-g')) { any ||= !n.hidden; n = n.nextElementSibling; }
+      g.hidden = !any;
+    });
+  });
+  picker.showModal();
+  list.querySelector('.on')?.scrollIntoView({ block: 'center' });
+}
+
+function enhanceSelect(sel) {
+  if (sel.dataset.pk || sel.multiple || sel.size > 1) return;
+  sel.dataset.pk = '1';
+  const wrap = document.createElement('span');
+  wrap.className = 'sel';
+  wrap.innerHTML = `<button type="button" class="sel-btn"><span class="sel-t"></span>${icon('down')}</button>`;
+  sel.before(wrap);
+  wrap.append(sel);
+  sel.tabIndex = -1;
+  const btn = $('.sel-btn', wrap);
+  if (sel.getAttribute('aria-label')) btn.setAttribute('aria-label', sel.getAttribute('aria-label'));
+  btn.onclick = () => {
+    const lab = sel.closest('label')?.cloneNode(true);
+    lab?.querySelectorAll('.sel').forEach(x => x.remove());
+    openPicker(sel, lab?.textContent.trim() || sel.getAttribute('aria-label'));
+  };
+  sel.addEventListener('change', () => syncSelect(sel));
+  new MutationObserver(() => syncSelect(sel)).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ['selected', 'disabled'] });
+  syncSelect(sel);
+}
+
+// Los formularios se pintan (y repintan por filas) con innerHTML: se mejora cada <select> nuevo que aparezca en el diálogo.
+new MutationObserver(() => dlg.querySelectorAll('select:not([data-pk])').forEach(enhanceSelect)).observe(dlg, { childList: true, subtree: true });
+
 // ---------- selects ----------
 // <select> con las categorías agrupadas por cuenta y su saldo. `bal(key)` devuelve el saldo a mostrar.
 // opts: credit (incluir tarjetas), only (Set de claves permitidas), placeholder (texto si no hay selección).
@@ -87,7 +169,8 @@ export function catSelect(name, selected, bal, attrs = '', { credit = true, only
       ${cats.map(c => {
         const k = `${a.id}|${c.id}`, b = bal(k);
         const text = isCredit(a) ? (b < 0 ? `Deuda ${money(-b)}` : `A favor ${money(b)}`) : `${c.name} · ${money(b)}`;
-        return `<option value="${k}" ${k === selected ? 'selected' : ''}>${esc(text)}</option>`;
+        const parts = isCredit(a) ? '' : `data-label="${esc(c.name)}" data-sub="${esc(money(b))}"`;
+        return `<option value="${k}" ${parts} ${k === selected ? 'selected' : ''}>${esc(text)}</option>`;
       }).join('')}
     </optgroup>`;
   }).join('');
@@ -107,13 +190,14 @@ export function wireKindSelect(select) {
   select.addEventListener('change', async () => {
     if (select.value !== '__new') { prev = select.value; return; }
     const name = prompt('Nombre del nuevo tipo de gasto')?.trim();
-    if (!name) { select.value = prev; return; }
+    if (!name) { select.value = prev; syncSelect(select); return; }
     const t = { id: uid(), name };
     S.settings.types.push(t);
     await saveSettings();
     const opt = new Option(name, t.id);
     select.add(opt, select.options[select.options.length - 1]);
     select.value = t.id;
+    syncSelect(select);
     prev = t.id;
   });
 }

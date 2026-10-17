@@ -232,7 +232,7 @@ export function expenseForm(move, presetKey, presetCard) {
       const paint = () => {
         box.innerHTML = rows.map((r, i) => `
           <div class="part">
-            ${catSelect('key', r.key, avail, `data-i="${i}"`, { credit: false, only: new Set(choices(i)), placeholder: 'Elegir categoría…' })}
+            ${catSelect('key', r.key, avail, `data-i="${i}" aria-label="Categoría"`, { credit: false, only: new Set(choices(i)), placeholder: 'Elegir categoría…' })}
             <input data-i="${i}" type="number" inputmode="decimal" step="0.01" min="0.01" value="${r.amount || ''}" aria-label="Monto de esta categoría">
             ${rows.length > 1 ? `<button type="button" class="mini" data-rm="${i}" aria-label="Quitar">${icon('close')}</button>` : ''}
           </div>`).join('');
@@ -406,7 +406,7 @@ export function payCardForm(card, move) {
       const paint = () => {
         box.innerHTML = rows.map((r, i) => `
           <div class="part">
-            ${catSelect('key', r.key, bal, `data-i="${i}"`, opt)}
+            ${catSelect('key', r.key, bal, `data-i="${i}" aria-label="Categoría"`, opt)}
             <input data-i="${i}" type="number" inputmode="decimal" step="0.01" min="0.01" value="${r.amount || ''}" aria-label="Monto desde esta categoría">
             ${rows.length > 1 ? `<button type="button" class="mini" data-rm="${i}" aria-label="Quitar">${icon('close')}</button>` : ''}
           </div>`).join('');

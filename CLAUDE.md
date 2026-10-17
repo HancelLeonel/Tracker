@@ -119,6 +119,11 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - **Siembra única** (`seedExercises` en `state.js`, marca `settings.gymCatalogSeeded`): carga `DEFAULT_EXERCISES` más los nombres que ya usaban rutinas e historial (en «Otro»). Lo que se borre del catálogo **no vuelve**. Al importar o borrar todo hay que quitar la marca de `S.settings` en memoria antes de `loadState()` (ya lo hacen `doImport`, `validateImport` y `wipe`); un respaldo sin la marca se vuelve a sembrar. Si añades un grupo, ponlo en `GROUPS` (los inválidos pasan a «Otro» al importar).
 - `sanitizeRoutines`/`sanitizeWorkouts`/`sanitizeExercises` (usadas por `validateImport`) acotan series, repeticiones y pesos. **Si añades un campo a rutinas o entrenamientos, actualiza ambas.**
 
+**Selectores** ([ui.js](js/ui.js))
+- El `<select>` nativo de Android abre una lista del sistema que ignora el tema, así que **cada `<select>` de un diálogo se mejora solo** (`enhanceSelect`, vía `MutationObserver` sobre `#dlg`, también para filas pintadas luego con `innerHTML`): el select real se queda invisible dentro de `.sel` (conserva valor, `change`, `required` y `f.elements.nombre`) y un botón `.sel-btn` abre la hoja `#picker` con las opciones, encabezados por `<optgroup>` y buscador si hay más de 12. **Sigue escribiendo `<select>` normales**; no crees un componente aparte.
+- `data-label` / `data-sub` en una `<option>` separan nombre y monto en la hoja (`catSelect` los pone). El título sale del `<label>` que lo envuelve o de `aria-label`: si el select no va dentro de un `<label>`, ponle `aria-label`.
+- Si cambias `select.value` por código, llama a `syncSelect(select)` para repintar el botón (agregar opciones y marcar `selected` sí se detectan solos). Los `<select>` fuera de diálogos no se mejoran.
+
 **Hojas inferiores y teclado**
 - `index.html` declara `interactive-widget=resizes-content` en el viewport: sin eso Chrome en Android solo encoge el viewport *visual* y el teclado tapa la hoja anclada abajo. Con él, `max-height: 92dvh` sigue el área visible y la hoja hace scroll. `ui.js` además acerca al centro el campo que recibe el foco. No se puede probar el teclado real en Chromium de escritorio: `tests/gimnasio.py` solo comprueba que el viewport lo declare.
 
