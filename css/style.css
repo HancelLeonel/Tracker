@@ -549,6 +549,22 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
 .frow-tools { display: flex; align-items: center; gap: 6px; }
 .frow-tools .check { flex: 1; }
 
+/* Editor de elementos de una plantilla: una fila por elemento; los botones solo salen en la fila con foco */
+.tr-list { display: grid; gap: 6px; margin: 8px 0; }
+.tr-main { display: flex; align-items: center; gap: 4px; }
+.tr-in { flex: 1; min-width: 0; }
+.tr.head .tr-in { font-weight: 600; border-color: var(--surface2); }
+.tr-tools { display: none; align-items: center; gap: 6px; margin: 4px 0 6px; }
+.tr:focus-within .tr-tools, .tr.due .tr-tools { display: flex; }
+.tr .icon.sm { width: 44px; height: 44px; }
+.tr-tools .icon { background: var(--surface0); }
+.tr-tools .icon[aria-pressed=true] { background: var(--accent); }
+.tr-tools .icon[aria-pressed=true] .i { stroke: var(--accent-ink); }
+.tr-due { display: flex; flex-direction: row; align-items: center; gap: 6px; margin-left: auto; font-size: .78rem; }
+.tr-due input { width: 64px; min-height: 44px; padding: 6px; text-align: center; }
+.tr.head .tr-due { display: none; }
+.tr-add { display: flex; gap: 8px; margin: 4px 0 8px; }
+
 /* Listas: fechas, hechos al final, finalizar y archivo */
 .li { padding: 0; }
 .li-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 4px; text-align: left; color: inherit; }

@@ -7,7 +7,7 @@ const dlg = $('#dlg');
 const viewer = $('#viewer');
 dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
 // Con el teclado abierto la hoja se encoge (ver `interactive-widget` en index.html): el campo enfocado se acerca al centro para que no quede tapado.
-dlg.addEventListener('focusin', e => { if (e.target.matches('input, textarea, select')) setTimeout(() => e.target.isConnected && e.target.scrollIntoView({ block: 'center' }), 300); });
+dlg.addEventListener('focusin', e => { if (e.target.matches('input, textarea, select')) setTimeout(() => e.target.isConnected && (e.target.closest('.tr') ?? e.target).scrollIntoView({ block: e.target.closest('.tr') ? 'nearest' : 'center' }), 300); });
 viewer.addEventListener('click', e => { if (e.target === viewer || e.target.closest('[data-close]')) viewer.close(); });
 
 // URLs de vista previa creadas por el diálogo; se liberan al cerrarlo.

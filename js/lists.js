@@ -33,14 +33,28 @@ function dueInfo(t) {
   return { late: false, text: `Toca en ${pl(left, 'día')}` };
 }
 
-// El texto de la plantilla se edita como una línea por elemento; las que empiezan con # son encabezados de sección.
-// Una línea que termina en « @3» vence 3 días después de crear la lista (fecha relativa).
+// Una línea que empieza con # es un encabezado de sección y una que termina en « @3» vence 3 días después de crear la lista.
+// Solo se usa al pegar texto en el editor de elementos: ahí cada línea pasa a ser una fila.
 const parseItems = text => text.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
   if (l.startsWith('#')) return { text: l.replace(/^#+\s*/, ''), head: true };
   const m = l.match(/^(.*?)\s+@(\d{1,3})$/);
   return m && m[1].trim() ? { text: m[1].trim(), dueIn: +m[2] } : { text: l };
 }).filter(i => i.text);
-const itemsText = items => items.map(i => (i.head ? `# ${i.text}` : i.dueIn != null ? `${i.text} @${i.dueIn}` : i.text)).join('\n');
+
+// Fila del editor de elementos de una plantilla. Los botones de la fila solo salen mientras tiene el foco (o si ya tiene fecha relativa).
+const tplRow = (i = {}) => `
+  <div class="tr${i.head ? ' head' : ''}${i.dueIn != null ? ' due' : ''}">
+    <div class="tr-main">
+      <input class="tr-in" maxlength="200" enterkeyhint="next" autocomplete="off" aria-label="${i.head ? 'Sección' : 'Elemento'}" placeholder="${i.head ? 'Nombre de la sección' : 'Elemento'}" value="${esc(i.text ?? '')}">
+      <button type="button" class="icon sm" data-tr="rm" aria-label="Quitar">${icon('close')}</button>
+    </div>
+    <div class="tr-tools">
+      <button type="button" class="icon sm" data-tr="up" aria-label="Subir">${icon('up')}</button>
+      <button type="button" class="icon sm" data-tr="down" aria-label="Bajar">${icon('down')}</button>
+      <button type="button" class="icon sm" data-tr="head" aria-pressed="${!!i.head}" aria-label="Es una sección">${icon('heading')}</button>
+      <label class="tr-due">Vence a los <input type="number" inputmode="numeric" min="0" max="365" placeholder="–" aria-label="Días para vencer" value="${i.dueIn ?? ''}"> días</label>
+    </div>
+  </div>`;
 
 // `seed` (solo al crear) rellena el formulario con datos de partida, por ejemplo los de una lista.
 function templateForm(t, seed) {
@@ -51,17 +65,90 @@ function templateForm(t, seed) {
     <label>Se repite
       <select name="freq">${FREQS.map(([k, name]) => `<option value="${k}" ${k === freq ? 'selected' : ''}>${name}</option>`).join('')}</select>
     </label>
-    <label>Elementos (uno por línea)
-      <textarea name="items" rows="10" placeholder="# Frutas y verduras&#10;Tomate&#10;Cebolla&#10;# Lácteos&#10;Leche">${esc(itemsText(src?.items ?? []))}</textarea>
-      <small>Empieza una línea con # para separar por secciones. Termina una línea con @3 para que ese elemento venza 3 días después de crear la lista.</small>
-    </label>
+    <div><small class="muted">Elementos</small>
+      <div id="tr" class="tr-list">${(src?.items?.length ? src.items : [{}]).map(tplRow).join('')}</div>
+      <div class="tr-add">
+        <button type="button" class="btn sm" data-tr-add="item">${icon('plus')} Elemento</button>
+        <button type="button" class="btn sm" data-tr-add="head">${icon('heading')} Sección</button>
+      </div>
+      <small class="muted">Enter agrega otro debajo. Toca un elemento para moverlo, hacerlo sección o fijar cuándo vence.</small>
+    </div>
     <div><small class="muted">Color</small>
       <div class="swatches" role="radiogroup" aria-label="Color">
         ${COLORS.map(c => `<label><input type="radio" name="color" value="${c}" ${c === color ? 'checked' : ''}><span style="--c:var(--${c})"></span></label>`).join('')}
       </div>
     </div>`, {
+    afterOpen(form) {
+      const box = form.querySelector('#tr');
+      const field = row => row.querySelector('.tr-in');
+      // Agrega una fila después de `after` (o al final) y le da el foco sin mover la pantalla: el teclado ya está abierto.
+      const add = (item, after) => {
+        const row = Object.assign(document.createElement('div'), { innerHTML: tplRow(item) }).firstElementChild;
+        if (after) after.after(row); else box.append(row);
+        field(row).focus({ preventScroll: true });
+        return row;
+      };
+      // Los botones no le quitan el foco al campo: así el teclado no se cierra y se abre en cada toque.
+      form.addEventListener('mousedown', e => { if (e.target.closest('[data-tr], [data-tr-add]')) e.preventDefault(); });
+      form.addEventListener('click', e => {
+        const addBtn = e.target.closest('[data-tr-add]');
+        if (addBtn) { add({ head: addBtn.dataset.trAdd === 'head' }, box.contains(document.activeElement) ? document.activeElement.closest('.tr') : null); return; }
+        const b = e.target.closest('[data-tr]'), row = b?.closest('.tr');
+        if (!row) return;
+        const act = b.dataset.tr;
+        if (act === 'up') row.previousElementSibling?.before(row);
+        else if (act === 'down') row.nextElementSibling?.after(row);
+        else if (act === 'head') {
+          const on = !row.classList.contains('head');
+          row.classList.toggle('head', on);
+          b.setAttribute('aria-pressed', on);
+          field(row).placeholder = on ? 'Nombre de la sección' : 'Elemento';
+          field(row).setAttribute('aria-label', on ? 'Sección' : 'Elemento');
+        } else if (act === 'rm') {
+          const next = row.nextElementSibling ?? row.previousElementSibling;
+          row.remove();
+          if (!box.children.length) add({}); else field(next).focus({ preventScroll: true });
+        }
+        // Mover un nodo le quita el foco al campo: se devuelve para que sigan los botones de la fila y el teclado abierto.
+        if (act === 'up' || act === 'down') { field(row).focus({ preventScroll: true }); row.scrollIntoView({ block: 'nearest' }); }
+      });
+      box.addEventListener('input', e => {
+        if (e.target.type === 'number') e.target.closest('.tr').classList.toggle('due', e.target.value !== '');
+      });
+      box.addEventListener('keydown', e => {
+        const input = e.target.closest('.tr-in');
+        if (!input) return;
+        const row = input.closest('.tr');
+        if (e.key === 'Enter') { e.preventDefault(); add({ head: false }, row); }
+        else if (e.key === 'Backspace' && !input.value && box.children.length > 1) {
+          e.preventDefault();
+          const prev = row.previousElementSibling ?? row.nextElementSibling;
+          row.remove();
+          field(prev).focus({ preventScroll: true });
+        }
+      });
+      // Pegar varias líneas (p. ej. una lista de otra app) crea una fila por línea.
+      box.addEventListener('paste', e => {
+        const text = e.clipboardData?.getData('text') ?? '';
+        const input = e.target.closest('.tr-in');
+        if (!input || !text.includes('\n')) return;
+        e.preventDefault();
+        const items = parseItems(text);
+        if (!items.length) return;
+        const first = input.closest('.tr');
+        let row = first;
+        items.forEach(it => { row = add(it, row); });
+        if (!input.value.trim()) first.remove(); // la fila vacía donde se pegó sobra
+      });
+    },
     async onSubmit(fd) {
-      const data = { name: fd.get('name').trim(), freq: fd.get('freq'), color: fd.get('color'), items: parseItems(fd.get('items')) };
+      const items = [...document.querySelectorAll('#tr .tr')].map(row => {
+        const text = row.querySelector('.tr-in').value.trim(), days = row.querySelector('.tr-due input').value;
+        if (!text) return null;
+        if (row.classList.contains('head')) return { text, head: true };
+        return days === '' ? { text } : { text, dueIn: Math.min(365, Math.max(0, Math.round(+days) || 0)) };
+      }).filter(Boolean);
+      const data = { name: fd.get('name').trim(), freq: fd.get('freq'), color: fd.get('color'), items };
       if (t) Object.assign(t, data); else S.templates.push(t = { id: uid(), ...data });
       await saveTemplate(t);
       if (seed) toast('Plantilla guardada');
