@@ -10,7 +10,7 @@
 - **Gimnasio**: rutinas, entrenamiento en curso con descanso entre series, historial y progreso por ejercicio. (Las tareas se llevan con **Listas**.)
 - **Listas**: listas de tareas o compras que se crean a partir de **plantillas** reutilizables (el súper quincenal, la limpieza semanal…).
 - **Compras**: registro buscable de lo que vale la pena recordar (con garantía y facturas).
-- **Configuración**: apariencia (fuente), respaldo (exportar/importar), tipos de gasto y borrado de datos.
+- **Configuración**: apariencia (tema y fuente), orden del menú y de Inicio, respaldo (exportar/importar), tipos de gasto y borrado de datos.
 
 Todo funciona sin conexión y los datos se guardan **solo en el teléfono** (IndexedDB). Tema oscuro **Grafito** (neutros casi negros y un solo acento suave), moneda en quetzales (`Q`).
 
@@ -331,6 +331,8 @@ Cada cuenta tiene un botón con una flecha para **ocultar o mostrar sus categor�
 ### Apariencia
 
 **Menú → Configuración → Apariencia → Tema.** **Oscuro** (el de siempre), **Claro** (fondo blanco, para usar con mucha luz) o **Automático** (sigue el modo claro u oscuro del teléfono y cambia solo cuando el teléfono cambia). Se aplica desde la pantalla de carga, se recuerda y viaja en el respaldo. Ambos temas cumplen los mismos mínimos de contraste.
+
+**Menú → Configuración → Orden.** Dos botones: **Ordenar el menú lateral** (las 9 pestañas) y **Ordenar Inicio** (las secciones —Frase, Nota rápida, Tarjetas, Bandeja y Tareas de hoy— y, por separado, las cuatro tarjetas: Hábitos, Pagos, Ejercicio y los botones de Gasto/Ingreso/Mover). Cada fila tiene flechas **↑ ↓**; **Guardar** aplica el orden y **Restablecer el orden original** lo deja como venía. El saludo con la fecha va siempre arriba y la app siempre abre en Inicio, esté donde esté en el menú. Es un ajuste **del dispositivo**: entra en el respaldo, pero no viaja por la sincronización con Google Drive (la PC y el teléfono pueden tener órdenes distintos). Una pestaña o sección nueva que llegue en una actualización aparece al final sin que tengas que hacer nada.
 
 **Menú → Configuración → Apariencia → Fuente.** Dos opciones: **Predeterminada del sistema** (la que trae tu teléfono; en Android normalmente Roboto) y **JetBrains Mono** (monoespaciada, pensada para código y números). Cada opción se muestra con su propia letra. La elección se aplica a toda la app, se recuerda y viaja en el respaldo. La fuente JetBrains Mono viene **dentro de la app** (carpeta `fonts/`, licencia SIL OFL), así que funciona sin conexión. Con ella el texto es más ancho, por lo que el tamaño base se reduce un poco. Los bloques de código de Notas siempre usan JetBrains Mono.
 

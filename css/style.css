@@ -528,6 +528,12 @@ textarea.code-in, textarea.md-in { font-family: var(--font-jb); font-size: .9rem
 .md-box { display: inline-grid; place-items: center; width: 1.1em; height: 1.1em; margin-right: .5em; vertical-align: -.2em; border: 1.5px solid var(--surface2); border-radius: 5px; }
 .done > .md-box { background: var(--accent); border-color: var(--accent); }
 .md-box .i { width: .85em; height: .85em; margin: 0; stroke: var(--accent-ink); stroke-width: 2.6; }
+/* Configuración › Orden */
+.ord { display: grid; margin: 4px 0 12px; padding: 0; list-style: none; }
+.ord li { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 4px 0 6px; border-bottom: 1px solid var(--line); }
+.ord li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ord .icon.sm { width: 44px; height: 44px; }
+.ord .icon.sm:disabled { opacity: .3; }
 .md-ed { display: grid; gap: 8px; }
 .md-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .md-bar .icon { width: auto; height: 44px; border: 1px solid var(--line); border-radius: 12px; }

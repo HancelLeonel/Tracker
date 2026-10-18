@@ -52,6 +52,7 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | `selector.py` | Selector propio en los diálogos: select nativo invisible, hoja que primero pide la cuenta y luego sus categorías (con montos y volver), valor y `change`, «Nuevo tipo», validación, buscador con más de 12 opciones, tema oscuro y claro |
 | `sin_guia.py` | Finanzas sin la Guía de transferencias: subpestañas, respaldo antiguo que la trae (se importa e ignora), ingreso repartido por ella editable como un ingreso normal y respaldo nuevo sin `plan` |
 | `markdown.py` | Markdown: renderizador (formatos, enlaces seguros, entradas hostiles), campo con barra de formato y vista previa, lista, detalle, búsqueda, respaldo, contenido ancho en tema claro y JetBrains Mono |
+| `orden_menu.py` | Configuración › Orden: reordenar el menú lateral y las secciones y tarjetas de Inicio (↑ ↓, cancelar, restablecer, persistencia, valores dañados, respaldo, ajuste del dispositivo) |
 | `benchmark_carga.py` | Tiempos de carga, pantallas, reportes y guardado con 1k–60k movimientos (no es parte de `run_all`) |
 | `benchmark_listas.py` | Tiempos de las listas largas con 1k–60k movimientos (no es parte de `run_all`) |
 

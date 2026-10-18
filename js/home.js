@@ -1,4 +1,4 @@
-import { esc, today, fmtDate, daysBetween, pl } from './util.js';
+import { esc, today, fmtDate, daysBetween, pl, applyOrder } from './util.js';
 import { S } from './state.js';
 import { isDone, isSkip } from './habits.js';
 import { icon } from './icons.js';
@@ -126,21 +126,35 @@ function tasksSection() {
 // Inicio es la primera pantalla: si los datos de alguna parte vinieran raros, esa parte se omite en vez de impedir que la app abra.
 const safe = fn => { try { return fn(); } catch (err) { console.error(err); return ''; } };
 
+// Lo que se puede reordenar en Inicio (Configuración › Orden): secciones y, dentro de «Tarjetas», cada tarjeta. El saludo va siempre arriba.
+// El orden guardado está en `settings.homeOrder` / `settings.tileOrder`; lo que falte se agrega al final (ver `applyOrder`).
+export const HOME_BLOCKS = [['quote', 'Frase'], ['quick', 'Nota rápida'], ['tiles', 'Tarjetas'], ['inbox', 'Bandeja'], ['tasks', 'Tareas de hoy']];
+export const HOME_TILES = [['habits', 'Hábitos'], ['bills', 'Pagos'], ['gym', 'Ejercicio'], ['actions', 'Gasto, Ingreso y Mover']];
+
+function quoteBlock() {
+  const [text, author] = QUOTES[current];
+  return `<button class="home-quote" data-act="home-quote" aria-label="Mostrar otra frase">
+    <blockquote><p>${esc(text)}</p><footer>${esc(author)}</footer></blockquote>
+  </button>`;
+}
+
+const TILE_VIEWS = { habits: () => safe(habitsTile), bills: () => safe(billsTile), gym: () => safe(gymTile), actions: moneyActions };
+const BLOCK_VIEWS = {
+  quote: quoteBlock,
+  quick: () => safe(quickNoteForm),
+  tiles: () => `<div class="tiles">${applyOrder(HOME_TILES.map(t => t[0]), S.settings.tileOrder).map(k => TILE_VIEWS[k]()).join('')}</div>`,
+  inbox: () => safe(inboxSection),
+  tasks: () => safe(tasksSection),
+};
+
 export function homeView() {
   if (current === null) nextQuote();
-  const [text, author] = QUOTES[current];
   const now = new Date();
   const weekday = now.toLocaleDateString('es-GT', { weekday: 'long' });
   return `
     <section class="home">
       <header class="home-top"><span class="overline">${esc(weekday)} · ${esc(fmtDate(today()))}</span><h2>${greeting(now.getHours())}</h2></header>
-      <button class="home-quote" data-act="home-quote" aria-label="Mostrar otra frase">
-        <blockquote><p>${esc(text)}</p><footer>${esc(author)}</footer></blockquote>
-      </button>
-      ${safe(quickNoteForm)}
-      <div class="tiles">${safe(habitsTile)}${safe(billsTile)}${safe(gymTile)}${moneyActions()}</div>
-      ${safe(inboxSection)}
-      ${safe(tasksSection)}
+      ${applyOrder(HOME_BLOCKS.map(b => b[0]), S.settings.homeOrder).map(k => safe(BLOCK_VIEWS[k])).join('')}
     </section>`;
 }
 

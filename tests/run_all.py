@@ -18,7 +18,7 @@ ROOT = HERE.parent
 # De más a menos lenta (segundos aproximados): empezar por las largas reparte mejor la carga entre los trabajadores.
 TESTS = ['sincronizacion', 'sw', 'listas', 'pomodoro', 'notas', 'gimnasio', 'habitos', 'flujo_completo', 'catalogo', 'configuracion',
          'no_toca_anual_negativo', 'revision', 'inicio', 'interfaz', 'migracion_y_limites', 'gimnasio_mas', 'orden_compartir_carga',
-         'selector', 'listas_orden', 'arranque', 'bandeja', 'tarjetas', 'markdown', 'inicio_resumen', 'bandeja_varias',
+         'selector', 'orden_menu', 'listas_orden', 'arranque', 'bandeja', 'tarjetas', 'markdown', 'inicio_resumen', 'bandeja_varias',
          'paginacion_y_cache', 'sin_guia', 'smoke']
 SERIE = []  # pruebas con tiempos medidos que no toleran la carga de las demás (ninguna por ahora)
 

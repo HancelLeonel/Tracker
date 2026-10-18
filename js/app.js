@@ -1,7 +1,7 @@
 import { $, toast } from './util.js';
 import { icon } from './icons.js';
 import { S, hooks, loadState, gcFiles, hasNormalCats } from './state.js';
-import { isOpen, openFile, applyFont, applyTheme } from './ui.js';
+import { isOpen, openFile, applyFont, applyTheme, TABS, orderedTabs } from './ui.js';
 import * as money from './money.js';
 import * as bills from './bills.js';
 import * as reports from './reports.js';
@@ -20,9 +20,6 @@ import { esc } from './util.js';
 const SUBS = [['accounts', 'Cuentas'], ['bills', 'Pagos'], ['reports', 'Reportes']];
 const SUB_TITLES = { accounts: 'Finanzas', bills: 'Pagos', reports: 'Reportes' };
 const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], bills: ['new-bill', 'Nuevo pago'] };
-
-const TABS = [['home', 'Inicio', 'home'], ['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'],
-  ['pomodoro', 'Pomodoro', 'timer'], ['gym', 'Gimnasio', 'dumbbell'], ['notes', 'Notas', 'note'], ['data', 'Configuración', 'data']];
 
 const menuOpen = open => {
   document.body.classList.toggle('menu-open', open);
@@ -49,7 +46,7 @@ let enter = false; // la próxima pintura viene de un cambio de pestaña: entra 
 function render() {
   $('#drawer').innerHTML = `
     <div class="drawer-h"><b>Tracker</b><button class="icon" data-act="menu-close" aria-label="Cerrar menú">${icon('close')}</button></div>
-    <nav id="tabs">${TABS.map(([k, name, ic]) => `<button class="${k === S.tab ? 'on' : ''}" data-act="tab" data-tab="${k}">${icon(ic)}<span>${name}</span></button>`).join('')}</nav>`;
+    <nav id="tabs">${orderedTabs().map(([k, name, ic]) => `<button class="${k === S.tab ? 'on' : ''}" data-act="tab" data-tab="${k}">${icon(ic)}<span>${name}</span></button>`).join('')}</nav>`;
   const top = $('#topbar'), view = $('#view');
   const fab = $('#fab');
   fab.hidden = !(S.tab === 'money' && S.sub === 'accounts' && hasNormalCats());

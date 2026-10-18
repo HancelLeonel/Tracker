@@ -78,3 +78,10 @@ export function toast(msg) {
 export function safeUrl(v) {
   try { const u = new URL(String(v).trim()); return /^https?:$/.test(u.protocol) ? u.href : null; } catch { return null; }
 }
+
+// Orden guardado por la persona (`saved`, un arreglo de claves) aplicado a la lista base `keys`: ignora lo que no exista o se repita y
+// deja al final, en su orden original, lo que falte (así una pestaña o sección nueva aparece sola). Un valor raro equivale a «sin orden».
+export function applyOrder(keys, saved) {
+  const first = Array.isArray(saved) ? saved.filter((k, i) => keys.includes(k) && saved.indexOf(k) === i) : [];
+  return [...first, ...keys.filter(k => !first.includes(k))];
+}

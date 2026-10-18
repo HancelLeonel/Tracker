@@ -1,11 +1,12 @@
 import * as db from './db.js';
-import { esc, uid, today, toast, $, pl } from './util.js';
+import { esc, uid, today, toast, $, pl, applyOrder } from './util.js';
 import { S, loadState, saveSettings, gcFiles, sortedKinds } from './state.js';
-import { modal, applyFont, applyTheme, THEMES } from './ui.js';
+import { modal, applyFont, applyTheme, THEMES, TABS } from './ui.js';
 import { icon, HABIT_ICONS, NOTE_ICONS } from './icons.js';
 import { COLORS, SLOT_KEYS } from './habits.js';
 import { FREQS as TPL_FREQS } from './lists.js';
 import { FIELD_TYPES } from './notes.js';
+import { HOME_BLOCKS, HOME_TILES } from './home.js';
 import { sanitizeRoutines, sanitizeWorkouts, sanitizeExercises } from './gym.js';
 import { fileSize } from './ui.js';
 
@@ -45,6 +46,12 @@ export function dataView(extra = '') {
       </div>
     </section>
     <section class="card stack">
+      <h3>Orden</h3>
+      <small class="muted">Elige en qué orden aparecen las secciones del menú lateral y lo que ves en Inicio.</small>
+      <button class="btn block" data-act="order-tabs">${icon('menu')} Ordenar el menú lateral</button>
+      <button class="btn block" data-act="order-home">${icon('home')} Ordenar Inicio</button>
+    </section>
+    <section class="card stack">
       <h3>Respaldo</h3>
       <p class="muted">Los datos viven en este dispositivo. Exporta un respaldo de vez en cuando; si borras los datos del navegador se pierden.</p>
       <div class="kv"><span class="muted">Último respaldo</span><span>${last}</span></div>
@@ -65,6 +72,50 @@ export function dataView(extra = '') {
       <h3>Zona de peligro</h3>
       <button class="btn danger block" data-act="wipe">Borrar todos los datos</button>
     </section>`;
+}
+
+// ---------- orden del menú lateral y de Inicio ----------
+// Cada lista guarda en `settings[key]` el orden elegido; si queda igual al original se borra la clave. Son ajustes del dispositivo (DEVICE_KEYS).
+const ORDERS = {
+  tabs: { title: 'Orden del menú lateral', lists: [{ key: 'tabOrder', items: TABS }] },
+  home: { title: 'Orden de Inicio', lists: [
+    { key: 'homeOrder', label: 'Secciones (el saludo va siempre arriba)', items: HOME_BLOCKS },
+    { key: 'tileOrder', label: 'Tarjetas (se ven de dos en dos)', items: HOME_TILES }] },
+};
+
+function orderForm(kind) {
+  const def = ORDERS[kind];
+  const base = def.lists.map(l => l.items.map(i => i[0]));
+  const st = def.lists.map((l, i) => applyOrder(base[i], S.settings[l.key]));
+  modal(def.title, `<div id="ord"></div><button type="button" class="btn ghost block" id="ord-reset">Restablecer el orden original</button>`, {
+    afterOpen(form) {
+      const box = form.querySelector('#ord');
+      const paint = focus => {
+        box.innerHTML = def.lists.map((l, li) => `
+          ${l.label ? `<small class="muted">${esc(l.label)}</small>` : ''}
+          <ul class="ord">${st[li].map((k, i) => {
+            const [, name, ic] = l.items.find(x => x[0] === k);
+            const btn = (dir, ico, tip, off) => `<button type="button" class="icon sm" data-l="${li}" data-i="${i}" data-mv="${dir}" aria-label="${tip} ${esc(name)}" ${off ? 'disabled' : ''}>${icon(ico)}</button>`;
+            return `<li>${ic ? icon(ic) : ''}<span>${esc(name)}</span>${btn(-1, 'up', 'Subir', i === 0)}${btn(1, 'down', 'Bajar', i === st[li].length - 1)}</li>`;
+          }).join('')}</ul>`).join('');
+        if (focus) box.querySelector(`[data-l="${focus.l}"][data-i="${focus.i}"][data-mv="${focus.dir}"]:not(:disabled)`)?.focus()
+          ?? box.querySelector(`[data-l="${focus.l}"][data-i="${focus.i}"]:not(:disabled)`)?.focus(); // llegó al borde: el foco pasa al otro botón
+      };
+      box.addEventListener('click', e => {
+        const b = e.target.closest('[data-mv]');
+        if (!b) return;
+        const li = +b.dataset.l, i = +b.dataset.i, dir = +b.dataset.mv, j = i + dir;
+        [st[li][i], st[li][j]] = [st[li][j], st[li][i]];
+        paint({ l: li, i: j, dir });
+      });
+      form.querySelector('#ord-reset').onclick = () => { base.forEach((b, li) => { st[li] = [...b]; }); paint(); };
+      paint();
+    },
+    async onSubmit() {
+      def.lists.forEach((l, li) => { if (st[li].every((k, i) => k === base[li][i])) delete S.settings[l.key]; else S.settings[l.key] = st[li]; });
+      await saveSettings();
+    },
+  });
 }
 
 function kindForm(kind) {
@@ -308,6 +359,8 @@ export const actions = {
   export: doExport,
   share: doShare,
   import: () => { const f = $('#file'); f.value = ''; f.click(); },
+  'order-tabs': () => orderForm('tabs'),
+  'order-home': () => orderForm('home'),
   'new-kind': () => kindForm(),
   'edit-kind': el => kindForm(S.settings.types.find(t => t.id === el.dataset.id)),
   async wipe() {

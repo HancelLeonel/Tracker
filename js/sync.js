@@ -15,7 +15,7 @@ const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const FILE_NAME = 'tracker-sync.json';
 const KEY = 'tracker-sync';
 // Ajustes propios de cada dispositivo: no viajan ni cuentan como «cambios» (tema, fuente, estado del Pomodoro y del descanso, etc.).
-const DEVICE_KEYS = ['font', 'theme', 'includeFiles', 'lastExport', 'pomo', 'gym', 'collapsed'];
+const DEVICE_KEYS = ['font', 'theme', 'includeFiles', 'lastExport', 'pomo', 'gym', 'collapsed', 'tabOrder', 'homeOrder', 'tileOrder'];
 
 // ---------- estado local de la sincronización ----------
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) ?? {}; } catch { return {}; } };
