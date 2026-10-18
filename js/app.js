@@ -3,7 +3,6 @@ import { icon } from './icons.js';
 import { S, hooks, loadState, gcFiles, hasNormalCats } from './state.js';
 import { isOpen, openFile, applyFont, applyTheme } from './ui.js';
 import * as money from './money.js';
-import * as plan from './plan.js';
 import * as bills from './bills.js';
 import * as reports from './reports.js';
 import * as purchases from './purchases.js';
@@ -18,9 +17,9 @@ import * as data from './data.js';
 import * as sync from './sync.js';
 import { esc } from './util.js';
 
-const SUBS = [['accounts', 'Cuentas'], ['plan', 'Guía'], ['bills', 'Pagos'], ['reports', 'Reportes']];
-const SUB_TITLES = { accounts: 'Finanzas', plan: 'Guía de transferencias', bills: 'Pagos', reports: 'Reportes' };
-const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], plan: ['new-line', 'Nueva línea'], bills: ['new-bill', 'Nuevo pago'] };
+const SUBS = [['accounts', 'Cuentas'], ['bills', 'Pagos'], ['reports', 'Reportes']];
+const SUB_TITLES = { accounts: 'Finanzas', bills: 'Pagos', reports: 'Reportes' };
+const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], bills: ['new-bill', 'Nuevo pago'] };
 
 const TABS = [['home', 'Inicio', 'home'], ['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'],
   ['pomodoro', 'Pomodoro', 'timer'], ['gym', 'Gimnasio', 'dumbbell'], ['notes', 'Notas', 'note'], ['data', 'Configuración', 'data']];
@@ -66,7 +65,7 @@ function render() {
       top.innerHTML = topbar(SUB_TITLES[S.sub], SUB_ACTION[S.sub]);
       const seg = `<div class="seg" role="tablist">${SUBS.map(([k, name]) =>
         `<button class="${k === S.sub ? 'on' : ''}" data-act="sub" data-sub="${k}">${name}${k === 'bills' && alerts ? `<span class="badge">${alerts}</span>` : ''}</button>`).join('')}</div>`;
-      const body = { accounts: money.accountsView, plan: plan.planView, bills: bills.billsView, reports: reports.reportsView }[S.sub]();
+      const body = { accounts: money.accountsView, bills: bills.billsView, reports: reports.reportsView }[S.sub]();
       view.innerHTML = seg + body;
     } else if (S.tab === 'habits') {
       top.innerHTML = topbar('Hábitos', ['new-habit', 'Nuevo hábito']);
@@ -126,7 +125,7 @@ const actions = {
   'menu-close': () => menuOpen(false),
   sub: el => { S.sub = el.dataset.sub; },
   'open-file': el => openFile(el.dataset.id),
-  ...money.actions, ...plan.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...gym.actions, ...notes.actions, ...data.actions, ...sync.actions,
+  ...money.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...gym.actions, ...notes.actions, ...data.actions, ...sync.actions,
 };
 
 document.addEventListener('click', async e => {

@@ -7,7 +7,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 fails=[]
 def check(name, cond, extra=''):
     print(('PASS ' if cond else 'FAIL ')+name, extra if not cond else '')
@@ -64,7 +65,7 @@ try:
         for tab in ['home','money','habits','lists','purchases','pomodoro','gym','notes','data']:
             go(tab)
             if tab == 'money':
-                for sub in ['accounts','plan','bills','reports']:
+                for sub in ['accounts','bills','reports']:
                     q.click(f'[data-act=sub][data-sub={sub}]'); q.wait_for_timeout(80)
                     if q.evaluate("document.documentElement.scrollWidth > innerWidth"): bad.append(f'money/{sub}')
             if tab == 'lists':

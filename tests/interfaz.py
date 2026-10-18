@@ -6,7 +6,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time, re, json
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 fails=[]
 def check(name, cond, extra=''):
     print(('PASS ' if cond else 'FAIL ')+name, extra if not cond else '')

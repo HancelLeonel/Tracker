@@ -3,7 +3,7 @@
 **Tracker** es una PWA pensada para Android que reúne varias herramientas personales en una sola app:
 
 - **Inicio**: la pantalla con la que abre la app; saludo, frase célebre, gasto rápido y lo pendiente de hoy.
-- **Finanzas**: cuentas con dinero real repartido en categorías, tarjetas de crédito, guía de transferencias de cada quincena, pagos pendientes y reportes.
+- **Finanzas**: cuentas con dinero real repartido en categorías, tarjetas de crédito, pagos pendientes y reportes.
 - **Hábitos**: seguimiento diario con rachas, iconos, momentos del día y orden propio.
 - **Pomodoro**: temporizador de trabajo y descansos con modo de pantalla completa en negro.
 - **Notas**: grupos de notas con **campos propios** (enlaces guardados, comandos, libros…), cada uno adaptable a lo que necesites.
@@ -70,7 +70,6 @@ js/
   state.js              Estado en memoria y lógica de dinero (saldos, tarjetas, archivos)
   ui.js                 Diálogos, selectores, adjuntos y visor de archivos
   money.js              Cuentas, gastos, ingresos, transferencias, pago de tarjeta
-  plan.js               Guía de transferencias de cada quincena
   bills.js              Pagos que debo realizar
   reports.js            Reportes
   purchases.js          Registro de compras
@@ -81,6 +80,7 @@ js/
   gym.js                Gimnasio: rutinas, entrenamientos, descanso, historial, progreso y catálogo
   catalogo.js           Grupos musculares y ejercicios iniciales del catálogo
   notes.js              Notas: grupos con campos propios
+  markdown.js           Markdown sencillo (visor seguro y editor con barra de formato)
   lists.js              Listas y plantillas
   data.js               Exportar, importar, tipos de gasto, borrado total
   sync.js               Sincronización con Google Drive (enviar / traer)
@@ -126,7 +126,7 @@ Una tarjeta es un **método de pago**, no una categoría. Al registrar un gasto 
 
 ### Orden alfabético
 
-En **Finanzas** las listas de nombres van siempre en orden alfabético (sin distinguir mayúsculas ni tildes, y con números naturales: «Cat 2» antes que «Cat 10»): cuentas, categorías, selectores de categoría, tipos de gasto, líneas de la guía y el desglose por categoría de las tarjetas. Se reordenan solas al crear o renombrar. Mantienen su propio orden las listas donde el orden significa algo: movimientos y pagos por fecha, y los rankings de reportes por monto.
+En **Finanzas** las listas de nombres van siempre en orden alfabético (sin distinguir mayúsculas ni tildes, y con números naturales: «Cat 2» antes que «Cat 10»): cuentas, categorías, selectores de categoría, tipos de gasto y el desglose por categoría de las tarjetas. Se reordenan solas al crear o renombrar. Mantienen su propio orden las listas donde el orden significa algo: movimientos y pagos por fecha, y los rankings de reportes por monto.
 
 ### Movimientos
 
@@ -139,37 +139,9 @@ En **Finanzas** las listas de nombres van siempre en orden alfabético (sin dist
 
 Editar o borrar un movimiento **revierte su efecto** sobre los saldos y aplica el nuevo, así que los saldos siempre cuadran con el historial.
 
-### Guía de transferencias
+### Pago recibido
 
-Cuando te pagan, el dinero **entra a una cuenta** (por ejemplo Banco) con **Registrar pago recibido**. La app **no lo reparte sola**: tú lo distribuyes a tus otras cuentas y a tu efectivo poco a poco, conforme puedas. La **guía** (en **Finanzas → Guía**) existe para que no olvides nada.
-
-Cada línea de la guía dice qué debes transferir y a dónde: un concepto, un monto, una categoría destino y cuándo aplica:
-
-- **Cada quincena**
-- **Solo 1ª quincena** (días 1–15)
-- **Solo 2ª quincena** (días 16–fin de mes)
-
-Por ejemplo: «Internet · Q200 → Efectivo / Internet», o «Seguro · Q450 → Banco / Seguro, solo 1ª quincena».
-
-La pantalla muestra una quincena (con las flechas para revisar también las anteriores):
-
-- **Pago recibido** en la quincena y **cuánto falta por transferir** en total, con barra de avance.
-- Una tarjeta por **cuenta destino** con la suma de sus líneas («Transferir Q1,200 a Efectivo · llevas Q800 · faltan Q400»).
-- Dentro de cada cuenta, el desglose por línea con ⬜ pendiente, 🟡 parcial o ✅ cumplida.
-
-**Cómo se mide el avance.** No hay que marcar nada a mano: se calcula con las transferencias que registres en esa quincena.
-
-- Una **línea** avanza con las transferencias hacia su categoría (de donde vengan).
-- Una **cuenta** se considera cumplida cuando le has transferido el total desde otras cuentas, o cuando sus líneas están cumplidas.
-
-**Atajos.** Tocar una línea abre una transferencia ya llenada con lo que falta (destino, monto y descripción). El botón «⇄ Transferir» de la cuenta hace lo mismo con el total pendiente de la cuenta. Si el destino es una tarjeta de crédito, abre el pago de tarjeta.
-
-**Flujo con «categoría de paso».** Si prefieres mover primero todo el dinero a Efectivo y repartirlo después, crea en Efectivo una categoría como «Por distribuir»:
-
-1. Transfiere Q1,200 de Banco a Efectivo / Por distribuir → la cuenta Efectivo queda **completa**.
-2. Reparte desde «Por distribuir» a cada categoría (Internet, Comida…) → cada línea se marca como cumplida.
-
-Al abrir una transferencia, la app recuerda de qué categoría moviste dinero la última vez y a dónde suele entrar tu pago.
+Cuando te pagan, el dinero **entra a una cuenta** (por ejemplo Banco) con el botón **Ingreso**. La app **no lo reparte sola**: tú lo distribuyes a tus otras cuentas y a tu efectivo con **Mover**, poco a poco, conforme puedas.
 
 ### Pagos pendientes
 
@@ -226,7 +198,8 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 **Menú → Notas.** En vez de una sola libreta, las notas se organizan en **grupos** y **cada grupo decide qué datos lleva cada nota**: uno puede ser un guardador de enlaces, otro una lista de comandos, otro tus libros…
 
 - **Grupo nuevo (+)**: nombre, icono y color. Puedes **empezar con un ejemplo** (Enlaces, Comandos, Libros o Notas libres), que rellena todo y se puede cambiar después, o con un grupo en blanco.
-- **Campos**: toda nota tiene un **título** y los campos que definas. Tipos: **texto corto**, **texto largo**, **código o comando** (letra monoespaciada y botón **Copiar**), **enlace**, **número**, **fecha**, **opciones** (una lista que tú escribes separada por comas, p. ej. «Por leer, Leyendo, Leído»), **casilla** (sí/no) y **calificación** (1 a 5 estrellas; tocar la misma estrella otra vez la quita). Cada campo puede marcarse **«En la lista»** para verlo debajo del título sin abrir la nota.
+- **Campos**: toda nota tiene un **título** y los campos que definas. Tipos: **texto corto**, **texto largo**, **Markdown** (editor con barra de formato y vista previa; se ve con formato en la nota), **código o comando** (letra monoespaciada y botón **Copiar**), **enlace**, **número**, **fecha**, **opciones** (una lista que tú escribes separada por comas, p. ej. «Por leer, Leyendo, Leído»), **casilla** (sí/no) y **calificación** (1 a 5 estrellas; tocar la misma estrella otra vez la quita). Cada campo puede marcarse **«En la lista»** para verlo debajo del título sin abrir la nota.
+- **Markdown**: el campo de tipo **Markdown** es para notas con formato. Al editar tienes una barra con **negrita, cursiva, título, lista, lista de tareas, cita, código y enlace** y dos pestañas, **Escribir** y **Vista previa**. Se entiende: `# Títulos`, `**negrita**`, `*cursiva*`, `~~tachado~~`, `` `código` `` y bloques con ``` ```, listas (`-` o `1.`, con sangría), tareas `- [ ]` / `- [x]` (solo se ven, no se marcan desde la nota), citas `>`, líneas `---` y enlaces `[texto](https://…)` o una dirección suelta. **No** hay imágenes, tablas ni HTML: lo que escribas entre `<` y `>` se muestra como texto. En la lista de notas aparece la primera línea sin las marcas. El grupo de ejemplo **Notas libres** ya usa este tipo.
 - **Configurar el grupo** (botón de ajustes junto al buscador): cambia nombre, icono y color, y **agrega, renombra, reordena (↑ ↓), cambia de tipo o quita campos**. Quitar un campo borra ese dato de las notas del grupo; cambiar el tipo conserva los datos. Borrar el grupo borra también sus notas (se avisa cuántas).
 - **Dentro de un grupo**: buscador (título, campos y etiquetas, sin importar mayúsculas ni tildes), **etiquetas** (se escriben separadas por coma en la nota y aparecen como filtros arriba; tocar una filtra y otra vez quita el filtro) y las notas, de 40 en 40 con «Ver más». El orden se elige en la configuración del grupo: **más recientes primero** (por defecto) o **alfabético por título**.
 - **Acciones rápidas en la lista**: si la nota tiene un campo de enlace, un botón la **abre** en una pestaña nueva; si no, y tiene un campo de código, un botón **copia** el comando. Tocar la nota abre el detalle con todo y el botón **Editar**.
@@ -289,15 +262,12 @@ Se pueden adjuntar fotos y PDF a gastos, ingresos, pagos y compras.
 1. **Finanzas →** botón **+** de la barra superior y crea tus cuentas (Banco, Efectivo…).
 2. Dentro de cada cuenta pulsa **+ Categoría** e indica el dinero real que hay en cada una.
 3. Si tienes tarjetas, créalas con tipo «Tarjeta de crédito» (deuda actual y límite opcionales).
-4. En **Guía**, crea las líneas de lo que debes transferir cada quincena.
-5. En **Pagos**, agrega los pagos recurrentes.
+4. En **Pagos**, agrega los pagos recurrentes.
 
 ### Cada quincena (cuando te pagan)
 
-1. **Guía → Registrar pago recibido**. Indica el monto, la fecha y la categoría en la que cae el dinero (la app recuerda la última).
-2. Abre la **Guía** de la quincena: ahí ves todo lo que debes transferir, por cuenta.
-3. Transfiere cuando puedas, tocando una línea o el botón «⇄ Transferir» de la cuenta. Puedes hacerlo en varias partes.
-4. El avance se actualiza solo. Cuando todo está en ✅ no queda nada por transferir.
+1. **Ingreso**: indica el monto, la fecha y la categoría en la que cae el dinero (la app recuerda la última).
+2. Reparte con **Mover** cuando puedas: de la categoría donde cayó el dinero a las demás cuentas y categorías. Puedes hacerlo en varias partes.
 
 ### Registrar un gasto
 
@@ -402,8 +372,8 @@ Base de datos IndexedDB versión 8 (la 4 agregó `templates` y `lists`, la 5 `no
 | Store | Contenido |
 |---|---|
 | `accounts` | `{ id, name, type: 'normal'｜'credit', limit?, cats: [{ id, name, balance }] }`. En una tarjeta, `cats[0].balance` es la deuda (negativa) |
-| `moves` | `{ id, t, date, type: 'expense'｜'income'｜'transfer', title?, note, kind?, total, parts: [{ acc, cat, amount, line? }], to?, card?, plan?, bill?, files? }` |
-| `plan` | Líneas de la guía: `{ id, name, amount, key: 'cuenta｜categoría', when: 'both'｜'q1'｜'q2' }` |
+| `moves` | `{ id, t, date, type: 'expense'｜'income'｜'transfer', title?, note, kind?, total, parts: [{ acc, cat, amount }], to?, card?, bill?, files? }` |
+| `plan` | (heredado, sin uso: era la guía de transferencias) |
 | `bills` | `{ id, title, amount, freq: 'once'｜'monthly'｜'biweekly'｜'yearly', day?, month? (solo anual), dueDate?, start, card?, active, paid: { [vencimiento]: { on, amount, moveId, skipped, files } } }` |
 | `purchases` | `{ id, name, date, price, store, tag, warrantyMonths, notes, files }` |
 | `habits` | `{ id, name, color, icon, slot: 'morning'｜'day'｜'night'｜'', order, dates: { 'YYYY-MM-DD': 1｜2 } }` (1 = hecho, 2 = «no toca») |
@@ -434,7 +404,7 @@ Base de datos IndexedDB versión 8 (la 4 agregó `templates` y `lists`, la 5 `no
   "exportedAt": "2026-10-10T18:00:00.000Z",
   "includesFiles": false,
   "settings": {}, "habits": [], "accounts": [], "moves": [],
-  "plan": [], "bills": [], "purchases": [], "templates": [], "lists": [], "noteGroups": [], "notes": [], "inbox": [], "routines": [], "workouts": [], "exercises": [],
+  "bills": [], "purchases": [], "templates": [], "lists": [], "noteGroups": [], "notes": [], "inbox": [], "routines": [], "workouts": [], "exercises": [],
   "files": [{ "id": "…", "mime": "image/jpeg", "name": "…", "data": "data:…;base64,…" }]
 }
 ```
@@ -449,10 +419,9 @@ Las pruebas son de extremo a extremo con Playwright (Chromium, 390×800) contra 
 
 - Cuentas, categorías, gastos repartidos y validaciones.
 - Tarjetas: compra, apartado, pago, edición, borrado y límite de crédito.
-- Guía de transferencias: avance por línea y por cuenta, parcial, por quincena y con categoría de paso.
 - Pagos: vencidos, mensuales, pagar, omitir y deshacer.
 - Compras con adjuntos, búsqueda y garantía.
-- Notas: grupos con campos propios (ejemplos, tipos de campo, configurar y reordenar campos, búsqueda, etiquetas, copiar, enlaces seguros), paginación, exportar/importar y saneo de respaldos raros.
+- Notas: grupos con campos propios (ejemplos, tipos de campo, Markdown con editor y vista previa, configurar y reordenar campos, búsqueda, etiquetas, copiar, enlaces seguros), paginación, exportar/importar y saneo de respaldos raros.
 - Listas y plantillas: crear desde plantilla, marcar, adicionales, aviso «Ya toca», completar y exportar/importar.
 - Reportes, exportar/importar (con y sin archivos) y migración desde la base de datos v2.
 - Gimnasio: rutinas, catálogo, entrenamiento con descanso, cardio, notas por serie, reordenar, editar un entrenamiento terminado, historial y progreso.
@@ -479,7 +448,7 @@ Con uso intenso (5–10 gastos al día) se llega a unos 20,000 movimientos en 5 
 - Lo que sigue creciendo de forma lineal es la **carga inicial** (la app lee todos los datos al abrir: con 60,000 movimientos, ~350 ms son solo la lectura de IndexedDB) y los **reportes** (recorren el periodo). Con 60,000 movimientos siguen por debajo de 0.5 s y 110 ms.
 - **Arranque por red**: los módulos JS se importan unos a otros, y sin ayuda el navegador los descubre por niveles (unos 5 saltos seguidos). `index.html` los declara con `<link rel="modulepreload">` para descargarlos todos en paralelo. Con latencia de móvil, el arranque en frío bajó de 866 a 590 ms (150 ms de latencia) y de 1,625 a 1,033 ms (300 ms). La lista debe incluir **todos** los `.js` de `js/` (lo verifica `tests/smoke.py`).
 
-**Revisión de optimización (10 oct 2026).** Se perfilaron la carga, el ordenado de movimientos, lo apartado de tarjetas, el recuento de adjuntos, los reportes y la guía con 20,000 y 60,000 movimientos: salvo la lectura de IndexedDB, ninguno pasa de 100 ms, así que no se justifican más cambios en el código de datos (por ejemplo, `localeCompare` en los ordenados no pesa: ~14 ms con 60,000). Lo único con ganancia medible fue la precarga de módulos. Se quitó además código sin uso (una importación en `bills.js` y la función `closeModal` en `ui.js`).
+**Revisión de optimización (10 oct 2026).** Se perfilaron la carga, el ordenado de movimientos, lo apartado de tarjetas, el recuento de adjuntos, los reportes con 20,000 y 60,000 movimientos: salvo la lectura de IndexedDB, ninguno pasa de 100 ms, así que no se justifican más cambios en el código de datos (por ejemplo, `localeCompare` en los ordenados no pesa: ~14 ms con 60,000). Lo único con ganancia medible fue la precarga de módulos. Se quitó además código sin uso (una importación en `bills.js` y la función `closeModal` en `ui.js`).
 
 **Revisión del 11 oct 2026.** Se agregó al arranque una reparación de la forma de los datos (ver «Datos dañados» abajo). Medido con `tests/benchmark_carga.py` en esta máquina antes y después del cambio, la carga con 60,000 movimientos quedó igual dentro del ruido de medición (834 ms antes; 838–916 ms después, según la corrida); con 1,000–5,000 movimientos no cambia (≈ 90–125 ms). La reparación recorre los movimientos sin crear copias salvo que haya algo que corregir. Además, marcar una serie del Gimnasio guarda la serie y el descanso en **una sola** escritura, para que el toque se vea antes.
 
@@ -489,8 +458,6 @@ Con uso intenso (5–10 gastos al día) se llega a unos 20,000 movimientos en 5 
 
 - Los datos viven en el dispositivo. La sincronización con Google Drive es por turnos y reemplaza todo (no fusiona); sin ella, el respaldo manual es la única copia.
 - Importar siempre **reemplaza** los datos; no hay combinación de respaldos.
-- Los ingresos antiguos que se repartieron automáticamente (versión anterior de la guía) solo se pueden ver o eliminar, no editar.
-- La guía mide el avance por las transferencias hacia la categoría destino: mover dinero **desde** una categoría de la guía hacia otra suma a la segunda, pero no resta de la primera.
 - Los respaldos con adjuntos usan base64 y pueden pesar bastante si hay muchas facturas.
 - Si se elimina una cuenta o categoría, sus movimientos anteriores se conservan y aparecen como «(eliminada)».
 - El respaldo de la versión 1 (quincenas) ya no se puede importar. Los respaldos hechos cuando la app se llamaba «Mi Quincena» (`"app": "mi-quincena"`) se siguen aceptando.

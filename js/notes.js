@@ -1,14 +1,16 @@
 import * as db from './db.js';
-import { $, esc, uid, ymd, fmtDateY, norm, byName, byText, toast, pl } from './util.js';
+import { $, esc, uid, ymd, fmtDateY, norm, byName, byText, toast, pl, safeUrl } from './util.js';
 import { S, saveNoteGroup, saveNote } from './state.js';
 import { modal } from './ui.js';
 import { icon, NOTE_ICONS } from './icons.js';
 import { COLORS } from './habits.js';
+import { renderMarkdown, plainLine, mdEditor, wireMarkdown } from './markdown.js';
+export { safeUrl };
 
 // Un grupo de notas define sus propios campos; cada nota tiene un título fijo y un valor por campo.
 // Tipos de campo: [clave, nombre].
 export const FIELD_TYPES = [
-  ['text', 'Texto corto'], ['long', 'Texto largo'], ['code', 'Código o comando'], ['url', 'Enlace'], ['number', 'Número'],
+  ['text', 'Texto corto'], ['long', 'Texto largo'], ['markdown', 'Markdown'], ['code', 'Código o comando'], ['url', 'Enlace'], ['number', 'Número'],
   ['date', 'Fecha'], ['choice', 'Opciones'], ['check', 'Casilla (sí/no)'], ['rating', 'Calificación (1–5)'],
 ];
 const PAGE = 40;
@@ -21,7 +23,7 @@ const PRESETS = [
   ['books', 'Libros', 'book', 'peach', () => [
     f('Autor', 'text', { list: true }), f('Estado', 'choice', { list: true, options: ['Por leer', 'Leyendo', 'Leído'] }),
     f('Calificación', 'rating', { list: true }), f('Notas', 'long')]],
-  ['free', 'Notas libres', 'note', 'mauve', () => [f('Contenido', 'long')]],
+  ['free', 'Notas libres', 'note', 'mauve', () => [f('Contenido', 'markdown')]],
 ];
 
 export const currentGroup = () => S.noteGroups.find(g => g.id === S.noteGroup) ?? null;
@@ -37,10 +39,6 @@ const has = (fl, v) => {
   return true;
 };
 
-// Solo se abren enlaces http(s): un `javascript:` pegado en una nota nunca se vuelve clicable.
-export function safeUrl(v) {
-  try { const u = new URL(String(v).trim()); return /^https?:$/.test(u.protocol) ? u.href : null; } catch { return null; }
-}
 // Si escribes «ejemplo.com/pagina» se guarda con https://; cualquier otro esquema se deja tal cual (y no se enlaza).
 const normUrl = v => {
   v = v.trim();
@@ -58,6 +56,7 @@ function short(fl, v) {
     case 'number': return Number.isFinite(+v) ? (+v).toLocaleString('es-GT') : String(v);
     case 'date': return /^\d{4}-\d{2}-\d{2}$/.test(v) ? fmtDateY(v) : String(v);
     case 'check': return fl.name;
+    case 'markdown': return plainLine(v);
     case 'rating': return `${rate(v)}/5`;
     default: return String(v).split('\n')[0];
   }
@@ -67,6 +66,7 @@ function short(fl, v) {
 function full(n, fl, v) {
   switch (fl.type) {
     case 'long': return `<div class="pre-wrap">${esc(v)}</div>`;
+    case 'markdown': return `<div class="md">${renderMarkdown(String(v))}</div>`;
     case 'code': return `<div class="code-wrap"><pre class="code">${esc(v)}</pre>
       <button type="button" class="btn sm" data-act="note-copy" data-id="${n.id}" data-f="${fl.id}">${icon('copy')} Copiar</button></div>`;
     case 'url': { const u = safeUrl(v); return u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(v)}</a>` : esc(v); }
@@ -114,7 +114,7 @@ function visible(g) {
     .filter(n => !tag || n.tags.some(t => t.toLowerCase() === tag))
     .filter(n => {
       if (!terms.length) return true;
-      const hay = norm([n.title, ...n.tags, ...fieldsOf(g).map(fl => (has(fl, val(n, fl)) ? short(fl, val(n, fl)) + ' ' + (fl.type === 'long' || fl.type === 'code' ? val(n, fl) : '') : ''))].join(' '));
+      const hay = norm([n.title, ...n.tags, ...fieldsOf(g).map(fl => (has(fl, val(n, fl)) ? short(fl, val(n, fl)) + ' ' + (fl.type === 'long' || fl.type === 'markdown' || fl.type === 'code' ? val(n, fl) : '') : ''))].join(' '));
       return terms.every(t => hay.includes(t));
     })
     .sort(g.sort === 'alpha' ? (a, b) => a.title.localeCompare(b.title, 'es', { sensitivity: 'base', numeric: true }) : (a, b) => b.updated - a.updated);
@@ -183,6 +183,7 @@ function fieldInput(fl, v) {
   const nm = `f_${fl.id}`, label = esc(fl.name);
   switch (fl.type) {
     case 'long': return `<label>${label} <textarea name="${nm}" rows="4" maxlength="5000">${esc(v ?? '')}</textarea></label>`;
+    case 'markdown': return mdEditor(nm, v, fl.name);
     case 'code': return `<label>${label} <textarea class="code-in" name="${nm}" rows="3" maxlength="5000" spellcheck="false" autocapitalize="none" autocomplete="off">${esc(v ?? '')}</textarea></label>`;
     case 'url': return `<label>${label} <input name="${nm}" inputmode="url" autocapitalize="none" autocomplete="off" maxlength="500" placeholder="https://…" value="${esc(v ?? '')}"></label>`;
     case 'number': return `<label>${label} <input name="${nm}" type="number" step="any" inputmode="decimal" value="${v ?? ''}"></label>`;
@@ -217,6 +218,7 @@ function noteForm(g, n) {
     <label>Etiquetas (separadas por coma, opcional) <input name="tags" maxlength="120" list="ntags" autocomplete="off" value="${esc((n?.tags ?? []).join(', '))}">
       <datalist id="ntags">${allTags.map(t => `<option value="${esc(t)}">`).join('')}</datalist></label>`, {
     afterOpen(form) {
+      wireMarkdown(form);
       // Calificación: tocar una estrella la fija; tocar la misma otra vez la quita.
       form.addEventListener('click', e => {
         const b = e.target.closest('[data-star]');

@@ -4,12 +4,11 @@ import { DEFAULT_EXERCISES, exKey } from './catalogo.js';
 
 export const S = {
   tab: 'home',     // pantalla predeterminada: Inicio
-  sub: 'accounts', // accounts | plan | bills | reports
-  habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [], exercises: [],
+  sub: 'accounts', // accounts | bills | reports
+  habits: [], accounts: [], moves: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [], exercises: [],
   files: new Map(), // id -> { mime, name, size } (el contenido se lee bajo demanda)
   settings: { lastExport: null, includeFiles: false, types: null, lastKind: null, lastFrom: null, lastIncomeTo: null, collapsed: {}, listSort: 'recent', font: 'system', theme: 'dark' },
   report: { kind: 'q', ref: today() },
-  guide: { ref: today() }, // quincena que se ve en la guía de transferencias
   noteGroup: null,     // grupo de notas abierto (null = vista general)
   noteSearch: '', noteTag: '', noteLimit: 40,
   gymSub: 'train',     // train | routines | history | progress
@@ -49,10 +48,10 @@ export function sortedMoves() {
 export const DEFAULT_KINDS = ['Comida', 'Transporte', 'Servicios', 'Suscripciones', 'Salud', 'Ocio', 'Hogar', 'Otros'];
 
 export async function loadState() {
-  const [habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises, files, meta] =
-    await Promise.all(['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'exercises', 'files', 'meta'].map(db.getAll));
+  const [habits, accounts, moves, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises, files, meta] =
+    await Promise.all(['habits', 'accounts', 'moves', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'exercises', 'files', 'meta'].map(db.getAll));
   bump();
-  Object.assign(S, { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises });
+  Object.assign(S, { habits, accounts, moves, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises });
   repair(); // primero la forma de los datos: ordenar o migrar con un registro dañado haría fallar el arranque
   S.accounts = S.accounts.map(a => ({ type: 'normal', ...a }));
   sortAccounts();
@@ -87,7 +86,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ymdOr = (v, d = '') => (typeof v === 'string' && DATE_RE.test(v) ? v : d);
 function repair() {
   const clean = k => { S[k] = arrOf(S[k]); };
-  ['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'exercises'].forEach(clean);
+  ['habits', 'accounts', 'moves', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'exercises'].forEach(clean);
   S.habits.forEach(h => { h.name = str(h.name); if (!isObj(h.dates)) h.dates = {}; });
   S.accounts.forEach(a => { a.name = str(a.name); a.cats = arrOf(a.cats); a.cats.forEach(c => { c.name = str(c.name); c.balance = fin(c.balance); }); });
   for (const m of S.moves) { // el más numeroso (decenas de miles): sin funciones ni copias por registro
@@ -98,7 +97,6 @@ function repair() {
     if (m.type === 'transfer' && !isObj(m.to)) m.to = { acc: '', cat: '' };
     if (m.files != null && !Array.isArray(m.files)) m.files = [];
   }
-  S.plan.forEach(l => { l.name = str(l.name); l.key = str(l.key); l.amount = fin(l.amount); });
   S.bills.forEach(b => { b.title = str(b.title); if (!isObj(b.paid)) b.paid = {}; });
   S.purchases.forEach(p => { p.name = str(p.name); p.date = ymdOr(p.date, today()); if (!Array.isArray(p.files)) p.files = []; });
   S.templates.forEach(t => { t.name = str(t.name); t.items = arrOf(t.items); t.items.forEach(i => { i.text = str(i.text); }); });
@@ -305,7 +303,7 @@ export async function deleteMove(m) {
   await gcFiles();
 }
 
-// ---------- pagos, compras, plan ----------
+// ---------- pagos, compras ----------
 export const saveBill = b => db.commit({ put: { bills: [b] } });
 export const savePurchase = async p => { await db.commit({ put: { purchases: [p] } }); await gcFiles(); };
 export const saveTemplate = t => { S.templates.sort(byName); return db.commit({ put: { templates: [t] } }); };
@@ -318,7 +316,6 @@ export const saveNote = n => db.commit({ put: { notes: [n] } });
 // Una lista está completa cuando todos sus elementos (sin contar encabezados) están marcados.
 export const isListDone = l => { const r = l.items.filter(i => !i.head); return r.length > 0 && r.every(i => i.done); };
 export const saveList = l => db.commit({ put: { lists: [l] } });
-export const savePlanLine = l => db.commit({ put: { plan: [l] } });
 
 // ---------- archivos adjuntos ----------
 export async function addFile({ blob, mime, name }) {

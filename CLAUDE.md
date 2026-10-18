@@ -6,7 +6,8 @@ PWA personal para Android (inicio con frases, finanzas por quincena, hábitos, l
 
 ```fish
 python3 -m http.server 8000                    # servir la app en http://localhost:8000
-.venv/bin/python tests/run_all.py              # pruebas e2e (ver tests/README.md para preparar el entorno)
+.venv/bin/python tests/run_all.py              # pruebas e2e en paralelo, ~50 s (ver tests/README.md para preparar el entorno)
+.venv/bin/python tests/run_all.py notas selector   # solo algunas (-j 1 las corre en serie, para depurar)
 .venv/bin/python tests/benchmark_listas.py     # rendimiento con datos sintéticos (no forma parte de run_all)
 ```
 
@@ -23,9 +24,9 @@ No hay Node. Para validar cualquier cambio de interfaz se usa Playwright (Chromi
 | `js/icons.js` | Iconos SVG (`icon(name)`) |
 | `js/util.js` | Fechas, periodos, `money()`, `toast()`, `pl()` (plurales) y `clock()` (mm:ss): úsalos en vez de redefinirlos |
 | `js/money.js` | Cuentas, gasto, ingreso, mover, pago de tarjeta, movimientos por cuenta |
-| `js/plan.js` | Guía de transferencias por quincena |
 | `js/home.js` | Pantalla de inicio (la predeterminada, `S.tab = 'home'`): saludo, fecha y frases |
 | `js/notes.js` | Notas: grupos con campos propios (`FIELD_TYPES`), notas, búsqueda y etiquetas |
+| `js/markdown.js` | Markdown sencillo: `renderMarkdown()` (seguro), `plainLine()`, editor con barra de formato y vista previa (`mdEditor`/`wireMarkdown`) |
 | `js/aviso.js` | Sonido (`alarm`, `prepAudio`), vibración y pantalla encendida (`keepAwake(dueño, on)`), compartidos por Pomodoro y Gimnasio |
 | `js/pomodoro.js` | Temporizador Pomodoro (fases, aviso, Wake Lock) y pantalla completa negra (`#pomo-full`) |
 | `js/gym.js` | Gimnasio: rutinas, entrenamiento en curso, descanso entre series, historial, progreso y catálogo de ejercicios |
@@ -98,6 +99,7 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 - Los valores pueden no corresponder al tipo actual del campo (cambiar el tipo conserva los datos): `short()`/`full()`/`rate()` toleran valores raros y nunca deben lanzar.
 - **Solo se enlazan URLs http(s)** (`safeUrl`); los demás esquemas (`javascript:`) se muestran como texto. Todo texto de usuario va con `esc()`, también en `aria-label` y atributos.
 - El buscador (`#nsearch`) repinta solo `#nlist` (como `#psearch` en Compras). Los botones de estrella del formulario no son `data-act`: se manejan con un listener dentro del diálogo.
+- **Markdown** (tipo de campo `markdown`, [markdown.js](js/markdown.js)): sin dependencias. `renderMarkdown()` **escapa todo con `esc()` antes de interpretar nada** y solo enlaza http(s) (`safeUrl`, ahora en `util.js` y reexportado por `notes.js`); no hay HTML en línea, imágenes ni tablas. Soporta títulos (`#` se pinta como `h3`…`h6`, porque el título del diálogo ya es `h2`), negrita/cursiva/tachado, código en línea y en bloque, listas con sangría, tareas `- [ ]` (solo lectura: no se marcan desde la vista), citas, línea y enlaces. Lo que no debe reinterpretarse (código, enlaces, escapes) se aparta como `\u0000n\u0000` y se restaura al final: **si cambias el orden en `inline()`, vuelve a correr `tests/markdown.py`** (incluye entradas hostiles). El editor es un `<textarea name="f_<id>">` normal (se lee igual que un texto largo) con barra (`data-md`, no son `data-act`) y pestañas Escribir / Vista previa (`data-mdtab`); las acciones de línea dejan el cursor al final de la línea y las de envoltura seleccionan el marcador. La barra evita `mousedown` para no cerrar el teclado. El tipo cuenta en `short()` (`plainLine`), `full()`, `fieldInput()`, la búsqueda y la Bandeja (`noteFor`: prefiere `long`, luego `markdown`). El grupo de ejemplo «Notas libres» usa Markdown.
 - En la vista de un grupo la barra superior tiene «volver» en lugar del menú: las pruebas deben volver (`note-back`) antes de usar el menú.
 
 **Pomodoro** ([pomodoro.js](js/pomodoro.js))
@@ -121,7 +123,7 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 
 **Selectores** ([ui.js](js/ui.js))
 - El `<select>` nativo de Android abre una lista del sistema que ignora el tema, así que **cada `<select>` de un diálogo se mejora solo** (`enhanceSelect`, vía `MutationObserver` sobre `#dlg`, también para filas pintadas luego con `innerHTML`): el select real se queda invisible dentro de `.sel` (conserva valor, `change`, `required` y `f.elements.nombre`) y un botón `.sel-btn` abre la hoja `#picker` con las opciones, encabezados por `<optgroup>` y buscador si hay más de 12. **Sigue escribiendo `<select>` normales**; no crees un componente aparte.
-- **Cuenta y luego categoría** (`catSelect` pone `data-nest` y `data-sub` en cada `<optgroup>`, que es la cuenta): la hoja primero lista las cuentas (con lo que suman) y al tocar una muestra solo sus categorías, con botón para volver; con una sola cuenta salta directo a sus categorías. El botón del campo muestra «Cuenta · Categoría». Aplica a gasto, ingreso, mover, guía y pago; los demás selectores (p. ej. ejercicios por grupo) siguen en una lista plana con encabezados.
+- **Cuenta y luego categoría** (`catSelect` pone `data-nest` y `data-sub` en cada `<optgroup>`, que es la cuenta): la hoja primero lista las cuentas (con lo que suman) y al tocar una muestra solo sus categorías, con botón para volver; con una sola cuenta salta directo a sus categorías. El botón del campo muestra «Cuenta · Categoría». Aplica a gasto, ingreso, mover y pago de pendientes; los demás selectores (p. ej. ejercicios por grupo) siguen en una lista plana con encabezados.
 - `data-label` / `data-sub` en una `<option>` separan nombre y monto en la hoja (`catSelect` los pone). El título sale del `<label>` que lo envuelve o de `aria-label`: si el select no va dentro de un `<label>`, ponle `aria-label`.
 - Si cambias `select.value` por código, llama a `syncSelect(select)` para repintar el botón (agregar opciones y marcar `selected` sí se detectan solos). Los `<select>` fuera de diálogos no se mejoran.
 
@@ -159,7 +161,7 @@ Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `
 
 ## Pruebas
 
-Las pruebas e2e de `tests/` dependen de textos visibles y de `data-act`; al cambiar la interfaz actualiza las aserciones. **Toda función nueva debe llevar su prueba** (o ampliar una existente) y pasar `tests/run_all.py`. Para comprobar visualmente, haz capturas con Playwright y revísalas (se guardan en la carpeta temporal `tracker-shots/`).
+Las pruebas e2e de `tests/` dependen de textos visibles y de `data-act`; al cambiar la interfaz actualiza las aserciones. **Toda función nueva debe llevar su prueba** (o ampliar una existente) y pasar `tests/run_all.py`. **Las pruebas corren en paralelo** (`run_all.py`, 8 a la vez, un servidor compartido en el puerto 8765; de ~6,5 min a ~50 s). Para que no se estorben: cada una abre **su propio navegador** (no compartas contextos), usa el puerto 8765 como siempre y espera al servidor con `from _servidor import espera; espera()` en vez de `time.sleep`; **registra la prueba nueva en `TESTS` de `run_all.py`** (las más lentas primero). No hagas `click('[data-act=menu-close] >> nth=0')`: ese es el velo (`#scrim`), que el menú abierto tapa; usa `#drawer [data-act=menu-close]`. Las pruebas con tiempos medidos que no toleren la carga ajena van en `SERIE` (corren solas al final); `sw.py` usa un umbral holgado por eso. Para comprobar visualmente, haz capturas con Playwright y revísalas (se guardan en la carpeta temporal `tracker-shots/`).
 
 Estado: probado en Chromium de escritorio con teléfono simulado; **falta validar en un Android real**.
 
@@ -192,7 +194,7 @@ Estado: probado en Chromium de escritorio con teléfono simulado; **falta valida
 
 ## Contexto de producto (decisiones ya tomadas)
 
-- Al usuario le pagan **quincenalmente**; el dinero entra a **una cuenta** y él lo reparte a mano a otras cuentas/efectivo. La **Guía** lista las transferencias pendientes de cada quincena y mide el avance con las transferencias registradas (no reparte nada automáticamente).
+- Al usuario le pagan **quincenalmente**; el dinero entra a **una cuenta** y él lo reparte a mano a otras cuentas/efectivo. La app no reparte nada automáticamente. **La «Guía de transferencias» se eliminó (17 oct 2026): el usuario no la encontró útil; no la repongas.** El store `plan` de IndexedDB quedó sin usar (se conserva para no subir la versión de la base y se vacía al reemplazar todo); los respaldos antiguos que traen `plan`, `line` o `plan: true` se siguen aceptando e ignoran esos campos, y los ingresos que se repartieron con ella se editan como cualquier ingreso.
 - Cada gasto tiene doble categoría: **categoría apartada** (de qué dinero sale) y **tipo de gasto** (en qué se usó).
 - Pocos adjuntos (≤ 5 al mes): no hace falta optimizar el almacenamiento de archivos.
 - Respaldo: exportar/importar JSON; los adjuntos van solo si se marca «Incluir archivos adjuntos». Importar **reemplaza** todo.

@@ -13,7 +13,6 @@ const APP_ID = 'tracker';
 const LEGACY_IDS = ['mi-quincena']; // nombre anterior de la app: sus respaldos se siguen aceptando
 const VERSION = 3;
 const FREQS = ['once', 'monthly', 'biweekly', 'yearly'];
-const WHENS = ['both', 'q1', 'q2'];
 
 
 // ---------- vista ----------
@@ -95,7 +94,7 @@ const blobToDataUrl = blob => new Promise((resolve, reject) => {
 export async function buildExport(withFiles = S.settings.includeFiles) {
   const data = {
     app: APP_ID, version: VERSION, exportedAt: new Date().toISOString(), includesFiles: withFiles,
-    settings: S.settings, habits: S.habits, accounts: S.accounts, moves: S.moves, plan: S.plan, bills: S.bills, purchases: S.purchases,
+    settings: S.settings, habits: S.habits, accounts: S.accounts, moves: S.moves, bills: S.bills, purchases: S.purchases,
     templates: S.templates, lists: S.lists, noteGroups: S.noteGroups, notes: S.notes, inbox: S.inbox, routines: S.routines, workouts: S.workouts, exercises: S.exercises,
   };
   if (withFiles) {
@@ -192,20 +191,15 @@ export function validateImport(d) {
     if (!m?.id || !['expense', 'income', 'transfer'].includes(m.type) || !/^\d{4}-\d{2}-\d{2}$/.test(m.date) || !Array.isArray(m.parts) || !m.parts.length) bad('Hay un movimiento inválido en el archivo.');
     const out = {
       id: String(m.id), t: Number(m.t) || 0, type: m.type, date: m.date, note: String(m.note ?? ''), total: num(m.total),
-      parts: m.parts.map(p => ({ ...ref(p), amount: num(p.amount), ...(p.line ? { line: String(p.line) } : {}) })),
+      parts: m.parts.map(p => ({ ...ref(p), amount: num(p.amount) })),
       files: ids(m.files),
     };
     if (m.title) out.title = String(m.title);
     if (m.kind) out.kind = String(m.kind);
-    if (m.plan) out.plan = true;
     if (m.bill) out.bill = String(m.bill);
     if (m.card) out.card = String(m.card);
     if (m.type === 'transfer') out.to = ref(m.to);
     return out;
-  });
-  const plan = arr(d.plan, 'plan').map(l => {
-    if (!l?.id || typeof l.name !== 'string' || typeof l.key !== 'string') bad('Hay una línea del plan inválida en el archivo.');
-    return { id: String(l.id), name: l.name, amount: num(l.amount), key: l.key, when: WHENS.includes(l.when) ? l.when : 'both' };
   });
   // Mes de un pago anual (1-12); si falta o es inválido se toma el del inicio, para que nunca desaparezca.
   const yearMonth = b => (Number.isInteger(b.month) && b.month >= 1 && b.month <= 12 ? b.month : Number(String(b.start ?? today()).slice(5, 7)) || 1);
@@ -279,7 +273,7 @@ export function validateImport(d) {
   if (!Array.isArray(settings.types)) settings.types = S.settings.types;
   if (!['system', 'jetbrains'].includes(settings.font)) settings.font = 'system';
   if (!THEMES.includes(settings.theme)) settings.theme = 'dark';
-  return { habits, accounts, moves, plan, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises, settings, files: d.files };
+  return { habits, accounts, moves, bills, purchases, templates, lists, noteGroups, notes, inbox, routines, workouts, exercises, settings, files: d.files };
 }
 
 // Reemplaza todos los datos por los de un respaldo ya validado (`validateImport`). Lo usan la importación y la sincronización.
@@ -320,7 +314,7 @@ export const actions = {
     if (!confirm('Se borrarán todas las cuentas, movimientos, hábitos, pagos, compras, plantillas, listas, notas, notas rápidas, rutinas, entrenamientos y adjuntos de este dispositivo. ¿Continuar?')) return;
     if (!confirm('¿Seguro? Si no tienes un respaldo exportado no podrás recuperarlos.')) return;
     delete S.settings.gymCatalogSeeded; // el catálogo vuelve a sembrarse con los ejercicios iniciales
-    await db.replaceAll({ habits: [], accounts: [], moves: [], plan: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [], exercises: [], files: [], settings: S.settings });
+    await db.replaceAll({ habits: [], accounts: [], moves: [], bills: [], purchases: [], templates: [], lists: [], noteGroups: [], notes: [], inbox: [], routines: [], workouts: [], exercises: [], files: [], settings: S.settings });
     await loadState();
     toast('Datos borrados');
   },

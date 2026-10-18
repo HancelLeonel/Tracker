@@ -78,7 +78,7 @@ function noteFor(g, title, text) {
   if (urlField) values[urlField.id] = url;
   const rest = urlField && text.trim() === url ? '' : text.trim();
   if (rest && rest !== title) {
-    const body = fields.find(f => f.type === 'long') ?? fields.find(f => f.type === 'text') ?? fields.find(f => f.type === 'code');
+    const body = fields.find(f => f.type === 'long') ?? fields.find(f => f.type === 'markdown') ?? fields.find(f => f.type === 'text') ?? fields.find(f => f.type === 'code');
     if (!body) return { error: 'Ese grupo no tiene un campo de texto para guardar el resto de la nota. Elige otro grupo o agrega un campo en su configuración.' };
     values[body.id] = rest;
   }

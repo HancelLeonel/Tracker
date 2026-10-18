@@ -6,7 +6,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time, json, sys
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 SEED = """async (N) => {
   const open = () => new Promise((res, rej) => { const r = indexedDB.open('mi-quincena', 3);
     r.onupgradeneeded = () => { const db = r.result; for (const s of ['habits','accounts','moves','plan','bills','purchases','files']) db.createObjectStore(s,{keyPath:'id'}); db.createObjectStore('meta',{keyPath:'k'}); };
@@ -48,7 +49,7 @@ try:
                 return page.evaluate("""async (sel) => { const t = performance.now(); document.querySelector(sel).click();
                    await new Promise(r => setTimeout(r, 0)); await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r))); return performance.now() - t; }""", sel)
             acc = click_t('[data-act=sub][data-sub=accounts]')
-            guia = click_t('[data-act=sub][data-sub=plan]')
+            pagos = click_t('[data-act=sub][data-sub=bills]')
             page.evaluate("document.querySelector('[data-act=sub][data-sub=reports]').click()")
             rep = click_t('[data-act=rep-kind][data-kind=all]')
             page.evaluate("document.querySelector('[data-act=sub][data-sub=accounts]').click()")

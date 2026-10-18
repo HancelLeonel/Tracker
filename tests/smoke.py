@@ -6,7 +6,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time, sys
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 # index.html (modulepreload) y sw.js (SHELL) deben listar exactamente los módulos de js/.
 import re
 mods = sorted(f.name for f in Path(ROOT, 'js').glob('*.js'))

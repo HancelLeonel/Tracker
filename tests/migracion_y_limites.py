@@ -6,7 +6,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time, json
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 fails=[]
 def check(name, cond, extra=''):
     print(('PASS ' if cond else 'FAIL ')+name, extra if not cond else '')
@@ -102,7 +103,6 @@ try:
         page.screenshot(path=OUT + 'v_accounts.png')
         page.click('[data-act=new-exp] >> nth=0'); dlg.locator('[name=amount]').fill('230')
         page.screenshot(path=OUT + 'v_expense.png'); dlg.locator('#cancel').click()
-        page.click('[data-act=sub][data-sub=plan]'); page.screenshot(path=OUT + 'v_plan.png')
         page.click('[data-act=sub][data-sub=reports]'); page.screenshot(path=OUT + 'v_reports.png', full_page=True)
         go('data'); page.screenshot(path=OUT + 'v_data.png')
         print('errors:', errs); b.close()

@@ -6,7 +6,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time, json, re
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 fails=[]
 def check(name, cond, extra=''):
     print(('PASS ' if cond else 'FAIL ')+name, extra if not cond else '')
@@ -105,18 +106,9 @@ try:
         check('tarjeta pagada', 'Debes' not in t and 'A favor Q0.00' in t and 'por pagar a tarjeta' not in t, t[:500])
         check('neto sigue 10 tras pagar', 'Q10.00' in t, t[:200])
 
-        # --- guía de transferencias + pago recibido
-        page.click('[data-act=sub][data-sub=plan]')
-        page.click('[data-act=new-line] >> nth=0')
-        dlg.locator('[name=name]').fill('Transporte'); dlg.locator('[name=amount]').fill('300'); save()
-        page.click('[data-act=new-line] >> nth=0')
-        dlg.locator('[name=name]').fill('Seguro 1a'); dlg.locator('[name=amount]').fill('450')
-        dlg.locator('[name=when]').select_option('q1'); save()
-        check('guía tiene líneas', 'Seguro 1a' in txt() and 'Total 1ª quincena' in txt())
-        page.click('[data-act=new-pay]')
-        check('pago preseleccionado con nota', dlg.locator('[name=note]').input_value()=='Pago quincenal')
+        # --- ingreso (pago recibido)
+        page.click('[data-act=new-inc] >> nth=0')
         dlg.locator('[name=amount]').fill('2000'); save()
-        page.click('[data-act=sub][data-sub=accounts]')
         t = txt()
         check('neto tras pago = 2010', 'Q2,010.00' in t, t[:200])
 

@@ -6,7 +6,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time, json, sys
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 SEED = """async (N) => {
   const open = () => new Promise((res, rej) => { const r = indexedDB.open('mi-quincena', 3);
     r.onupgradeneeded = () => { const db = r.result; for (const s of ['habits','accounts','moves','plan','bills','purchases','files']) db.createObjectStore(s,{keyPath:'id'}); db.createObjectStore('meta',{keyPath:'k'}); };
@@ -34,7 +35,7 @@ TIME = """async (fn) => { const t = performance.now(); await fn(); await new Pro
 try:
     with sync_playwright() as p:
         b = p.chromium.launch()
-        print(f"{'movs':>7} {'carga':>7} {'cuentas':>8} {'guía':>6} {'reportes(todo)':>14} {'guardar gasto':>14} {'DB MB':>6}")
+        print(f"{'movs':>7} {'carga':>7} {'cuentas':>8} {'pagos':>6} {'reportes(todo)':>14} {'guardar gasto':>14} {'DB MB':>6}")
         for N in [1000, 5000, 20000, 60000]:
             ctx = b.new_context(viewport={'width':390,'height':800})
             page = ctx.new_page(); page.on('dialog', lambda d: d.accept())
@@ -47,7 +48,7 @@ try:
                 return page.evaluate("""async (sel) => { const t = performance.now(); document.querySelector(sel).click();
                    await new Promise(r => setTimeout(r, 0)); await new Promise(r => requestAnimationFrame(()=>requestAnimationFrame(r))); return performance.now() - t; }""", sel)
             acc = click_t('[data-act=sub][data-sub=accounts]')
-            guia = click_t('[data-act=sub][data-sub=plan]')
+            pagos = click_t('[data-act=sub][data-sub=bills]')
             page.evaluate("document.querySelector('[data-act=sub][data-sub=reports]').click()")
             rep = click_t('[data-act=rep-kind][data-kind=all]')
             page.evaluate("document.querySelector('[data-act=sub][data-sub=accounts]').click()")
@@ -58,7 +59,7 @@ try:
             dlg.locator('.part select').first.evaluate("s=>{const o=[...s.options].find(o=>!o.disabled); s.value=o.value; s.dispatchEvent(new Event('change',{bubbles:true}))}")
             t2 = time.time(); dlg.locator('button.primary').click(); page.wait_for_function("!document.querySelector('#dlg').open"); save = (time.time()-t2)*1000
             size = page.evaluate("navigator.storage.estimate().then(e => e.usage/1048576)")
-            print(f"{N:>7} {load:>6.0f}ms {acc:>7.0f}ms {guia:>5.0f}ms {rep:>13.0f}ms {save:>13.0f}ms {size:>6.1f}")
+            print(f"{N:>7} {load:>6.0f}ms {acc:>7.0f}ms {pagos:>5.0f}ms {rep:>13.0f}ms {save:>13.0f}ms {size:>6.1f}")
             ctx.close()
         b.close()
 finally:

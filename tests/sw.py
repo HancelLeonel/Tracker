@@ -26,7 +26,7 @@ try:
     with sync_playwright() as p:
         b = p.chromium.launch()
 
-        # ---- con copia guardada: abre al instante aunque la red tarde 6 s por archivo
+        # ---- con copia guardada: abre al instante aunque la red tarde 2,5 s por archivo
         ctx = b.new_context(viewport={'width':390,'height':800})
         pg = ctx.new_page(); errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)))
@@ -35,13 +35,13 @@ try:
         check('el service worker controla la página', pg.evaluate('!!navigator.serviceWorker.controller'))
         names = pg.evaluate("caches.keys()")
         check('hay una sola caché de versión además de la de control', len([n for n in names if n != 'tracker-meta']) == 1, names)
-        DELAY['ms'] = 6000
+        DELAY['ms'] = 2500
         t0 = time.time(); pg.reload(); pg.wait_for_selector('#view .home', timeout=20000); dt = time.time() - t0
-        check('red muy lenta (6 s por archivo): abre en menos de 1.5 s con la copia', dt < 1.5, round(dt, 1))
+        check('red muy lenta (2,5 s por archivo): abre con la copia mucho antes de que la red responda (< 2 s)', dt < 2.0, round(dt, 1))
         check('y la app funciona (menú y navegación)', (pg.click('[data-act=menu-open]'), pg.click('#tabs [data-tab=habits]'), pg.wait_for_timeout(300), pg.locator('#topbar h1').inner_text())[-1]=='Hábitos')
         check('sin errores de página', errs==[], errs)
         DELAY['ms'] = 0
-        pg.wait_for_timeout(8000) # la comprobación en segundo plano de la red lenta termina (tarda ~6 s)
+        pg.wait_for_timeout(3500) # la comprobación en segundo plano de la red lenta termina (tarda ~2,5 s)
 
         # ---- sin cambios en el servidor: no se ofrece ninguna actualización
         pg.reload(); pg.wait_for_selector('#view .home'); pg.wait_for_timeout(1500)

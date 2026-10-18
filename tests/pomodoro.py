@@ -6,7 +6,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 fails=[]
 def check(name, cond, extra=''):
     print(('PASS ' if cond else 'FAIL ')+name, extra if not cond else '')
@@ -49,7 +50,7 @@ try:
         # ---- menú y Gimnasio
         names = page.evaluate("(() => { document.querySelector('[data-act=menu-open]').click(); return [...document.querySelectorAll('#tabs button')].map(b => b.innerText.trim()); })()")
         check('menú en orden con las pestañas nuevas', names == ['Inicio','Finanzas','Hábitos','Listas','Compras','Pomodoro','Gimnasio','Notas','Configuración'], names)
-        page.click('[data-act=menu-close] >> nth=0'); page.wait_for_timeout(300)
+        page.click('#drawer [data-act=menu-close]'); page.wait_for_timeout(300)
         for tab, title in (('gym','Gimnasio'),):
             go(tab)
             check(f'{title}: título y sus cuatro secciones (el detalle está en gimnasio.py)', page.locator('#topbar h1').inner_text()==title and page.locator('.seg button').count()==4, txt())

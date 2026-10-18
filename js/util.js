@@ -73,3 +73,8 @@ export function toast(msg) {
   clearTimeout(toast.id);
   toast.id = setTimeout(() => t.classList.remove('show'), 2400);
 }
+
+// Solo se abren enlaces http(s): un `javascript:` pegado en una nota nunca se vuelve clicable.
+export function safeUrl(v) {
+  try { const u = new URL(String(v).trim()); return /^https?:$/.test(u.protocol) ? u.href : null; } catch { return null; }
+}

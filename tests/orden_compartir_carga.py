@@ -6,7 +6,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 fails=[]
 def check(name, cond, extra=''):
     print(('PASS ' if cond else 'FAIL ')+name, extra if not cond else '')
@@ -69,15 +70,6 @@ try:
         kinds = [o for o in dlg.locator('[name=kind] option').all_inner_texts() if not o.startswith('+')]
         check('tipos de gasto ordenados', kinds==sorted(kinds, key=lambda x: x.lower().replace('á','a')), kinds)
         dlg.locator('#cancel').click()
-        # guía: líneas
-        page.click('[data-act=sub][data-sub=plan]')
-        for name, key in [('Zumo','Zorro'),('Agua','árbol'),('Medio','Cat 2')]:
-            page.click('[data-act=new-line] >> nth=0'); dlg.locator('[name=name]').fill(name); dlg.locator('[name=amount]').fill('10')
-            dlg.locator('[name=key]').evaluate("(s,t)=>{const o=[...s.options].find(o=>o.textContent.startsWith(t)); s.value=o.value}", key); save()
-        lines = [t.split('\n')[0].strip() for t in page.locator('.card:has-text("Líneas de la guía") .move').all_inner_texts()]
-        check('líneas de la guía ordenadas', lines==['Agua','Medio','Zumo'], lines)
-        ginside = [t.split('\n')[0].strip() for t in page.locator('.cat-main').all_inner_texts()]
-        check('líneas dentro de la cuenta ordenadas', [re.sub(r'^\W+','',g) for g in ginside]==['Agua','Medio','Zumo'] or ginside[0].endswith('Agua'), ginside)
         # tarjeta: apartado por categoría ordenado
         page.click('[data-act=sub][data-sub=accounts]')
         acc('Visa')

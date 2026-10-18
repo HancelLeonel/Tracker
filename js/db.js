@@ -2,7 +2,7 @@
 //   habits    -> { id, name, color, dates: { 'YYYY-MM-DD': 1 } }
 //   accounts  -> { id, name, type: 'normal'|'credit', limit?, cats: [{ id, name, balance }] }
 //   moves     -> { id, t, date, type: 'expense'|'income'|'transfer', title?, note, kind?, total, parts, to?, files? }
-//   plan      -> { id, name, amount, key: 'acc|cat', when: 'both'|'q1'|'q2' }
+//   plan      -> (heredado: la Guía de transferencias ya no existe; el store se conserva sin usar para no subir la versión y se vacía al reemplazar todo)
 //   bills     -> { id, title, amount, freq: 'once'|'monthly'|'biweekly'|'yearly', day, month? (solo anual), dueDate, start, card?, paid: { [due]: {...} } }
 //   purchases -> { id, name, date, price, store, tag, warrantyMonths, notes, files }
 //   templates -> { id, name, color, freq, items: [{ text, head? }] }   (plantillas de listas)
@@ -74,7 +74,7 @@ export function replaceAll(data) {
   const clear = files ? STORES : STORES.filter(s => s !== 'files');
   return run(STORES, 'readwrite', tx => {
     clear.forEach(s => tx.objectStore(s).clear());
-    for (const s of ['habits', 'accounts', 'moves', 'plan', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'exercises']) data[s].forEach(v => tx.objectStore(s).put(v));
+    for (const s of ['habits', 'accounts', 'moves', 'bills', 'purchases', 'templates', 'lists', 'noteGroups', 'notes', 'inbox', 'routines', 'workouts', 'exercises']) data[s].forEach(v => tx.objectStore(s).put(v));
     files?.forEach(v => tx.objectStore('files').put(v));
     tx.objectStore('meta').put({ k: 'settings', v: settings });
   });

@@ -9,7 +9,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 fails=[]
 def check(name, cond, extra=''):
     print(('PASS ' if cond else 'FAIL ')+name, extra if not cond else '')
@@ -17,7 +18,7 @@ def check(name, cond, extra=''):
 D = lambda n: (date.today() + timedelta(days=n)).isoformat()
 URL = 'http://localhost:8765/'
 # Todas las pantallas: [pestaña, acción extra (selector) o None]
-SCREENS = [('home', None), ('money', None), ('money', '[data-act=sub][data-sub=plan]'), ('money', '[data-act=sub][data-sub=bills]'), ('money', '[data-act=sub][data-sub=reports]'),
+SCREENS = [('home', None), ('money', None), ('money', '[data-act=sub][data-sub=bills]'), ('money', '[data-act=sub][data-sub=reports]'),
            ('habits', None), ('lists', None), ('lists', '[data-act=list-sub][data-sub=agenda]'), ('lists', '[data-act=list-sub][data-sub=templates]'), ('lists', '[data-act=list-sub][data-sub=archive]'),
            ('purchases', None), ('pomodoro', None), ('gym', None), ('gym', '[data-act=gym-sub][data-sub=routines]'), ('gym', '[data-act=gym-sub][data-sub=history]'),
            ('gym', '[data-act=gym-sub][data-sub=progress]'), ('notes', None), ('data', None)]
@@ -44,7 +45,6 @@ try:
           habits: [{{ id: 'h', name: 5, color: 'blue', icon: 'nada', slot: '', order: 1, dates: null }}],
           accounts: [{{ id: 'a', name: 'Rota', type: 'normal', cats: null }}, {{ id: 'a2', name: 'Bien', type: 'normal', cats: [{{ id: 'c', name: null, balance: 'cien' }}, null] }}],
           moves: [{{ id: 'm', type: 'expense', date: null, total: 'x', parts: null, title: 'Gasto roto' }}, {{ id: 'm2', type: 'transfer', date: '{D(0)}', total: 5, parts: [{{ acc: 'a2', cat: 'c', amount: 5 }}], to: null }}],
-          plan: [{{ id: 'pl', name: null, amount: 'x', key: null, when: 'both' }}],
           bills: [{{ id: 'b', title: null, amount: 10, freq: 'monthly', day: 5, start: '{D(-10)}', active: true, paid: null }}],
           purchases: [{{ id: 'p', name: null, date: null, price: 1, files: null }}],
           templates: [{{ id: 't', name: 'Plantilla rota', color: 'mauve', freq: '', items: null }}],

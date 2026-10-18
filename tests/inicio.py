@@ -6,7 +6,8 @@ os.makedirs(OUT, exist_ok=True)
 import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-time.sleep(1)
+from _servidor import espera
+espera()
 fails=[]
 def check(name, cond, extra=''):
     print(('PASS ' if cond else 'FAIL ')+name, extra if not cond else '')
@@ -48,7 +49,7 @@ try:
 
         # ---- no cambia al repintar (abrir/cerrar menú), sí al volver a mostrarla
         q0 = page2.locator('.home-quote p').inner_text()
-        page2.click('[data-act=menu-open]'); page2.click('[data-act=menu-close] >> nth=0'); page2.wait_for_timeout(60)
+        page2.click('[data-act=menu-open]'); page2.click('#drawer [data-act=menu-close]'); page2.wait_for_timeout(60)
         check('abrir y cerrar el menú no cambia la frase', page2.locator('.home-quote p').inner_text() == q0)
         seen = {q0}
         for _ in range(5):

@@ -1,7 +1,7 @@
 # Pruebas
 
 Pruebas end-to-end con [Playwright](https://playwright.dev/python/) (Chromium, teléfono simulado de 390×800). Cada script levanta
-un servidor estático con `python3 -m http.server` sobre la raíz del proyecto y maneja la app como lo haría una persona.
+un servidor estático con `python3 -m http.server` sobre la raíz del proyecto y maneja la app como lo haría una persona. Con `run_all.py` hay **un solo servidor compartido** (puerto 8765) y las pruebas corren **en paralelo**, cada una con su propio navegador y datos aislados; el servidor que intenta levantar cada una falla sin consecuencias y espera con `_servidor.espera()` (que vuelve al instante si ya está arriba).
 
 ## Preparar el entorno (una vez)
 
@@ -14,7 +14,9 @@ python3 -m venv .venv
 ## Ejecutar
 
 ```fish
-.venv/bin/python tests/run_all.py                 # todas
+time .venv/bin/python tests/run_all.py            # todas, en paralelo (~50 s con 8 núcleos; en serie eran ~6,5 min)
+.venv/bin/python tests/run_all.py selector markdown   # solo algunas
+.venv/bin/python tests/run_all.py -j 1            # una por una, para depurar
 .venv/bin/python tests/tarjetas.py                # una sola
 ```
 
@@ -24,10 +26,9 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | Script | Qué cubre |
 |---|---|
 | `smoke.py` | La app carga sin errores de consola |
-| `flujo_completo.py` | Cuentas, gasto repartido, tarjeta, guía, pagos, compras con adjuntos, reportes, exportar/importar |
+| `flujo_completo.py` | Cuentas, gasto repartido, tarjeta, ingreso, pagos, compras con adjuntos, reportes, exportar/importar |
 | `migracion_y_limites.py` | Migración desde la base v2, editar/borrar, límite de tarjeta, deshacer pagos, respaldo sin adjuntos |
 | `tarjetas.py` | Compra con tarjeta ligada a una categoría, dinero apartado, pago propuesto, edición y borrado |
-| `guia.py` | Guía de transferencias: pago a una cuenta, avance por línea y por cuenta, categoría de paso, quincenas |
 | `interfaz.py` | Menú lateral, cuentas plegables, movimientos por cuenta, selector de gasto, iconos blancos, nombre Tracker, contraste en tema oscuro y claro |
 | `paginacion_y_cache.py` | Listas paginadas y que la caché se invalide al agregar/editar/borrar |
 | `habitos.py` | Hábitos: iconos, carrusel de momentos del día, filas compactas, marcar días anteriores, reordenar, persistencia, exportar/importar y respaldos antiguos |
@@ -49,6 +50,8 @@ Las capturas de pantalla se guardan en `<carpeta temporal>/tracker-shots/`.
 | `sincronizacion.py` | Sincronización con Google Drive (inicio de sesión y Drive simulados, teléfono y PC como dos contextos): configurar, enviar, traer, ajustes propios del dispositivo, conflictos en ambos sentidos con copia de seguridad, archivo dañado y desconectar |
 | `no_toca_anual_negativo.py` | Hábitos «no toca» (ciclo de tres estados, racha, avance, Inicio, formulario, respaldo e importación), pagos anuales (formulario, vencidos/próximos, sección Anuales, pagar, editar, importar) y gasto con saldo negativo (casilla, categorías ofrecidas, confirmación, editar, regularizar) |
 | `selector.py` | Selector propio en los diálogos: select nativo invisible, hoja que primero pide la cuenta y luego sus categorías (con montos y volver), valor y `change`, «Nuevo tipo», validación, buscador con más de 12 opciones, tema oscuro y claro |
+| `sin_guia.py` | Finanzas sin la Guía de transferencias: subpestañas, respaldo antiguo que la trae (se importa e ignora), ingreso repartido por ella editable como un ingreso normal y respaldo nuevo sin `plan` |
+| `markdown.py` | Markdown: renderizador (formatos, enlaces seguros, entradas hostiles), campo con barra de formato y vista previa, lista, detalle, búsqueda, respaldo, contenido ancho en tema claro y JetBrains Mono |
 | `benchmark_carga.py` | Tiempos de carga, pantallas, reportes y guardado con 1k–60k movimientos (no es parte de `run_all`) |
 | `benchmark_listas.py` | Tiempos de las listas largas con 1k–60k movimientos (no es parte de `run_all`) |
 

@@ -4,7 +4,7 @@ import {
   S, saveSettings, saveAccount, saveMove, deleteMove, findAcc, findCat, isCredit, keyOf, splitKey,
   normalKeys, hasNormalCats, catLabel, totals, effects, sortedMoves, bump, balanceWithout, availWithout, kindName, reservedMap, cardPending,
 } from './state.js';
-import { modal, catSelect, kindSelect, wireKindSelect, mountAttach, attachHtml, fileLinks } from './ui.js';
+import { modal, catSelect, kindSelect, wireKindSelect, mountAttach, attachHtml } from './ui.js';
 import { icon } from './icons.js';
 
 const PAGE = 30; // filas que se pintan por «página» en las listas largas
@@ -331,8 +331,7 @@ export function expenseForm(move, presetKey, presetCard) {
 }
 
 // ---------- ingreso y transferencia ----------
-// preset: { from, to, amount, note } para abrir el formulario ya llenado (por ejemplo desde la guía).
-export function flowForm(type, move, preset = {}) {
+export function flowForm(type, move) {
   if (!hasNormalCats()) return toast('Primero crea una cuenta con una categoría');
   const res = reservedMap(move);
   const bal = k => balanceWithout(move, k);
@@ -345,14 +344,14 @@ export function flowForm(type, move, preset = {}) {
   const opt = { credit: false };
   // Por defecto: desde la última categoría usada para mover dinero / hacia donde suele caer el pago.
   const pick = (k, fallback) => (keys.includes(k) ? k : fallback);
-  const defFrom = pick(preset.from ?? S.settings.lastFrom, first);
-  const defTo = pick(preset.to ?? (isX ? null : S.settings.lastIncomeTo), keys.find(k => k !== defFrom) ?? first);
+  const defFrom = pick(S.settings.lastFrom, first);
+  const defTo = pick(isX ? null : S.settings.lastIncomeTo, keys.find(k => k !== defFrom) ?? first);
 
   modal(move ? `Editar: ${title.toLowerCase()}` : title, `
     ${isX ? `<label>Desde ${catSelect('from', move ? keyOf(move.parts[0]) : defFrom, free, '', opt)}</label>` : ''}
-    <label>${isX ? 'Hacia' : 'Entra a'} ${catSelect('to', move ? keyOf(isX ? move.to : move.parts[0]) : (isX ? defTo : pick(preset.to ?? S.settings.lastIncomeTo, first)), bal, '', opt)}</label>
-    <label>Monto <input name="amount" type="number" inputmode="decimal" step="0.01" min="0.01" required value="${move?.total ?? (preset.amount || '')}"></label>
-    <label>Descripción (opcional) <input name="note" maxlength="80" value="${esc(move?.note ?? preset.note ?? '')}"></label>
+    <label>${isX ? 'Hacia' : 'Entra a'} ${catSelect('to', move ? keyOf(isX ? move.to : move.parts[0]) : (isX ? defTo : pick(S.settings.lastIncomeTo, first)), bal, '', opt)}</label>
+    <label>Monto <input name="amount" type="number" inputmode="decimal" step="0.01" min="0.01" required value="${move?.total ?? ''}"></label>
+    <label>Descripción (opcional) <input name="note" maxlength="80" value="${esc(move?.note ?? '')}"></label>
     <label>Fecha <input name="date" type="date" required value="${move?.date ?? today()}"></label>
     ${isX ? '' : attachHtml}`, {
     afterOpen(f) {
@@ -447,20 +446,6 @@ export function payCardForm(card, move) {
   });
 }
 
-// Un ingreso repartido por el plan no se edita: se muestra y, si hace falta, se elimina y se registra de nuevo.
-export function paydayDetail(m) {
-  modal(moveTitle(m), `
-    <p class="muted">${fmtDate(m.date)} · Recibido <b>${money(m.total)}</b></p>
-    <ul class="moves">${m.parts.map(p => {
-      const line = S.plan.find(l => l.id === p.line);
-      return `<li class="move static"><span>${esc(line?.name ?? 'Sobrante')}<small>${esc(catLabel(p))}</small></span><span class="amt in">+${money(p.amount)}</span></li>`;
-    }).join('')}</ul>
-    ${m.files?.length ? `<div>${fileLinks(m.files)}</div>` : ''}
-    <small class="muted">Para corregirlo, elimínalo y regístralo de nuevo: los saldos se revierten solos.</small>`, {
-    onDelete: () => deleteMove(m),
-  });
-}
-
 // ---------- cuentas y categorías ----------
 export function accountForm(acc) {
   const credit = isCredit(acc);
@@ -532,7 +517,6 @@ export const actions = {
   'edit-move'(el) {
     const m = S.moves.find(x => x.id === el.dataset.id);
     if (m.type === 'expense') expenseForm(m);
-    else if (m.plan) paydayDetail(m);
     else if (m.type === 'transfer' && isCredit(findAcc(m.to.acc))) payCardForm(findAcc(m.to.acc), m);
     else flowForm(m.type, m);
   },
