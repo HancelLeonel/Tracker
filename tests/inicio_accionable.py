@@ -65,6 +65,16 @@ try:
         page.click('#today-habits .th-more'); page.wait_for_timeout(80)
         check('y los vuelve a plegar', rows() == 5)
 
+        # ---- los pendientes también se pliegan (como los hechos)
+        tog = page.locator('#today-habits .th-toggle')
+        check('el encabezado «Faltan 5» es un botón que pliega los pendientes', tog.count() == 1 and tog.get_attribute('aria-expanded') == 'true')
+        tog.click(); page.wait_for_timeout(80)
+        check('plegados: no se ve ningún pendiente pero el encabezado, la barra y «10 hechos» siguen', rows() == 0 and head() == 'Faltan 5' and '10 hechos' in foot() and tog.get_attribute('aria-expanded') == 'false', (rows(), head()))
+        h2 = page.evaluate("document.querySelector('.home').getBoundingClientRect().height")
+        check('con los pendientes plegados Inicio mide menos de 1,2 pantallas', h2 < 960, h2)
+        tog.click(); page.wait_for_timeout(80)
+        check('al desplegar vuelven los 5 pendientes', rows() == 5 and tog.get_attribute('aria-expanded') == 'true')
+
         # ---- un toque: hecho ↔ pendiente, en el sitio
         page.evaluate("window.__ref = document.querySelector('.home-top h2'); window.scrollTo(0, 40)")
         y0 = page.evaluate("scrollY")

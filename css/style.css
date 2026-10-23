@@ -470,6 +470,8 @@ button.li:active { background: var(--surface0); }
 /* Título de bloque con el punto de color de su sección. */
 .home-h { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; font-weight: 650; }
 .home-h::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--sec); }
+.th-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: -10px -4px -10px 0; padding: 0 4px; color: var(--subtext1); }
+.th-toggle .i { stroke: var(--subtext1); }
 .th-more { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px 4px; border-top: 1px solid var(--line); color: var(--subtext1); text-align: left; }
 .th-more span { flex: 1; }
 .th-more .i { stroke: var(--subtext1); }

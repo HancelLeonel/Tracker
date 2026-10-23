@@ -100,9 +100,11 @@ function habitsToday() {
   const state = left ? `${left === 1 ? 'Falta' : 'Faltan'} ${left}` : due.length ? 'Todo hecho' : 'Hoy ninguno toca';
   return `
     <section class="card today-habits" id="today-habits">
-      <div class="th-head"><h3 class="home-h">Hábitos</h3><span class="th-count">${state}</span></div>
+      <div class="th-head"><h3 class="home-h">Hábitos</h3>${pending.length
+        ? `<button class="th-count th-toggle" data-act="home-pending-toggle" aria-expanded="${!S.homePendingClosed}">${state}${icon(S.homePendingClosed ? 'down' : 'up')}</button>`
+        : `<span class="th-count">${state}</span>`}</div>
       <div class="bar"><i style="width:${due.length ? (done / due.length) * 100 : 0}%"></i></div>
-      <div class="th-rows">${pending.map(row).join('')}</div>
+      ${S.homePendingClosed ? '' : `<div class="th-rows">${pending.map(row).join('')}</div>`}
       ${rest.length ? `<button class="th-more" data-act="home-done-toggle" aria-expanded="${!!S.homeDoneOpen}">${icon('check')}<span>${[done && pl(done, 'hecho'), skips && `${skips} no toca`].filter(Boolean).join(' · ')}</span>${icon(S.homeDoneOpen ? 'up' : 'down')}</button>` : ''}
       ${rest.length && S.homeDoneOpen ? `<div class="th-rows">${rest.map(row).join('')}</div>` : ''}
     </section>`;
@@ -203,6 +205,7 @@ export const quiet = {
     await saveHabit(h);
   },
   'home-done-toggle'() { S.homeDoneOpen = !S.homeDoneOpen; repaintHabits(); },
+  'home-pending-toggle'() { S.homePendingClosed = !S.homePendingClosed; repaintHabits(); }, // pliega o despliega lo que falta (solo memoria, como «hechos»)
   async 'home-task'(el) {
     const l = S.lists.find(x => x.id === el.dataset.list), i = l?.items.find(x => x.id === el.dataset.id);
     if (!i) return;
