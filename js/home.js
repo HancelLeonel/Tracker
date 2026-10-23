@@ -1,10 +1,9 @@
-import { esc, today, fmtDate, daysBetween, pl, applyOrder } from './util.js';
-import { S } from './state.js';
-import { isDone, isSkip } from './habits.js';
+import { $, esc, today, fmtDate, daysBetween, pl, applyOrder } from './util.js';
+import { S, saveHabit, saveList } from './state.js';
+import { isDone, isSkip, setDay, cls, mark, label, groups, badge } from './habits.js';
 import { icon } from './icons.js';
 import { billsSummary } from './bills.js';
 import { todayTasks, taskRow } from './lists.js';
-import { homeInfo as gymInfo } from './gym.js';
 import { quickNoteForm, inboxSection, restoreFocus as restoreQuick } from './inbox.js';
 
 // Frases con autoría documentada (obras, discursos o tradición). Se evitaron las de atribución dudosa.
@@ -64,40 +63,35 @@ export function nextQuote() {
 const greeting = h => (h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches');
 const MAX_TASKS = 6;
 
-// Tarjeta «Hábitos»: cuántos van hoy.
-function habitsTile() {
-  const t = today(), due = S.habits.filter(h => !isSkip(h, t)), total = due.length, done = due.filter(h => isDone(h, t)).length; // los que hoy «no tocan» no cuentan
+// «Hoy»: todos los hábitos a la vez, por momento del día. Cada casilla se marca en el sitio (`quiet['home-habit']`): se reemplaza solo este bloque.
+function habitsToday() {
+  const t = today();
+  if (!S.habits.length) {
+    return `<section class="card today-habits" id="today-habits"><div class="th-head"><h3>Hoy</h3></div>
+      <p class="muted">Crea tu primer hábito</p><div><button class="btn primary sm" data-act="new-habit">Crear hábito</button></div></section>`;
+  }
+  const due = S.habits.filter(h => !isSkip(h, t)), done = due.filter(h => isDone(h, t)).length; // los que hoy «no tocan» no cuentan
+  const rows = groups().all.flatMap(g => g.items).map(h => `
+    <div class="th-row" style="--c:var(--${h.color})">${badge(h)}<span class="th-name">${esc(h.name)}</span>
+      <button class="dot ${cls(h, t)}" data-act="home-habit" data-id="${h.id}" aria-pressed="${isSkip(h, t) ? 'mixed' : isDone(h, t)}" aria-label="${esc(h.name)} hoy: ${label(h, t)}">${mark(h, t)}</button>
+    </div>`).join('');
   return `
-    <button class="tile" data-act="tab" data-tab="habits">
-      <span class="overline">Hábitos</span>
-      ${total ? `<b class="tile-n">${done}<small>/${total}</small></b><span class="bar"><i style="width:${(done / total) * 100}%"></i></span>`
-        : S.habits.length ? '<b class="tile-n muted">—</b><small>Hoy ninguno toca</small>' : '<b class="tile-n muted">—</b><small>Crea tu primer hábito</small>'}
-    </button>`;
+    <section class="card today-habits" id="today-habits">
+      <div class="th-head"><h3>Hoy</h3><span class="th-count">${due.length ? `${done} de ${due.length}` : 'Hoy ninguno toca'}</span></div>
+      <div class="bar"><i style="width:${due.length ? (done / due.length) * 100 : 0}%"></i></div>
+      <div class="th-rows">${rows}</div>
+    </section>`;
 }
 
-// Tarjeta «Pagos»: vencidos en rojo, o el próximo por vencer, o al día.
-function billsTile() {
+// Línea de pagos: solo aparece si hay vencidos o algo vence en los próximos 3 días (igual que el aviso de la pestaña Pagos).
+function billsLine() {
   const b = billsSummary();
   const n = b.next ? daysBetween(today(), b.next.due) : null;
-  let body;
-  if (b.overdue) body = `<b class="tile-n neg">${b.overdue}</b><small class="neg">${pl(b.overdue, 'pago vencido', 'pagos vencidos')}</small>`;
-  else if (n !== null && n <= 3) { // solo se muestra lo que vence en los próximos 3 días (igual que el aviso de la pestaña Pagos)
-    body = `<b class="tile-n tile-txt">${esc(b.next.bill.title)}</b><small>${n === 0 ? 'Vence hoy' : n === 1 ? 'Vence mañana' : `Vence el ${fmtDate(b.next.due)}`}</small>`;
-  } else body = '<b class="tile-n muted">—</b><small>No hay pagos cercanos</small>';
-  return `<button class="tile" data-act="home-bills"><span class="overline">Pagos</span>${body}</button>`;
-}
-
-// Tarjeta «Ejercicio»: cuántos de los últimos 7 días entrenaste, con un círculo por día (con color los entrenados; el último es hoy).
-function gymTile() {
-  const g = gymInfo(), T = today();
-  const n = g.last ? daysBetween(g.last, T) : null;
-  const sub = g.live ? 'Entrenando ahora' : g.last ? `Último: ${n === 0 ? 'hoy' : n === 1 ? 'ayer' : `hace ${n} días`}` : 'Sin entrenamientos';
-  return `
-    <button class="tile" style="--c:var(--accent)" data-act="home-gym" data-sub="${g.live || !g.last ? 'train' : 'history'}">
-      <span class="overline">Ejercicio</span>
-      <b class="tile-n">${g.count}<small>/7</small></b><small>${esc(sub)}</small>
-      <span class="mini tile-dots" role="img" aria-label="Entrenaste ${pl(g.count, 'día')} de los últimos 7">${g.days.map(d => `<i class="${d.on ? 'on' : ''}" title="${esc(fmtDate(d.date))}"></i>`).join('')}</span>
-    </button>`;
+  let text, bad = false;
+  if (b.overdue) { text = `${b.overdue} ${pl(b.overdue, 'pago vencido', 'pagos vencidos')}`; bad = true; }
+  else if (n !== null && n <= 3) text = `${esc(b.next.bill.title)} ${n === 0 ? 'vence hoy' : n === 1 ? 'vence mañana' : `vence el ${fmtDate(b.next.due)}`}`;
+  else return '';
+  return `<button class="home-line ${bad ? 'neg' : ''}" data-act="home-bills">${icon('alert')}<span>${text}</span>${icon('right')}</button>`;
 }
 
 // Tarjeta de acciones de dinero: registrar un gasto, un ingreso o mover dinero sin entrar a Finanzas (los formularios los abre money.js).
@@ -113,9 +107,9 @@ function moneyActions() {
 // «Tareas de hoy»: elementos de las listas con fecha límite de hoy o vencida; la casilla las marca como hechas.
 function tasksSection() {
   const all = todayTasks(), shown = all.slice(0, MAX_TASKS), extra = all.length - shown.length;
-  const rows = shown.map(({ list, item }) => taskRow(list, item)).join('');
+  const rows = shown.map(({ list, item }) => taskRow(list, item, 'home-task')).join('');
   return `
-    <section class="today">
+    <section class="today" id="today-tasks">
       <h3 class="overline">Tareas de hoy${all.length ? ` <span class="count">${all.length}</span>` : ''}</h3>
       ${all.length ? `<div class="trows">${rows}</div>
         ${extra > 0 ? `<button class="btn ghost block" data-act="tab" data-tab="lists">Ver ${pl(extra, 'más', 'más')} en Listas</button>` : ''}`
@@ -128,8 +122,10 @@ const safe = fn => { try { return fn(); } catch (err) { console.error(err); retu
 
 // Lo que se puede reordenar en Inicio (Configuración › Orden): secciones y, dentro de «Tarjetas», cada tarjeta. El saludo va siempre arriba.
 // El orden guardado está en `settings.homeOrder` / `settings.tileOrder`; lo que falte se agrega al final (ver `applyOrder`).
-export const HOME_BLOCKS = [['quote', 'Frase'], ['quick', 'Nota rápida'], ['tiles', 'Tarjetas'], ['inbox', 'Bandeja'], ['tasks', 'Tareas de hoy']];
-export const HOME_TILES = [['habits', 'Hábitos'], ['bills', 'Pagos'], ['gym', 'Ejercicio'], ['actions', 'Gasto, Ingreso y Mover']];
+// «Hoy» (los hábitos) va siempre justo bajo el saludo y no se reordena. Los órdenes guardados con claves que ya no existen
+// (`gym`, `habits`) se ignoran en `applyOrder`.
+export const HOME_BLOCKS = [['tasks', 'Tareas de hoy'], ['tiles', 'Pagos y accesos'], ['quick', 'Nota rápida'], ['inbox', 'Bandeja'], ['quote', 'Frase']];
+export const HOME_TILES = [['bills', 'Pagos'], ['actions', 'Gasto, Ingreso y Mover']];
 
 function quoteBlock() {
   const [text, author] = QUOTES[current];
@@ -138,11 +134,11 @@ function quoteBlock() {
   </button>`;
 }
 
-const TILE_VIEWS = { habits: () => safe(habitsTile), bills: () => safe(billsTile), gym: () => safe(gymTile), actions: moneyActions };
+const TILE_VIEWS = { bills: () => safe(billsLine), actions: moneyActions };
 const BLOCK_VIEWS = {
   quote: quoteBlock,
   quick: () => safe(quickNoteForm),
-  tiles: () => `<div class="tiles">${applyOrder(HOME_TILES.map(t => t[0]), S.settings.tileOrder).map(k => TILE_VIEWS[k]()).join('')}</div>`,
+  tiles: () => `<div class="home-quick">${applyOrder(HOME_TILES.map(t => t[0]), S.settings.tileOrder).map(k => TILE_VIEWS[k]()).join('')}</div>`,
   inbox: () => safe(inboxSection),
   tasks: () => safe(tasksSection),
 };
@@ -153,7 +149,8 @@ export function homeView() {
   const weekday = now.toLocaleDateString('es-GT', { weekday: 'long' });
   return `
     <section class="home">
-      <header class="home-top"><span class="overline">${esc(weekday)} · ${esc(fmtDate(today()))}</span><h2>${greeting(now.getHours())}</h2></header>
+      <header class="home-top"><span class="overline">${esc(weekday[0].toUpperCase() + weekday.slice(1))} · ${esc(fmtDate(today()))}</span><h2>${greeting(now.getHours())}</h2></header>
+      ${safe(habitsToday)}
       ${applyOrder(HOME_BLOCKS.map(b => b[0]), S.settings.homeOrder).map(k => safe(BLOCK_VIEWS[k])).join('')}
     </section>`;
 }
@@ -163,6 +160,32 @@ export { restoreQuick };
 
 export const actions = {
   'home-quote': () => nextQuote(),
-  'home-gym': el => { S.tab = 'gym'; S.gymSub = el.dataset.sub; S.gymLimit = 30; window.scrollTo(0, 0); },
   'home-bills': () => { S.tab = 'money'; S.sub = 'bills'; window.scrollTo(0, 0); },
+};
+
+// Acciones que se aplican en el sitio, sin repintar la pantalla (el despachador de `app.js` las consulta antes que `actions`):
+// repintar tiraría el scroll y la animación del toque. Se actualiza el DOM primero y se guarda después.
+export const quiet = {
+  async 'home-habit'(el) {
+    const h = S.habits.find(x => x.id === el.dataset.id);
+    if (!h) return;
+    setDay(h, today());
+    $('#today-habits').outerHTML = habitsToday();
+    $(`#today-habits [data-id="${h.id}"]`)?.classList.add('pop');
+    await saveHabit(h);
+  },
+  async 'home-task'(el) {
+    const l = S.lists.find(x => x.id === el.dataset.list), i = l?.items.find(x => x.id === el.dataset.id);
+    if (!i) return;
+    i.done = !i.done;
+    if (i.done) i.doneAt = today(); else delete i.doneAt;
+    const row = el.closest('.trow');
+    row.classList.toggle('done', i.done);
+    el.setAttribute('aria-pressed', i.done);
+    el.firstElementChild.innerHTML = i.done ? icon('check') : '';
+    if (i.done) el.classList.add('pop'); else el.classList.remove('pop');
+    const n = $('#today-tasks .count');
+    if (n) n.textContent = todayTasks().length;
+    await saveList(l);
+  },
 };

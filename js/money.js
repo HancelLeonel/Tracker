@@ -1,5 +1,5 @@
 import * as db from './db.js';
-import { esc, money, sum, r2, uid, today, fmtDate, toast, byText } from './util.js';
+import { esc, money, sum, r2, uid, today, addDays, fmtDate, toast, byText } from './util.js';
 import {
   S, saveSettings, saveAccount, saveMove, deleteMove, findAcc, findCat, isCredit, keyOf, splitKey,
   normalKeys, hasNormalCats, catLabel, totals, effects, sortedMoves, bump, balanceWithout, availWithout, kindName, reservedMap, cardPending,
@@ -17,6 +17,22 @@ export function moveWhere(m) {
   const where = m.parts.map(catLabel).join(' + ');
   return m.card ? `${where} · tarjeta ${findAcc(m.card)?.name ?? '(eliminada)'}` : where;
 }
+
+// «Hoy», «Ayer» o la fecha corta: los movimientos se agrupan por día bajo ese encabezado.
+export function dayLabel(date) {
+  const t = today();
+  return date === t ? 'Hoy' : date === addDays(t, -1) ? 'Ayer' : fmtDate(date);
+}
+// Agrupa filas consecutivas del mismo día (la lista ya viene ordenada): [[etiqueta, [fila, …]], …].
+export function groupByDay(items, dateOf = x => x.date) {
+  const out = [];
+  for (const it of items) {
+    const d = dateOf(it), last = out.at(-1);
+    if (last && dateOf(last[1][0]) === d) last[1].push(it); else out.push([dayLabel(d), [it]]);
+  }
+  return out;
+}
+const dayHead = label => `<li class="day-h">${esc(label)}</li>`;
 
 // ---------- vista de cuentas ----------
 const isCollapsed = id => !!S.settings.collapsed?.[id];
@@ -36,16 +52,17 @@ export function accountsView() {
   const sorted = sortedMoves();
   const shown = sorted.slice(0, S.moveLimit);
   const left = sorted.length - shown.length;
-  const moves = shown.map(m => {
+  const moveRow = m => {
     const amt = m.type === 'expense' ? `<span class="amt out">−${money(m.total)}</span>`
       : m.type === 'income' ? `<span class="amt in">+${money(m.total)}</span>`
       : `<span class="amt">${money(m.total)}</span>`;
-    const bits = [fmtDate(m.date), m.type === 'expense' ? kindName(m.kind) : null, moveWhere(m)].filter(Boolean);
+    const bits = [m.type === 'expense' && m.kind ? kindName(m.kind) : null, moveWhere(m)].filter(Boolean); // la fecha ya va en el encabezado del día
     return `
       <li><button class="move" data-act="edit-move" data-id="${m.id}">
         <span>${esc(moveTitle(m))}${m.files?.length ? ` ${icon('clip')}` : ''}<small>${esc(bits.join(' · '))}</small></span>${amt}
       </button></li>`;
-  }).join('');
+  };
+  const moves = groupByDay(shown).map(([label, items]) => dayHead(label) + items.map(moveRow).join('')).join('');
 
   const t = totals();
   return `
@@ -59,7 +76,7 @@ export function accountsView() {
       </div>
     </section>
     ${cards}
-    ${moves ? `<section class="card"><div class="card-h"><h3>Movimientos</h3></div><ul class="moves">${moves}</ul>
+    ${moves ? `<section class="moves-sec"><div class="card-h"><h3>Movimientos</h3></div><ul class="moves">${moves}</ul>
       ${left > 0 ? `<button class="btn ghost block" data-act="more-moves">Ver más (${Math.min(PAGE, left)} de ${left} restantes)</button>` : ''}
       ${S.moveLimit > PAGE ? '<button class="btn ghost block" data-act="less-moves">Ver menos</button>' : ''}</section>` : ''}`;
 }
@@ -141,7 +158,7 @@ function accountMovesDialog(a) {
       .map(id => findCat(a.id, id)?.name ?? '(eliminada)');
     const amt = viaCard ? `<span class="amt">${money(m.parts.filter(p => p.acc === a.id).reduce((t, p) => t + p.amount, 0))}</span>`
       : `<span class="amt ${delta < 0 ? 'out' : 'in'}">${delta < 0 ? '−' : '+'}${money(Math.abs(delta))}</span>`;
-    const bits = [fmtDate(m.date), m.type === 'expense' ? kindName(m.kind) : null, cats.join(', '), viaCard ? 'con tarjeta' : null].filter(Boolean);
+    const bits = [m.type === 'expense' && m.kind ? kindName(m.kind) : null, cats.join(', '), viaCard ? 'con tarjeta' : null].filter(Boolean);
     return `<li><button class="move" data-act="edit-move" data-id="${m.id}"><span>${esc(moveTitle(m))}${m.files?.length ? ` ${icon('clip')}` : ''}<small>${esc(bits.join(' · '))}</small></span>${amt}</button></li>`;
   };
 
@@ -152,10 +169,14 @@ function accountMovesDialog(a) {
     afterOpen(f) {
       const list = f.querySelector('.acc-moves'), more = f.querySelector('#acc-more');
       if (!list) return;
-      let shown = 0;
-      // Se pintan de a PAGE filas; «Ver más» agrega las siguientes sin repintar lo ya mostrado.
+      let shown = 0, lastDate = null;
+      // Se pintan de a PAGE filas; «Ver más» agrega las siguientes sin repintar lo ya mostrado (el encabezado del día no se repite entre páginas).
       const next = () => {
-        list.insertAdjacentHTML('beforeend', rows.slice(shown, shown + PAGE).map(rowHtml).join(''));
+        list.insertAdjacentHTML('beforeend', rows.slice(shown, shown + PAGE).map(r => {
+          const head = r.m.date !== lastDate ? dayHead(dayLabel(r.m.date)) : '';
+          lastDate = r.m.date;
+          return head + rowHtml(r);
+        }).join(''));
         shown = Math.min(rows.length, shown + PAGE);
         more.hidden = shown >= rows.length;
         more.textContent = `Ver más (${Math.min(PAGE, rows.length - shown)} de ${rows.length - shown} restantes)`;

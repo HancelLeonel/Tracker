@@ -9,6 +9,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -28,7 +29,7 @@ try:
         dlg = q.locator('#dlg')
         txt = lambda: q.locator('#view').inner_text()
         is_open = lambda: q.evaluate("document.querySelector('#dlg').open")
-        def go(tab): q.click('[data-act=menu-open]'); q.click(f'#tabs [data-tab={tab}]'); q.wait_for_timeout(80)
+        def go(tab): ir(q, tab); q.wait_for_timeout(80)
         def gsub(k): q.click(f'[data-act=gym-sub][data-sub={k}]'); q.wait_for_timeout(80)
         def save(): dlg.locator('button.primary').click(); q.wait_for_timeout(150)
         W = lambda: q.evaluate("import('/js/state.js').then(m => JSON.parse(JSON.stringify(m.S.workouts)))")

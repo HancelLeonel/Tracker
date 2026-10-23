@@ -7,6 +7,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -28,7 +29,7 @@ try:
         title = lambda: page.locator('#topbar h1').inner_text().strip()
         def go(tab):
             if page.locator('[data-act=note-back]').count(): page.click('[data-act=note-back]'); page.wait_for_timeout(60)
-            page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(80)
+            ir(page, tab); page.wait_for_timeout(80)
         rows = lambda: [t.split('\n')[0].strip() for t in page.locator('.note-row .card.note').all_inner_texts()]
         def new_group(preset, name=None):
             page.click('#topbar [data-act=new-ngroup]'); page.wait_for_timeout(80)

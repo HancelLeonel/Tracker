@@ -8,6 +8,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -47,7 +48,7 @@ def device(ctx, name):
     p.goto(URL); p.wait_for_selector('#view .home')
     return p, errs
 
-def go(p, tab): p.click('[data-act=menu-open]'); p.click(f'#tabs [data-tab={tab}]'); p.wait_for_timeout(150)
+def go(p, tab): ir(p, tab); p.wait_for_timeout(150)
 def add_account(p, name, amount):
     go(p, 'money')
     p.click('[data-act=new-acc]'); p.fill('input[name=name]', name); p.click('#f .btn.primary'); p.wait_for_timeout(200)

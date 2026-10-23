@@ -10,6 +10,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -35,7 +36,7 @@ try:
         txt = lambda: q.locator('#view').inner_text()
         def go(tab, extra=None):
             q.evaluate("() => import('/js/state.js').then(m => { m.S.listId = null; m.S.noteGroup = null; m.S.gymSub = 'train'; m.S.sub = 'accounts'; m.S.listSub = 'lists'; })")
-            q.click('[data-act=menu-open]'); q.click(f'#tabs [data-tab={tab}]'); q.wait_for_timeout(80)
+            ir(q, tab); q.wait_for_timeout(80)
             if extra: q.click(extra); q.wait_for_timeout(80)
         def raw(js):  # escribe directo en la base, sin pasar por la app (como un respaldo editado a mano)
             q.evaluate("async js => { const db = await import('/js/db.js'); await (new Function('db', 'return (async () => {' + js + '})()'))(db); }", js)
@@ -75,7 +76,7 @@ try:
         errs.clear()
         go('lists')
         check('la sección que falla muestra un aviso con el detalle y un botón a Inicio', 'No se pudo mostrar esta sección' in txt() and 'Detalle:' in txt() and q.locator('#view [data-act=tab][data-tab=home]').count()==1, txt()[:200])
-        check('la barra superior conserva el menú', q.locator('#topbar [data-act=menu-open]').count()==1 and q.locator('#topbar h1').inner_text()=='Listas')
+        check('la barra inferior sigue disponible', q.locator('#nav [data-tab]').count()==4 and q.locator('#nav [data-act=more]').count()==1 and q.locator('#topbar h1').inner_text()=='Listas')
         check('el error queda en consola (para diagnosticarlo)', any('items' in e or 'filter' in e for e in errs), errs)
         q.click('#view [data-act=tab][data-tab=home]'); q.wait_for_timeout(100)
         check('desde el aviso se vuelve a Inicio y la app sigue', q.locator('#view .home').count()==1)
@@ -90,7 +91,7 @@ try:
         raw(f"""await db.commit({{ put: {{ bills: [{{ id: 'bm', title: 'Internet', amount: 300, freq: 'monthly', day: 1, start: '{start}', card: null, active: true, paid: {{}} }},
           {{ id: 'bo', title: 'Seguro', amount: 100, freq: 'once', dueDate: '{D(-3)}', start: '{start}', card: null, active: true, paid: {{}} }}] }} }});""")
         q.reload(); q.wait_for_selector('#view .home')
-        tile = q.locator('.tile:has-text("Pagos")').inner_text()
+        tile = q.locator('.home-line').inner_text()
         check('Inicio cuenta pagos vencidos, no vencimientos (2 pagos aunque Internet debe varios meses)', '2' in tile and 'pagos vencidos' in tile, tile)
         go('money', '[data-act=sub][data-sub=bills]')
         rows = q.locator('.card.alert .bill')

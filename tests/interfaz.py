@@ -7,6 +7,7 @@ import subprocess, time, re, json
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -21,7 +22,7 @@ try:
         page.on('pageerror', lambda e: errs.append(str(e)))
         page.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)
         page.on('dialog', lambda d: d.accept())
-        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card'); page.wait_for_timeout(350)
+        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); ir(page, 'money'); page.wait_for_selector('#view .card'); page.wait_for_timeout(350)
         dlg = page.locator('#dlg')
         def save(): dlg.locator('button.primary').click(); page.wait_for_timeout(150)
         txt = lambda: page.locator('#view').inner_text()
@@ -29,20 +30,14 @@ try:
         check('título Tracker', page.title()=='Tracker')
         man = json.loads(page.evaluate("fetch('manifest.webmanifest').then(r=>r.text())"))
         check('manifest Tracker', man['name']=='Tracker' and man['short_name']=='Tracker')
-        # --- menú lateral
-        check('sin barra inferior', page.locator('#tabs').evaluate("e=>getComputedStyle(e.closest('aside')).visibility")=='hidden')
-        hb = page.locator('[data-act=menu-open]').first.bounding_box(); h1 = page.locator('#topbar h1').bounding_box()
-        check('hamburguesa a la izquierda del título', hb['x'] < h1['x'] and abs((hb['y']+hb['height']/2)-(h1['y']+h1['height']/2))<20, (hb, h1))
-        page.click('[data-act=menu-open]'); page.wait_for_timeout(300)
-        check('drawer visible', page.locator('#drawer').is_visible() and 'Tracker' in page.locator('#drawer').inner_text())
-        page.screenshot(path=OUT + 'x_drawer.png')
-        page.click('#scrim', position={'x':370,'y':400}); page.wait_for_timeout(300)
-        check('cierra con el fondo', not page.locator('#drawer').is_visible())
-        page.click('[data-act=menu-open]'); page.keyboard.press('Escape'); page.wait_for_timeout(300)
-        check('cierra con Escape', not page.locator('#drawer').is_visible())
-        page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=habits]'); page.wait_for_timeout(300)
-        check('navega y cierra', page.locator('#topbar h1').inner_text()=='Hábitos' and not page.locator('#drawer').is_visible())
-        page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_timeout(300)
+        # --- barra inferior
+        nav = page.locator('#nav').bounding_box()
+        check('la barra inferior está pegada abajo y ocupa todo el ancho', abs(nav['y'] + nav['height'] - 800) < 2 and nav['width'] >= 389, nav)
+        check('no hay botón de hamburguesa en la barra superior', page.locator('#topbar [data-act=menu-open]').count() == 0)
+        page.screenshot(path=OUT + 'x_nav.png')
+        ir(page, 'habits'); page.wait_for_timeout(100)
+        check('navega con un toque', page.locator('#topbar h1').inner_text()=='Hábitos' and page.locator('#nav [data-tab=habits].on').count()==1)
+        ir(page, 'money'); page.wait_for_timeout(300)
 
         # --- datos
         def acc(n): page.click('[data-act=new-acc] >> nth=0'); dlg.locator('[name=name]').fill(n); save()
@@ -56,7 +51,7 @@ try:
         check('al plegar se ocultan las de Banco', page.locator('.cat-main').count()==1 and 'Banco' in txt())
         check('aria-expanded false', page.locator('[data-act=toggle-acc] >> nth=0').get_attribute('aria-expanded')=='false')
         page.screenshot(path=OUT + 'x_folded.png')
-        page.reload(); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
+        page.reload(); page.wait_for_selector('#view .home'); ir(page, 'money'); page.wait_for_selector('#view .card')
         check('el plegado se recuerda', page.locator('.cat-main').count()==1)
         page.click('[data-act=toggle-acc] >> nth=0'); page.wait_for_timeout(100)
         check('al desplegar vuelven', page.locator('.cat-main').count()==4)
@@ -95,12 +90,12 @@ try:
 
         # --- íconos: sin emojis y en blanco
         for tab in ['money','habits','purchases','data']:
-            page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(150)
+            ir(page, tab); page.wait_for_timeout(150)
             body = page.locator('body').inner_text()
             check(f'sin emojis en {tab}', not EMOJI.search(body), EMOJI.findall(body))
-        page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_timeout(150)
+        ir(page, 'money'); page.wait_for_timeout(150)
         strokes = page.evaluate("""() => [...document.querySelectorAll('.i')].filter(i=>!i.closest('.btn.primary, .fab')).map(i=>getComputedStyle(i).stroke)""")
-        check('los iconos usan el color de texto del tema (claro, no blanco puro)', strokes and all(s in ('rgb(232, 234, 238)', 'rgb(154, 161, 173)') for s in strokes), set(strokes))
+        check('los iconos usan el color de texto del tema o el de la sección (claro, no blanco puro)', strokes and all(s in ('rgb(232, 234, 238)', 'rgb(154, 161, 173)', 'rgb(154, 167, 245)', 'rgb(124, 196, 187)') for s in strokes), set(strokes))
         # --- tema Grafito: contraste (fórmula WCAG) de los pares clave, leídos de las variables CSS
         V = page.evaluate("""() => { const s = getComputedStyle(document.documentElement); const g = n => s.getPropertyValue(n).trim();
           return Object.fromEntries(['text','subtext0','base','mantle','accent','accent-ink','red','green','yellow','mauve','blue','peach','pink','teal','lavender'].map(n => [n, g('--' + n)])); }""")
@@ -109,10 +104,10 @@ try:
             c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
             return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
         ratio = lambda a, b: (max(lum(a), lum(b)) + 0.05) / (min(lum(a), lum(b)) + 0.05)
-        pairs = [('text', 'mantle', 7), ('text', 'base', 7), ('subtext0', 'mantle', 4.5), ('subtext0', 'base', 4.5), ('accent-ink', 'accent', 4.5),
+        pairs = [('text', 'mantle', 7), ('text', 'base', 7), ('subtext0', 'mantle', 4.5), ('subtext0', 'base', 4.5), ('accent-ink', 'accent', 4.5), ('accent-ink', 'teal', 4.5), ('accent-ink', 'yellow', 4.5), ('accent-ink', 'blue', 4.5),
                  ('accent', 'mantle', 4.5), ('red', 'mantle', 4.5), ('green', 'mantle', 4.5), ('yellow', 'mantle', 4.5)] + [(c, 'mantle', 3) for c in ('mauve','blue','peach','pink','teal','lavender')]
         bad = [(x, y, round(ratio(V[x], V[y]), 2), need) for x, y, need in pairs if ratio(V[x], V[y]) < need]
-        check('contraste del tema: texto ≥ 7:1, secundario/semánticos/acento ≥ 4.5:1, colores de iconos ≥ 3:1', not bad, bad)
+        check('contraste del tema: texto ≥ 7:1, secundario/semánticos/acento y colores de sección con su texto ≥ 4.5:1, colores de iconos ≥ 3:1', not bad, bad)
         # el tema claro cumple los mismos mínimos (Configuración › Apariencia)
         page.evaluate("document.documentElement.dataset.theme = 'light'")
         V = page.evaluate("""() => { const s = getComputedStyle(document.documentElement); const g = n => s.getPropertyValue(n).trim();
@@ -123,16 +118,14 @@ try:
         # --- hoja inferior y áreas de toque
         page.click('[data-act=edit-acc] >> nth=0'); page.wait_for_timeout(300)
         geo = page.evaluate("(() => { const r = document.querySelector('#dlg').getBoundingClientRect(); return { bottom: r.bottom, h: innerHeight, w: r.width, vw: innerWidth, top: r.top, rad: getComputedStyle(document.querySelector('#dlg')).borderTopLeftRadius }; })()")
-        check('los formularios son una hoja pegada abajo, de ancho completo y con esquinas superiores redondeadas', abs(geo['bottom'] - geo['h']) < 2 and geo['w'] >= geo['vw'] - 1 and geo['rad'] == '24px' and geo['top'] > 0, geo)
+        check('los formularios son una hoja pegada abajo, de ancho completo y con esquinas superiores redondeadas', abs(geo['bottom'] - geo['h']) < 2 and geo['w'] >= geo['vw'] - 1 and geo['rad'] == '20px' and geo['top'] > 0, geo)
         page.locator('#dlg #cancel').click(); page.wait_for_timeout(150)
         small = page.evaluate("[...document.querySelectorAll('#topbar button')].map(b => b.getBoundingClientRect()).filter(r => r.width < 44 || r.height < 44).length")
         check('botones de la barra superior ≥ 44 px', small == 0, small)
-        page.click('[data-act=menu-open]'); page.wait_for_timeout(300)
-        small = page.evaluate("[...document.querySelectorAll('#tabs button')].map(b => b.getBoundingClientRect()).filter(r => r.height < 44).length")
-        check('opciones del menú ≥ 44 px de alto', small == 0, small)
-        check('la opción activa del menú se distingue', page.evaluate("getComputedStyle(document.querySelector('#tabs button.on'), '::before').backgroundColor === 'rgb(154, 167, 245)'"))
-        page.keyboard.press('Escape'); page.wait_for_timeout(300)
-        check('el botón de menú es fantasma (sin relleno)', page.evaluate("getComputedStyle(document.querySelector('#topbar .icon')).backgroundColor") in ('rgba(0, 0, 0, 0)', 'transparent'))
+        small = page.evaluate("[...document.querySelectorAll('#nav button')].map(b => b.getBoundingClientRect()).filter(r => r.height < 44 || r.width < 44).length")
+        check('botones de la barra inferior ≥ 44 px', small == 0, small)
+        check('el destino activo de la barra se distingue', page.evaluate("getComputedStyle(document.querySelector('#nav button.on')).backgroundColor") not in ('rgba(0, 0, 0, 0)', 'transparent'))
+        check('los botones de icono de la barra superior son fantasma (sin relleno)', page.evaluate("[...document.querySelectorAll('#topbar .icon')].every(b => ['rgba(0, 0, 0, 0)', 'transparent'].includes(getComputedStyle(b).backgroundColor))"))
         page.click('[data-act=sub][data-sub=reports]'); page.screenshot(path=OUT + 'x_reports.png', full_page=True)
         print('errors:', errs); b.close()
 finally:

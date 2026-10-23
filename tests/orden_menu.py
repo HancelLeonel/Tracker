@@ -8,6 +8,7 @@ import subprocess
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir, destinos
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -25,8 +26,8 @@ try:
         page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home')
         dlg = page.locator('#dlg')
         ev = lambda js: page.evaluate(f"import('/js/state.js').then(async st => {{ {js} }})")
-        def go(tab): page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(150)
-        def menu(): return page.evaluate("[...document.querySelectorAll('#tabs button')].map(b => b.textContent.trim())")
+        def go(tab): ir(page, tab); page.wait_for_timeout(150)
+        def menu(): return destinos(page)
         def reload(): page.reload(); page.wait_for_selector('#view .home')
         up = lambda name: dlg.locator(f'[aria-label="Subir {name}"]').click()
         down = lambda name: dlg.locator(f'[aria-label="Bajar {name}"]').click()
@@ -56,8 +57,8 @@ try:
         check('Guardar cambia el menú lateral', menu()==EXP, menu())
         check('el orden queda en los ajustes (con las claves internas)', page.evaluate("import('/js/state.js').then(st => st.S.settings.tabOrder)")==['home','money','habits','pomodoro','lists','purchases','gym','notes','data'])
         reload()
-        check('el orden se conserva al recargar', (page.click('[data-act=menu-open]'), menu())[1]==EXP, menu())
-        page.click('#tabs [data-tab=pomodoro]'); page.wait_for_timeout(200)
+        check('el orden se conserva al recargar', menu()==EXP, menu())
+        ir(page, 'pomodoro'); page.wait_for_timeout(200)
         check('las pestañas siguen funcionando y la app abre en Inicio', page.locator('#topbar h1').inner_text()=='Pomodoro')
         reload()
         check('al abrir siempre se ve Inicio, esté donde esté en el menú', page.locator('#topbar h1').inner_text()=='Inicio')
@@ -71,31 +72,29 @@ try:
 
         # ================= Inicio =================
         page.click('[data-act=order-home]'); page.wait_for_timeout(250)
-        check('Inicio tiene dos listas: secciones y tarjetas', dlg.locator('.ord').count()==2 and rows(0)==['Frase','Nota rápida','Tarjetas','Bandeja','Tareas de hoy'] and rows(1)==['Hábitos','Pagos','Ejercicio','Gasto, Ingreso y Mover'], (rows(0), rows(1)))
-        for _ in range(4): up('Tareas de hoy')
-        for _ in range(2): up('Ejercicio')
-        check('las dos listas se ordenan por separado', rows(0)[0]=='Tareas de hoy' and rows(1)[0]=='Ejercicio', (rows(0), rows(1)))
+        check('Inicio tiene dos listas: secciones y accesos', dlg.locator('.ord').count()==2 and rows(0)==['Tareas de hoy','Pagos y accesos','Nota rápida','Bandeja','Frase'] and rows(1)==['Pagos','Gasto, Ingreso y Mover'], (rows(0), rows(1)))
+        for _ in range(4): up('Frase')
+        up('Gasto, Ingreso y Mover')
+        check('las dos listas se ordenan por separado', rows(0)[0]=='Frase' and rows(1)[0]=='Gasto, Ingreso y Mover', (rows(0), rows(1)))
         save()
         go('home')
-        order = page.evaluate("[...document.querySelector('.home').children].map(e => e.tagName === 'HEADER' ? 'header' : e.className.split(' ')[0] || e.tagName)")
-        check('el saludo sigue arriba y Tareas de hoy va primero', order[0]=='header' and order[1]=='today', order)
-        check('la frase pasó después de las tareas', order.index('home-quote') > order.index('today'), order)
-        check('la tarjeta de Ejercicio es la primera', page.locator('.tiles').locator('> *').first.get_attribute('data-act')=='home-gym')
-        check('las demás tarjetas siguen en su orden', page.evaluate("[...document.querySelectorAll('.tiles > *')].map(e => e.dataset.act || e.className.split(' ')[0])")==['home-gym','tab','home-bills','tile-acts'])
+        order = page.evaluate("[...document.querySelector('.home').children].map(e => e.tagName === 'HEADER' ? 'header' : e.id || e.className.split(' ')[0] || e.tagName)")
+        check('el saludo y «Hoy» siguen arriba y la frase va primero entre las secciones', order[:3]==['header','today-habits','home-quote'], order)
+        check('Tareas de hoy quedó después de la frase', order.index('today-tasks') > order.index('home-quote'), order)
+        check('los accesos de dinero van primero en su bloque', page.evaluate("[...document.querySelectorAll('.home-quick > *')].map(e => e.className.split(' ')[0])")[0]=='tile-acts')
         page.screenshot(path=OUT+'orden-inicio.png')
         reload()
-        check('el orden de Inicio se conserva al recargar', page.evaluate("document.querySelector('.home').children[1].className.split(' ')[0]")=='today')
+        check('el orden de Inicio se conserva al recargar', page.evaluate("document.querySelector('.home').children[2].className.split(' ')[0]")=='home-quote')
 
         # ================= valores raros y novedades =================
         ev("st.S.settings.tabOrder = ['gym', 'gym', 'zzz', 5]; st.S.settings.homeOrder = 'x'; st.S.settings.tileOrder = null; await st.saveSettings();")
         reload()
-        page.click('[data-act=menu-open]')
-        check('un orden dañado se corrige: lo válido primero y el resto como siempre', menu()==['Gimnasio','Inicio','Finanzas','Hábitos','Listas','Compras','Pomodoro','Notas','Configuración'], menu())
-        check('Inicio con orden dañado se ve normal (frase antes de las tarjetas)', page.evaluate("(() => { const k = [...document.querySelector('.home').children].map(e => e.className.split(' ')[0]); return k.indexOf('home-quote') < k.indexOf('tiles'); })()"))
+        check('un orden dañado se corrige: Inicio siempre primero, lo válido después y el resto como siempre', menu()==['Inicio','Gimnasio','Finanzas','Hábitos','Listas','Compras','Pomodoro','Notas','Configuración'], menu())
+        check('Inicio con orden dañado se ve normal («Hoy» bajo el saludo y la frase al final)', page.evaluate("(() => { const k = [...document.querySelector('.home').children]; return k[1].id === 'today-habits' && k.at(-1).classList.contains('home-quote'); })()"))
         page.keyboard.press('Escape')
         ev("st.S.settings.tabOrder = ['notes']; delete st.S.settings.homeOrder; delete st.S.settings.tileOrder; await st.saveSettings();")
-        reload(); page.click('[data-act=menu-open]')
-        check('una pestaña que falta en el orden guardado se agrega en su lugar original', menu()==['Notas','Inicio','Finanzas','Hábitos','Listas','Compras','Pomodoro','Gimnasio','Configuración'], menu())
+        reload()
+        check('una pestaña que falta en el orden guardado se agrega en su lugar original', menu()==['Inicio','Notas','Finanzas','Hábitos','Listas','Compras','Pomodoro','Gimnasio','Configuración'], menu())
         page.keyboard.press('Escape')
 
         # ================= respaldo y sincronización =================

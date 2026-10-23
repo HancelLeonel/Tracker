@@ -8,6 +8,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -36,7 +37,7 @@ try:
         dlg = page.locator('#dlg')
         def save(): dlg.locator('button.primary').click(); page.wait_for_timeout(120)
         txt = lambda: page.locator('#view').inner_text()
-        def go(tab): page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(80)
+        def go(tab): ir(page, tab); page.wait_for_timeout(80)
         def gsub(k): page.click(f'[data-act=gym-sub][data-sub={k}]'); page.wait_for_timeout(80)
         def run_for(ms): page.clock.run_for(ms); page.wait_for_timeout(60)
         rest = lambda: page.locator('[data-rest-clock]').first.inner_text().strip() if page.locator('.rest-bar').count() else None
@@ -256,7 +257,7 @@ try:
         q.on('dialog', lambda d: d.accept())
         q.goto(URL); q.wait_for_selector('#view .home')
         qd = q.locator('#dlg')
-        def go2(tab): q.click('[data-act=menu-open]'); q.click(f'#tabs [data-tab={tab}]'); q.wait_for_timeout(80)
+        def go2(tab): ir(q, tab); q.wait_for_timeout(80)
         go2('gym'); q.click('[data-act=start-empty]'); q.wait_for_timeout(80)
         q.click('[data-act=gym-add-ex]'); qd.locator('[name=name]').select_option('Dominadas'); qd.locator('[name=sets]').fill('2'); qd.locator('button.primary').click(); q.wait_for_timeout(120)
         q.locator('.set-chk').first.click(); q.wait_for_timeout(1300)

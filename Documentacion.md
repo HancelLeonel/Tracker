@@ -12,13 +12,13 @@
 - **Compras**: registro buscable de lo que vale la pena recordar (con garantía y facturas).
 - **Configuración**: apariencia (tema y fuente), orden del menú y de Inicio, respaldo (exportar/importar), tipos de gasto y borrado de datos.
 
-Todo funciona sin conexión y los datos se guardan **solo en el teléfono** (IndexedDB). Tema oscuro **Grafito** (neutros casi negros y un solo acento suave), moneda en quetzales (`Q`).
+Todo funciona sin conexión y los datos se guardan **solo en el teléfono** (IndexedDB). Tema oscuro **Grafito** (neutros casi negros) con claro y automático opcionales, un **color distinto por sección** y moneda en quetzales (`Q`).
 
 ### Navegación e iconos
 
-- Se navega con un **menú lateral**: el botón de tres líneas, a la izquierda del título de cada pantalla (por ejemplo «Finanzas»), lo despliega. Se cierra al elegir una herramienta, al tocar fuera o con Escape.
+- Se navega con una **barra inferior** de un toque: **Inicio** y los tres primeros destinos de tu orden (por defecto Finanzas, Hábitos y Listas), más **Más**, que abre una hoja con el resto (Compras, Pomodoro, Gimnasio, Notas y Configuración). El orden se cambia en Configuración › Orden. La barra superior lleva el título de la pantalla y su acción (el `+`).
 - Los iconos son SVG minimalistas de trazo fino, en línea (estilo Whicons), definidos en [icons.js](js/icons.js). Usan el color de texto del tema; sobre el acento (botones primarios, botón flotante) el trazo es oscuro, y los iconos de hábitos y grupos toman el color elegido.
-- **Diseño**: base casi negra neutra, tarjetas apenas más claras con borde fino, **un solo acento** (índigo suave) para lo principal, y color solo donde significa algo (rojo = vencido o negativo, verde = positivo, amarillo = aviso). Los formularios se abren como **hoja que sube desde abajo**.
+- **Diseño**: base casi negra neutra, **un color por sección** (Finanzas verde azulado, Hábitos ámbar, Listas azul; el resto, índigo) para el botón principal, las barras y la barra inferior. Rojo solo para problemas (saldo negativo, pago vencido): un gasto normal ya no sale en rojo. Sin etiquetas en mayúsculas. Los botones y casillas responden al toque con un pequeño movimiento (se anula con «reducir movimiento» del sistema). Los formularios se abren como **hoja que sube desde abajo**.
 
 ---
 
@@ -57,7 +57,7 @@ Al abrir, la app sale **al instante de la copia guardada** y, en segundo plano, 
 ## 2. Estructura del proyecto
 
 ```
-index.html              Estructura: barra superior, contenido, menú lateral, diálogos
+index.html              Estructura: barra superior, contenido, barra inferior, diálogos
 manifest.webmanifest    Nombre, colores e iconos de la PWA
 sw.js                   Service worker (funcionamiento offline)
 css/style.css           Estilos y tema Grafito (variables CSS)
@@ -169,22 +169,22 @@ Las transferencias y los pagos de tarjeta no cuentan como gasto.
 
 ### Inicio
 
-Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inicio** en el menú lateral) se ve, de arriba abajo:
+Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inicio** en la barra inferior) se ve, de arriba abajo:
 
 - La **fecha** y un **saludo** según la hora («Buenos días» hasta las 12, «Buenas tardes» hasta las 19, «Buenas noches» después).
 - Una **frase célebre** con su autor, compacta.
 - Un campo de **nota rápida**: escribes algo al vuelo (por ejemplo en medio de una conversación) y Enter la guarda en la **Bandeja**; el campo queda listo para otra.
-- Cuatro tarjetas de media pantalla, en dos filas: **Hábitos** (cuántos llevas hoy, p. ej. «2/5», con barra), **Pagos** (solo muestra información si hay pagos **vencidos** —cuántos, en rojo— o que **vencen en los próximos 3 días** —el más cercano: «Vence hoy», «Vence mañana», «Vence el 14 oct»—; si no, dice «No hay pagos cercanos»), **Ejercicio** y una tarjeta con tres botones, **Gasto**, **Ingreso** y **Mover**, que abren sus formularios sobre Inicio (sin cuentas con categorías avisan en vez de abrirse). Tocar Hábitos, Pagos o Ejercicio lleva a su pantalla.
-- **Ejercicio** muestra en cuántos de los **últimos 7 días** entrenaste («4/7»), cuándo fue el último («Último: ayer») y siete **círculos pequeños**, uno por día (el último es hoy), con color los días entrenados. Cuenta días, no entrenamientos: dos el mismo día son uno. Un entrenamiento en curso no cuenta hasta terminarlo y la tarjeta dice «Entrenando ahora». Tocarla abre el Historial del Gimnasio (o el entrenamiento, si hay uno en curso o aún no hay ninguno).
+- **Hoy**: todos tus hábitos de hoy a la vez, ordenados por momento del día, con «5 de 6» y una barra. Tocas la casilla de cada uno y se marca **ahí mismo**, con el color del hábito (un segundo toque lo pasa a «no toca» y un tercero lo deja sin marcar; los «no toca» no cuentan en el total). Sin hábitos invita a crear el primero.
+- **Pagos y accesos**: una línea de **pagos** que solo aparece si hay pagos **vencidos** (cuántos, en rojo) o que **vencen en los próximos 3 días** («Luz vence mañana»); tocarla lleva a Finanzas › Pagos. Debajo, tres botones, **Gasto**, **Ingreso** y **Mover**, que abren sus formularios sobre Inicio (sin cuentas con categorías avisan en vez de abrirse). La tarjeta de **Ejercicio** salió de Inicio por ahora (Gimnasio se rehará más adelante).
 - La **Bandeja**: tus notas rápidas pendientes, la más nueva primero (5 y «Ver N más»). Tocar una abre un diálogo para **editarla**, **archivarla como nota** de un grupo de Notas (el enlace se guarda en el campo de enlace del grupo y el resto del texto en su primer campo de texto; si el grupo no tiene dónde guardarlo, avisa), **agregarla a una lista** como elemento adicional, o **eliminarla**. Los enlaces o textos que **compartas desde otra app** («Compartir» → Tracker, tras reinstalar la app instalada) también caen aquí. Con dos o más aparece **Seleccionar**: marcas las que quieras (o «Todas») y con **Archivar (N)** las archivas **juntas** como notas de un grupo (cada una con su título), las agregas a una lista o las eliminas; si alguna no cabe en el grupo elegido no se archiva ninguna. Si lo que archivas trae un enlace, se sugiere el grupo que tenga campo de enlace.
-- **Tareas de hoy**: los elementos de tus listas activas con **fecha límite de hoy o ya vencida**, el más atrasado primero, con el nombre de su lista. La casilla de la izquierda la **marca como hecha** sin salir de Inicio; tocar el texto abre la lista. Se muestran 6 y un enlace «Ver N más en Listas». Sin pendientes dice «Nada pendiente para hoy».
+- **Tareas de hoy**: los elementos de tus listas activas con **fecha límite de hoy o ya vencida**, el más atrasado primero, con el nombre de su lista. La casilla de la izquierda la **marca como hecha** ahí mismo (queda tachada hasta que cambias de pantalla; otro toque la desmarca); tocar el texto abre la lista. Se muestran 6 y un enlace «Ver N más en Listas». Sin pendientes dice «Nada pendiente para hoy».
 
 - **La frase cambia cada vez que se muestra la pantalla**: al abrir la app, al volver a Inicio desde otra herramienta y al regresar a la app desde segundo plano. También cambia **tocando la frase** (no hay botón visible, para mantener la pantalla limpia). Abrir o cerrar el menú no la cambia.
 - Las frases se reparten **mezcladas, sin repetir ninguna hasta haberlas visto todas** (34 frases en [home.js](js/home.js), lista `QUOTES`). Para agregar una basta con añadir `['texto', 'Autor']`; conviene usar solo frases con autoría documentada (obras, discursos o refranes).
 
 ### Pomodoro
 
-**Menú → Pomodoro.** (Ya no tiene tarjeta en Inicio.) Un temporizador sencillo con fases de **Trabajo**, **Descanso corto** y **Descanso largo**.
+**Más → Pomodoro.** (Ya no tiene tarjeta en Inicio.) Un temporizador sencillo con fases de **Trabajo**, **Descanso corto** y **Descanso largo**.
 
 - **Controles**: el botón grande inicia o pausa; a los lados, **reiniciar** la fase actual y **saltar** a la siguiente (saltar un pomodoro de trabajo no lo cuenta). Debajo de la cuenta se ve el avance de la fase y «Hoy: N pomodoros».
 - **Configurar**: minutos de trabajo (por defecto 25), descanso corto (5) y descanso largo (15), cuántos pomodoros hay antes del descanso largo (4) y, opcionalmente, **iniciar la siguiente fase automáticamente**. Si el temporizador está corriendo, los cambios se aplican desde la fase siguiente. La configuración se guarda en los ajustes y viaja en el respaldo.
@@ -195,7 +195,7 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 
 ### Notas
 
-**Menú → Notas.** En vez de una sola libreta, las notas se organizan en **grupos** y **cada grupo decide qué datos lleva cada nota**: uno puede ser un guardador de enlaces, otro una lista de comandos, otro tus libros…
+**Más → Notas.** En vez de una sola libreta, las notas se organizan en **grupos** y **cada grupo decide qué datos lleva cada nota**: uno puede ser un guardador de enlaces, otro una lista de comandos, otro tus libros…
 
 - **Grupo nuevo (+)**: nombre, icono y color. Puedes **empezar con un ejemplo** (Enlaces, Comandos, Libros o Notas libres), que rellena todo y se puede cambiar después, o con un grupo en blanco.
 - **Campos**: toda nota tiene un **título** y los campos que definas. Tipos: **texto corto**, **texto largo**, **Markdown** (editor con barra de formato y vista previa; se ve con formato en la nota), **código o comando** (letra monoespaciada y botón **Copiar**), **enlace**, **número**, **fecha**, **opciones** (una lista que tú escribes separada por comas, p. ej. «Por leer, Leyendo, Leído»), **casilla** (sí/no) y **calificación** (1 a 5 estrellas; tocar la misma estrella otra vez la quita). Cada campo puede marcarse **«En la lista»** para verlo debajo del título sin abrir la nota.
@@ -207,7 +207,7 @@ Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inic
 
 ### Gimnasio
 
-**Menú → Gimnasio.** Cuatro secciones:
+**Más → Gimnasio.** Cuatro secciones:
 
 - **Entrenar**: sin entrenamiento en curso muestra el resumen (entrenamientos de la semana —empieza el lunes—, volumen y cuándo fue el último), «Entrenamiento libre» y tus rutinas con el botón **Empezar**. Con uno en curso muestra cada ejercicio con sus series: **peso × repeticiones** y una casilla para marcar la serie. Debajo de cada ejercicio dice «Última vez» con lo que hiciste. Al terminar, **solo se guardan las series marcadas**.
 - **Rutinas**: son las plantillas, igual que en Listas: al empezar una se **copia** al entrenamiento y después son independientes (editar o borrar la rutina no toca lo ya entrenado). Se arman **por filas**: en cada una **eliges el ejercicio del catálogo** y pones series, repeticiones y, si quieres, peso y descanso (en segundos); las filas se pueden subir, bajar o quitar. Desde un entrenamiento del historial se puede «Guardar como rutina».
@@ -331,11 +331,11 @@ Cada cuenta tiene un botón con una flecha para **ocultar o mostrar sus categor�
 
 ### Apariencia
 
-**Menú → Configuración → Apariencia → Tema.** **Oscuro** (el de siempre), **Claro** (fondo blanco, para usar con mucha luz) o **Automático** (sigue el modo claro u oscuro del teléfono y cambia solo cuando el teléfono cambia). Se aplica desde la pantalla de carga, se recuerda y viaja en el respaldo. Ambos temas cumplen los mismos mínimos de contraste.
+**Más → Configuración → Apariencia → Tema.** **Oscuro** (el de siempre), **Claro** (fondo blanco, para usar con mucha luz) o **Automático** (sigue el modo claro u oscuro del teléfono y cambia solo cuando el teléfono cambia). Se aplica desde la pantalla de carga, se recuerda y viaja en el respaldo. Ambos temas cumplen los mismos mínimos de contraste.
 
-**Menú → Configuración → Orden.** Dos botones: **Ordenar el menú lateral** (las 9 pestañas) y **Ordenar Inicio** (las secciones —Frase, Nota rápida, Tarjetas, Bandeja y Tareas de hoy— y, por separado, las cuatro tarjetas: Hábitos, Pagos, Ejercicio y los botones de Gasto/Ingreso/Mover). Cada fila tiene flechas **↑ ↓**; **Guardar** aplica el orden y **Restablecer el orden original** lo deja como venía. El saludo con la fecha va siempre arriba y la app siempre abre en Inicio, esté donde esté en el menú. Es un ajuste **del dispositivo**: entra en el respaldo, pero no viaja por la sincronización con Google Drive (la PC y el teléfono pueden tener órdenes distintos). Una pestaña o sección nueva que llegue en una actualización aparece al final sin que tengas que hacer nada.
+**Más → Configuración → Orden.** Dos botones: **Ordenar las secciones** (las 9 pestañas; las 3 primeras después de Inicio van en la barra inferior y el resto en «Más») y **Ordenar Inicio** (las secciones —Tareas de hoy, Pagos y accesos, Nota rápida, Bandeja y Frase— y, por separado, Pagos y los botones de Gasto/Ingreso/Mover). **Hoy** y el saludo con la fecha van siempre arriba y Inicio siempre es la primera de la barra. Cada fila tiene flechas **↑ ↓**; **Guardar** aplica el orden y **Restablecer el orden original** lo deja como venía. Es un ajuste **del dispositivo**: entra en el respaldo, pero no viaja por la sincronización con Google Drive (la PC y el teléfono pueden tener órdenes distintos). Una pestaña o sección nueva que llegue en una actualización aparece al final sin que tengas que hacer nada.
 
-**Menú → Configuración → Apariencia → Fuente.** Dos opciones: **Predeterminada del sistema** (la que trae tu teléfono; en Android normalmente Roboto) y **JetBrains Mono** (monoespaciada, pensada para código y números). Cada opción se muestra con su propia letra. La elección se aplica a toda la app, se recuerda y viaja en el respaldo. La fuente JetBrains Mono viene **dentro de la app** (carpeta `fonts/`, licencia SIL OFL), así que funciona sin conexión. Con ella el texto es más ancho, por lo que el tamaño base se reduce un poco. Los bloques de código de Notas siempre usan JetBrains Mono.
+**Más → Configuración → Apariencia → Fuente.** Dos opciones: **Predeterminada del sistema** (la que trae tu teléfono; en Android normalmente Roboto) y **JetBrains Mono** (monoespaciada, pensada para código y números). Cada opción se muestra con su propia letra. La elección se aplica a toda la app, se recuerda y viaja en el respaldo. La fuente JetBrains Mono viene **dentro de la app** (carpeta `fonts/`, licencia SIL OFL), así que funciona sin conexión. Con ella el texto es más ancho, por lo que el tamaño base se reduce un poco. Los bloques de código de Notas siempre usan JetBrains Mono.
 
 ### Respaldo
 

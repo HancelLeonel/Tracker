@@ -9,6 +9,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -27,7 +28,7 @@ try:
         dlg = page.locator('#dlg')
         def save(): dlg.locator('button.primary').click(); page.wait_for_timeout(150)
         txt = lambda: page.locator('#view').inner_text()
-        def go(tab): page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(120)
+        def go(tab): ir(page, tab); page.wait_for_timeout(120)
         ev = lambda js: page.evaluate(f"import('/js/state.js').then(async st => {{ {js} }})")
 
         # ================= 1. hábitos «no toca» =================
@@ -48,12 +49,12 @@ try:
         check('«no toca» no corta la racha de hoy hacia atrás (sigue en 3 días)', '3 días' in row('Gimnasio').inner_text(), row('Gimnasio').inner_text())
         page.screenshot(path=OUT+'h_skip.png', full_page=True)
         go('home'); page.wait_for_timeout(100)
-        tile = page.locator('.tile:has-text("Hábitos")').inner_text().replace('\n','')
-        check('la tarjeta de Inicio tampoco cuenta el que no toca (0/1)', '0/1' in tile, tile)
+        tile = page.locator('#today-habits').inner_text().replace('\n',' ')
+        check('«Hoy» en Inicio tampoco cuenta el que no toca (0 de 1)', '0 de 1' in tile, tile)
         go('habits')
         dot('Agua').click(); page.wait_for_timeout(100); dot('Agua').click(); page.wait_for_timeout(100)
         check('si ninguno toca hoy: «Hoy 0/0» sin romperse', 'Hoy 0/0' in txt() and page.locator('.progress-ring .bar i').get_attribute('style').replace(' ','').startswith('width:0'), txt()[:60])
-        go('home'); tile = page.locator('.tile:has-text("Hábitos")').inner_text().replace('\n','')
+        go('home'); tile = page.locator('#today-habits').inner_text().replace('\n',' ')
         check('Inicio dice «Hoy ninguno toca»', 'ninguno toca' in tile, tile)
         go('habits')
         dot('Gimnasio').click(); page.wait_for_timeout(100)

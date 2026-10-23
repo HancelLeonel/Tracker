@@ -4,6 +4,7 @@ import os, sys, time, shutil, tempfile, threading, http.server
 from pathlib import Path
 ROOT = str(Path(__file__).resolve().parent.parent)
 from playwright.sync_api import sync_playwright
+from _nav import ir
 fails=[]
 def check(name, cond, extra=''):
     print(('PASS ' if cond else 'FAIL ')+name, extra if not cond else '')
@@ -38,7 +39,7 @@ try:
         DELAY['ms'] = 2500
         t0 = time.time(); pg.reload(); pg.wait_for_selector('#view .home', timeout=20000); dt = time.time() - t0
         check('red muy lenta (2,5 s por archivo): abre con la copia mucho antes de que la red responda (< 2 s)', dt < 2.0, round(dt, 1))
-        check('y la app funciona (menú y navegación)', (pg.click('[data-act=menu-open]'), pg.click('#tabs [data-tab=habits]'), pg.wait_for_timeout(300), pg.locator('#topbar h1').inner_text())[-1]=='Hábitos')
+        check('y la app funciona (menú y navegación)', (ir(pg, 'habits'), pg.wait_for_timeout(300), pg.locator('#topbar h1').inner_text())[-1]=='Hábitos')
         check('sin errores de página', errs==[], errs)
         DELAY['ms'] = 0
         pg.wait_for_timeout(3500) # la comprobación en segundo plano de la red lenta termina (tarda ~2,5 s)

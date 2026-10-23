@@ -7,6 +7,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -22,7 +23,7 @@ try:
         page.on('dialog', lambda d: d.accept())
         page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home')
         dlg = page.locator('#dlg')
-        def go(tab): page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(150)
+        def go(tab): ir(page, tab); page.wait_for_timeout(150)
         go('money')
         subs = [t.split('\n')[0] for t in page.locator('.seg button').all_inner_texts()]
         check('Finanzas solo ofrece Cuentas, Pagos y Reportes (sin Guía)', [s.strip() for s in subs]==['Cuentas','Pagos','Reportes'], subs)

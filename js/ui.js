@@ -41,10 +41,16 @@ export function applyTheme(pref) {
   try { localStorage.setItem('tracker-theme', themePref); } catch { /* sin almacenamiento local: se aplica al abrir con los ajustes */ }
 }
 
-// Pestañas del menú lateral [clave, nombre, icono]. El orden en que se ven es `settings.tabOrder` (Configuración › Orden).
+// Pestañas de la app [clave, nombre, icono]. El orden en que se ven es `settings.tabOrder` (Configuración › Orden).
 export const TABS = [['home', 'Inicio', 'home'], ['money', 'Finanzas', 'wallet'], ['habits', 'Hábitos', 'habits'], ['lists', 'Listas', 'checklist'], ['purchases', 'Compras', 'bag'],
   ['pomodoro', 'Pomodoro', 'timer'], ['gym', 'Gimnasio', 'dumbbell'], ['notes', 'Notas', 'note'], ['data', 'Configuración', 'data']];
 export const orderedTabs = () => applyOrder(TABS.map(t => t[0]), S.settings.tabOrder).map(k => TABS.find(t => t[0] === k));
+
+// Barra inferior: Inicio siempre primero y los 3 primeros destinos del orden elegido (sin repetir Inicio); el resto va en la hoja «Más».
+export function navTabs() {
+  const rest = orderedTabs().filter(t => t[0] !== 'home');
+  return { bar: [TABS.find(t => t[0] === 'home'), ...rest.slice(0, 3)], more: rest.slice(3) };
+}
 
 export const isOpen = () => dlg.open || viewer.open;
 

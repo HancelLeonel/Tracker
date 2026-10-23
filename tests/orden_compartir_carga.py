@@ -7,6 +7,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -46,12 +47,12 @@ try:
         man = json.loads(Path(ROOT, 'manifest.webmanifest').read_text())
         check('manifest: Tracker + id', man['name']=='Tracker' and man['short_name']=='Tracker' and man['id']=='./')
 
-        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
+        page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); ir(page, 'money'); page.wait_for_selector('#view .card')
         check('la carga se reemplaza por la app', page.locator('.boot').count()==0)
         dlg = page.locator('#dlg')
         def save(): dlg.locator('button.primary').click(); page.wait_for_timeout(150)
         txt = lambda: page.locator('#view').inner_text()
-        def go(tab): page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(80)
+        def go(tab): ir(page, tab); page.wait_for_timeout(80)
 
         # ---------- orden alfabético ----------
         def acc(n): page.click('[data-act=new-acc] >> nth=0'); dlg.locator('[name=name]').fill(n); save()
@@ -77,7 +78,7 @@ try:
         names2 = [t.strip() for t in page.locator('.acc-name h3').all_inner_texts()]
         check('cuentas siguen ordenadas con la tarjeta', names2==['alfa','Beta','Visa','Zeta'], names2)
         # el orden persiste al recargar y tras importar
-        page.reload(); page.wait_for_selector('#view .home'); page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
+        page.reload(); page.wait_for_selector('#view .home'); ir(page, 'money'); page.wait_for_selector('#view .card')
         names3 = [t.strip() for t in page.locator('.acc-name h3').all_inner_texts()]
         check('orden tras recargar', names3==['alfa','Beta','Visa','Zeta'], names3)
 

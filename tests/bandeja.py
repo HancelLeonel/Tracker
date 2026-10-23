@@ -8,6 +8,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -25,7 +26,7 @@ try:
         q.on('dialog', lambda d: (alerts.append(d.message), d.accept()))
         q.goto(URL); q.wait_for_selector('#view .home')
         dlg = q.locator('#dlg')
-        def go(tab): q.click('[data-act=menu-open]'); q.click(f'#tabs [data-tab={tab}]'); q.wait_for_timeout(70)
+        def go(tab): ir(q, tab); q.wait_for_timeout(70)
         def seed(js):
             q.evaluate("""async (js) => { const st = await import('/js/state.js'); const ut = await import('/js/util.js'); const db = await import('/js/db.js');
               await (new Function('st', 'ut', 'db', 'return (async () => {' + js + '})()'))(st, ut, db); st.hooks.render(); }""", js)

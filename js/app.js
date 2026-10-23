@@ -1,7 +1,7 @@
 import { $, toast } from './util.js';
 import { icon } from './icons.js';
 import { S, hooks, loadState, gcFiles, hasNormalCats } from './state.js';
-import { isOpen, openFile, applyFont, applyTheme, TABS, orderedTabs } from './ui.js';
+import { isOpen, openFile, applyFont, applyTheme, TABS, navTabs, modal } from './ui.js';
 import * as money from './money.js';
 import * as bills from './bills.js';
 import * as reports from './reports.js';
@@ -21,15 +21,8 @@ const SUBS = [['accounts', 'Cuentas'], ['bills', 'Pagos'], ['reports', 'Reportes
 const SUB_TITLES = { accounts: 'Finanzas', bills: 'Pagos', reports: 'Reportes' };
 const SUB_ACTION = { accounts: ['new-acc', 'Nueva cuenta'], bills: ['new-bill', 'Nuevo pago'] };
 
-const menuOpen = open => {
-  document.body.classList.toggle('menu-open', open);
-  document.querySelectorAll('[data-act=menu-open]').forEach(b => b.setAttribute('aria-expanded', open));
-  $('#drawer').setAttribute('aria-hidden', !open);
-};
-
-// Barra superior: botón de menú (tres líneas) a la par del título y, opcionalmente, una acción a la derecha.
+// Barra superior: título y, opcionalmente, una acción a la derecha. La navegación vive en la barra inferior (`#nav`).
 const topbar = (title, action) => `
-  <button class="icon" data-act="menu-open" aria-label="Abrir menú" aria-expanded="false">${icon('menu')}</button>
   <h1>${title}</h1>${action ? `<button class="icon" data-act="${action[0]}" aria-label="${action[1]}">${icon('plus')}</button>` : ''}`;
 
 // Si una pantalla falla al pintarse (un dato que no se pudo reparar), solo esa sección muestra el aviso: el menú y las demás siguen.
@@ -41,12 +34,15 @@ function broken(err) {
     <button class="btn" data-act="tab" data-tab="home">Ir a Inicio</button></div>`;
 }
 
-let enter = false; // la próxima pintura viene de un cambio de pestaña: entra con fundido
+// Barra inferior: los destinos de `navTabs()` y «Más» (que queda marcado cuando la sección actual está dentro de él).
+function renderNav() {
+  const { bar, more } = navTabs();
+  $('#nav').innerHTML = bar.map(([k, name, ic]) => `<button class="${k === S.tab ? 'on' : ''}" data-act="tab" data-tab="${k}" aria-current="${k === S.tab}">${icon(ic)}<span>${name}</span></button>`).join('')
+    + `<button class="${more.some(t => t[0] === S.tab) ? 'on' : ''}" data-act="more" aria-current="${more.some(t => t[0] === S.tab)}">${icon('more')}<span>Más</span></button>`;
+}
 
 function render() {
-  $('#drawer').innerHTML = `
-    <div class="drawer-h"><b>Tracker</b><button class="icon" data-act="menu-close" aria-label="Cerrar menú">${icon('close')}</button></div>
-    <nav id="tabs">${orderedTabs().map(([k, name, ic]) => `<button class="${k === S.tab ? 'on' : ''}" data-act="tab" data-tab="${k}">${icon(ic)}<span>${name}</span></button>`).join('')}</nav>`;
+  document.body.dataset.sec = S.tab; // el CSS tiñe `--sec` según la sección (bloque «Color por sección» de style.css)
   const top = $('#topbar'), view = $('#view');
   const fab = $('#fab');
   fab.hidden = !(S.tab === 'money' && S.sub === 'accounts' && hasNormalCats());
@@ -111,15 +107,19 @@ function render() {
     S.listId = null; // al volver a la sección se abre su vista general, no el detalle que falló
     S.noteGroup = null;
   }
-  menuOpen(document.body.classList.contains('menu-open'));
-  if (enter) { enter = false; view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); }
+  renderNav();
 }
 hooks.render = render;
 
 const actions = {
-  tab: el => { enter = true; S.tab = el.dataset.tab; if (S.tab === 'home') home.nextQuote(); S.habitsSort = false; S.listEdit = false; S.inboxSel = null; menuOpen(false); window.scrollTo(0, 0); },
-  'menu-open': () => menuOpen(true),
-  'menu-close': () => menuOpen(false),
+  tab: el => {
+    if ($('#dlg').open) $('#dlg').close(); // tocado desde la hoja «Más»
+    if (el.dataset.tab === S.tab) { S.listId = null; S.noteGroup = null; } // tocar la sección activa vuelve a su vista general (sale de una lista o grupo abierto)
+    S.tab = el.dataset.tab; if (S.tab === 'home') home.nextQuote(); S.habitsSort = false; S.listEdit = false; S.inboxSel = null; window.scrollTo(0, 0);
+  },
+  // Hoja con los destinos que no caben en la barra inferior.
+  more: () => modal('Más', `<div class="more-list">${navTabs().more.map(([k, name, ic]) =>
+    `<button type="button" class="more-o ${k === S.tab ? 'on' : ''}" data-act="tab" data-tab="${k}">${icon(ic)}<span>${name}</span></button>`).join('')}</div>`),
   sub: el => { S.sub = el.dataset.sub; },
   'open-file': el => openFile(el.dataset.id),
   ...money.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...gym.actions, ...notes.actions, ...data.actions, ...sync.actions,
@@ -129,6 +129,8 @@ document.addEventListener('click', async e => {
   const pill = e.target.closest('[data-slotpill]');
   if (pill) return habits.goSlot(pill);
   const el = e.target.closest('[data-act]');
+  const quick = el && home.quiet[el.dataset.act];
+  if (quick) return void await quick(el); // se aplica en el sitio, sin repintar
   const fn = el && actions[el.dataset.act];
   if (!fn) return;
   await fn(el);
@@ -162,8 +164,6 @@ document.addEventListener('submit', e => { if (e.target.matches('[data-noform]')
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && S.tab === 'home' && !isOpen()) { home.nextQuote(); render(); }
 });
-
-document.addEventListener('keydown', e => { if (e.key === 'Escape') menuOpen(false); });
 
 $('#file').addEventListener('change', async e => {
   const f = e.target.files[0];

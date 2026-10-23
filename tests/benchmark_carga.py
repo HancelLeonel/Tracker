@@ -7,6 +7,7 @@ import subprocess, time, json, sys
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 SEED = """async (N) => {
   const open = () => new Promise((res, rej) => { const r = indexedDB.open('mi-quincena', 3);
@@ -42,7 +43,7 @@ try:
             page.goto('http://localhost:8765/icons/icon.svg')
             page.evaluate(SEED, N)
             t0 = time.time(); page.goto('http://localhost:8765/'); page.wait_for_selector('#view .home'); load = (time.time()-t0)*1000
-            page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=money]'); page.wait_for_selector('#view .card')
+            ir(page, 'money'); page.wait_for_selector('#view .card')
             # tiempo de repintado de cuentas
             def click_t(sel):
                 return page.evaluate("""async (sel) => { const t = performance.now(); document.querySelector(sel).click();

@@ -8,6 +8,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir, destinos
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -24,12 +25,11 @@ try:
         q.on('dialog', lambda d: d.accept())
         q.goto(URL); q.wait_for_selector('#view .home')
         family = lambda: q.evaluate("getComputedStyle(document.body).fontFamily")
-        def go(tab): q.click('[data-act=menu-open]'); q.click(f'#tabs [data-tab={tab}]'); q.wait_for_timeout(120)
+        def go(tab): ir(q, tab); q.wait_for_timeout(120)
 
         # ---- nombre
-        names = q.evaluate("(() => { document.querySelector('[data-act=menu-open]').click(); return [...document.querySelectorAll('#tabs button')].map(b => b.innerText.trim()); })()")
+        names = destinos(q)
         check('el menú dice «Configuración» y ya no «Datos»', names[-1]=='Configuración' and 'Datos' not in names, names)
-        q.keyboard.press('Escape'); q.wait_for_timeout(300)
         go('data')
         check('la pantalla se titula «Configuración» y trae Apariencia, Respaldo y lo demás', q.locator('#topbar h1').inner_text()=='Configuración' and all(t in q.locator('#view').inner_text() for t in ['Apariencia','Respaldo','Tipos de gasto','Zona de peligro']))
 

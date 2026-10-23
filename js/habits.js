@@ -20,9 +20,9 @@ export const isSkip = (h, d) => h.dates[d] === SKIP;
 export const isDone = (h, d) => !!h.dates[d] && !isSkip(h, d);
 // Siguiente estado al tocar: sin marcar → hecho → no toca → sin marcar.
 const nextState = v => (!v ? 1 : v === SKIP ? 0 : SKIP);
-const cls = (h, d) => (isSkip(h, d) ? 'skip' : isDone(h, d) ? 'on' : '');
-const mark = (h, d) => (isSkip(h, d) ? icon('minus') : isDone(h, d) ? icon('check') : '');
-const label = (h, d) => (isSkip(h, d) ? 'no toca' : isDone(h, d) ? 'hecho' : 'sin marcar');
+export const cls = (h, d) => (isSkip(h, d) ? 'skip' : isDone(h, d) ? 'on' : '');
+export const mark = (h, d) => (isSkip(h, d) ? icon('minus') : isDone(h, d) ? icon('check') : '');
+export const label = (h, d) => (isSkip(h, d) ? 'no toca' : isDone(h, d) ? 'hecho' : 'sin marcar');
 
 const weekDays = () => Array.from({ length: 7 }, (_, i) => addDays(today(), i - 6));
 
@@ -35,12 +35,12 @@ function streak(h) {
 }
 
 // Hábitos agrupados por momento del día, cada grupo en su orden. Si ninguno tiene horario no se muestran encabezados.
-function groups() {
+export function groups() {
   const all = SLOTS.map(([key, name, ic]) => ({ key, name, ic, items: S.habits.filter(h => slotOf(h) === key) })).filter(g => g.items.length);
   return { all, flat: all.length === 1 && all[0].key === '' };
 }
 
-const badge = h => `<span class="h-ic" style="--c:var(--${h.color})">${icon(iconOf(h))}</span>`;
+export const badge = h => `<span class="h-ic" style="--c:var(--${h.color})">${icon(iconOf(h))}</span>`;
 
 // Los 6 días anteriores a hoy como puntos pequeños (hoy se marca con el botón grande de la fila).
 const miniDots = (h, t) => `<span class="mini" aria-hidden="true">${Array.from({ length: 6 }, (_, i) =>
@@ -141,7 +141,7 @@ export function goSlot(el) {
   car.scrollTo({ left: i * stepOf(car), behavior: 'smooth' });
 }
 
-function setDay(h, d) {
+export function setDay(h, d) {
   const n = nextState(h.dates[d]);
   if (n) h.dates[d] = n; else delete h.dates[d];
 }

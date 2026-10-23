@@ -8,6 +8,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -65,7 +66,7 @@ try:
         ev("""await st.saveNoteGroup({ id: 'g1', name: 'Apuntes', color: 'blue', icon: 'note', fields: [{ id: 'f1', name: 'Contenido', type: 'markdown', list: true }] });""")
         page.reload(); page.wait_for_selector('#view .home')
         dlg = page.locator('#dlg')
-        def go(tab): page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(150)
+        def go(tab): ir(page, tab); page.wait_for_timeout(150)
         go('notes'); page.click('[data-act=open-ngroup]'); page.wait_for_timeout(150)
         page.click('[data-act=new-note]'); page.wait_for_timeout(250)
         ta = dlg.locator('textarea.md-in')
@@ -136,7 +137,7 @@ try:
           st.S.notes.push(n); await st.saveNote(n); st.S.settings.theme = 'light'; st.S.settings.font = 'jetbrains'; await st.saveSettings();
           const ui = await import('/js/ui.js'); ui.applyTheme('light'); ui.applyFont('jetbrains'); })""")
         page.reload(); page.wait_for_selector('#view .home')
-        page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=notes]'); page.click('[data-act=open-ngroup]'); page.locator('.card.note').first.click(); page.wait_for_timeout(300)
+        ir(page, 'notes'); page.click('[data-act=open-ngroup]'); page.locator('.card.note').first.click(); page.wait_for_timeout(300)
         page.screenshot(path=OUT+'markdown-claro.png')
         check('tema claro + JetBrains Mono: sin desborde', page.locator('#dlg').evaluate('d => d.scrollWidth <= d.clientWidth') and not page.evaluate('document.documentElement.scrollWidth > innerWidth'))
         errs += errs2

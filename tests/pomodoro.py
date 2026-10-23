@@ -7,6 +7,7 @@ import subprocess, time
 from playwright.sync_api import sync_playwright
 srv = subprocess.Popen(['python3','-m','http.server','8765','-d',ROOT],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 from _servidor import espera
+from _nav import ir, destinos
 espera()
 fails=[]
 def check(name, cond, extra=''):
@@ -37,7 +38,7 @@ try:
         clock = lambda: page.locator('.pomo-clock').inner_text().strip()
         phase = lambda: page.locator('.pomo-phase b').inner_text().strip().upper()
         sub = lambda: page.locator('.pomo-phase small').inner_text().strip()
-        def go(tab): page.click('[data-act=menu-open]'); page.click(f'#tabs [data-tab={tab}]'); page.wait_for_timeout(80)
+        def go(tab): ir(page, tab); page.wait_for_timeout(80)
         def run_for(ms): page.clock.run_for(ms); page.wait_for_timeout(60)
         def toggle(): page.click('[data-act=pomo-toggle]'); page.wait_for_timeout(60)
         def cfg(work=None, short=None, long=None, rounds=None, auto=None):
@@ -48,9 +49,8 @@ try:
             save()
 
         # ---- menú y Gimnasio
-        names = page.evaluate("(() => { document.querySelector('[data-act=menu-open]').click(); return [...document.querySelectorAll('#tabs button')].map(b => b.innerText.trim()); })()")
+        names = destinos(page)
         check('menú en orden con las pestañas nuevas', names == ['Inicio','Finanzas','Hábitos','Listas','Compras','Pomodoro','Gimnasio','Notas','Configuración'], names)
-        page.click('#drawer [data-act=menu-close]'); page.wait_for_timeout(300)
         for tab, title in (('gym','Gimnasio'),):
             go(tab)
             check(f'{title}: título y sus cuatro secciones (el detalle está en gimnasio.py)', page.locator('#topbar h1').inner_text()==title and page.locator('.seg button').count()==4, txt())
@@ -128,7 +128,7 @@ try:
 
         # ---- terminar con la app en otra sección
         go('home'); 
-        page.click('[data-act=menu-open]'); page.click('#tabs [data-tab=pomodoro]'); page.wait_for_timeout(80)
+        ir(page, 'pomodoro'); page.wait_for_timeout(80)
         check('volver a Pomodoro conserva el estado', 'Hoy:' in txt() and clock() != '')
         check('sin errores de consola', errs == [], errs)
 
@@ -138,7 +138,7 @@ try:
         q.on('pageerror', lambda e: errs2.append(str(e))); q.on('console', lambda m: errs2.append(m.text) if m.type=='error' else None)
         q.on('dialog', lambda d: d.accept())
         q.goto('http://localhost:8765/'); q.wait_for_selector('#view .home')
-        def go2(tab): q.click('[data-act=menu-open]'); q.click(f'#tabs [data-tab={tab}]'); q.wait_for_timeout(80)
+        def go2(tab): ir(q, tab); q.wait_for_timeout(80)
         go2('pomodoro')
         q.click('[data-act=pomo-toggle]'); q.wait_for_timeout(1300)
         q.reload(); q.wait_for_selector('#view .home'); go2('pomodoro')

@@ -354,11 +354,12 @@ function archiveView() {
 }
 
 // Fila de una tarea con fecha: casilla para marcarla, y el texto abre su lista (la usan Inicio y la Agenda).
-export function taskRow(list, item) {
+// `act`: acción de la casilla. En Inicio es `home-task` (marca en el sitio, sin repintar); en la Agenda, `agenda-toggle`.
+export function taskRow(list, item, act = 'agenda-toggle') {
   const m = metaOf(item);
   return `
-    <div class="trow">
-      <button class="chk" data-act="agenda-toggle" data-list="${list.id}" data-id="${item.id}" aria-label="Marcar como hecha: ${esc(item.text)}"><span></span></button>
+    <div class="trow ${item.done ? 'done' : ''}">
+      <button class="chk" data-act="${act}" data-list="${list.id}" data-id="${item.id}" aria-pressed="${!!item.done}" aria-label="Marcar como hecha: ${esc(item.text)}"><span>${item.done ? icon('check') : ''}</span></button>
       <button class="t-main" data-act="agenda-open" data-list="${list.id}">
         <span class="t-text">${esc(item.text)}</span>
         <small class="${m?.cls ?? 'muted'}">${m ? esc(m.text) + ' · ' : ''}${esc(list.name)}</small>

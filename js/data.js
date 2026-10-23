@@ -47,8 +47,8 @@ export function dataView(extra = '') {
     </section>
     <section class="card stack">
       <h3>Orden</h3>
-      <small class="muted">Elige en qué orden aparecen las secciones del menú lateral y lo que ves en Inicio.</small>
-      <button class="btn block" data-act="order-tabs">${icon('menu')} Ordenar el menú lateral</button>
+      <small class="muted">Elige el orden de las secciones (las 3 primeras van en la barra inferior, el resto en «Más») y lo que ves en Inicio.</small>
+      <button class="btn block" data-act="order-tabs">${icon('menu')} Ordenar las secciones</button>
       <button class="btn block" data-act="order-home">${icon('home')} Ordenar Inicio</button>
     </section>
     <section class="card stack">
@@ -74,10 +74,10 @@ export function dataView(extra = '') {
     </section>`;
 }
 
-// ---------- orden del menú lateral y de Inicio ----------
+// ---------- orden de las secciones (barra inferior y «Más») y de Inicio ----------
 // Cada lista guarda en `settings[key]` el orden elegido; si queda igual al original se borra la clave. Son ajustes del dispositivo (DEVICE_KEYS).
 const ORDERS = {
-  tabs: { title: 'Orden del menú lateral', lists: [{ key: 'tabOrder', items: TABS }] },
+  tabs: { title: 'Orden de las secciones', lists: [{ key: 'tabOrder', items: TABS }] },
   home: { title: 'Orden de Inicio', lists: [
     { key: 'homeOrder', label: 'Secciones (el saludo va siempre arriba)', items: HOME_BLOCKS },
     { key: 'tileOrder', label: 'Tarjetas (se ven de dos en dos)', items: HOME_TILES }] },

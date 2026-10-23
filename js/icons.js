@@ -2,6 +2,7 @@
 const PATHS = {
   home: '<path d="M4 11l8-7 8 7M6 9.5V20h12V9.5M10 20v-5h4v5"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  more: '<circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   minus: '<path d="M5 12h14"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
