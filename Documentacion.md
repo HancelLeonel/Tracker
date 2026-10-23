@@ -45,6 +45,8 @@ Todas las rutas son relativas, así que funciona bajo el subpath `/<repo>/`.
 
 ### Actualizar la app instalada
 
+**Recordar dónde estabas.** Android puede cerrar una app instalada cuando está en segundo plano y necesita memoria (algunas marcas lo hacen más que otras); al volver, la app arranca de cero y se ve el logo. No se puede evitar desde una PWA, pero la app **recuerda dónde estabas**: la pestaña, la sub-pantalla (por ejemplo Finanzas › Pagos), la lista o el grupo de notas abierto, el momento del día de los hábitos y la posición del desplazamiento. Si vuelves en **menos de 30 minutos** regresas ahí; pasado ese tiempo la app abre en **Inicio**. Solo funciona en la app instalada (no en una pestaña del navegador). **No se guarda** un formulario a medias ni una nota rápida a medio escribir; tus datos nunca dependen de esto.
+
 La app se actualiza sola al abrirla con conexión. Lo que **no** se actualiza solo es el **nombre y el icono de la pantalla de inicio ni la pantalla de carga del sistema** (el *splash* de Android): se toman del manifiesto en el momento de instalar. Si cambias el nombre o el icono, hay que **desinstalar la app del teléfono y volver a instalarla** (el navegador no actualiza los accesos directos ya instalados). Mientras la app arranca también se muestra una pantalla de carga propia con el logo y el nombre actuales.
 
 
@@ -169,7 +171,7 @@ Las transferencias y los pagos de tarjeta no cuentan como gasto.
 
 ### Inicio
 
-Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inicio** en la barra inferior) se ve, de arriba abajo:
+Es la **pantalla predeterminada**: al abrir la app (y cada vez que eliges **Inicio** en la barra inferior) se ve, de arriba abajo (si cerraste la app hace menos de 30 minutos, la app vuelve a donde estabas, ver «Recordar dónde estabas»):
 
 - La **fecha** y un **saludo** según la hora («Buenos días» hasta las 12, «Buenas tardes» hasta las 19, «Buenas noches» después).
 - Una **frase célebre** con su autor, compacta.

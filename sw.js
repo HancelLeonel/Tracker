@@ -27,6 +27,7 @@ const SHELL = [
   'js/inbox.js',
   'js/data.js',
   'js/sync.js',
+  'js/sesion.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'icons/icon-192.png',

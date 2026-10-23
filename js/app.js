@@ -15,6 +15,7 @@ import * as gym from './gym.js';
 import * as notes from './notes.js';
 import * as data from './data.js';
 import * as sync from './sync.js';
+import { restoreSession, watchSession } from './sesion.js';
 import { esc } from './util.js';
 
 const SUBS = [['accounts', 'Cuentas'], ['bills', 'Pagos'], ['reports', 'Reportes']];
@@ -278,7 +279,10 @@ async function receiveShared() {
     return fatal('No se pudo abrir el almacenamiento local.', err);
   }
   try {
+    const scroll = restoreSession(); // si Android cerró la app hace poco, vuelve a donde estabas (ver sesion.js)
     render();
+    if (scroll) window.scrollTo(0, scroll);
+    watchSession();
     pomodoro.resume(); // si el temporizador estaba corriendo al cerrar la app, sigue o avanza
     gym.resume();      // y lo mismo con el descanso entre series
   } catch (err) {
