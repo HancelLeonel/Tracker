@@ -126,6 +126,44 @@ const actions = {
   ...money.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...gym.actions, ...notes.actions, ...data.actions, ...sync.actions,
 };
 
+// ---------- deslizar entre pestañas ----------
+// Un gesto horizontal largo y claramente más horizontal que vertical cambia a la pestaña vecina de la barra inferior (Inicio + las 3 primeras de
+// tu orden), sin dar la vuelta. No actúa con una hoja abierta, sobre campos de texto, desde una sección de «Más», ni si empieza en el borde de la
+// pantalla (gesto «atrás» del sistema). Un contenedor con desplazamiento horizontal (el carrusel de hábitos) conserva su gesto mientras pueda
+// moverse en esa dirección y solo cede en sus extremos; eso se mide AL EMPEZAR el toque, porque al terminar ya se habría movido.
+const SWIPE = { dist: 70, ratio: 1.6, ms: 700, edge: 24 };
+let swipeFrom = null;
+const canScrollX = (el, dx) => {
+  for (let n = el; n && n !== document.body; n = n.parentElement) {
+    if (n.scrollWidth <= n.clientWidth + 1 || !/auto|scroll/.test(getComputedStyle(n).overflowX)) continue;
+    if (dx < 0 ? n.scrollLeft + n.clientWidth < n.scrollWidth - 1 : n.scrollLeft > 1) return true;
+  }
+  return false;
+};
+function swipeTab(dir) {
+  const keys = navTabs().bar.map(t => t[0]), i = keys.indexOf(S.tab), next = keys[i + dir];
+  if (i < 0 || !next) return;
+  actions.tab({ dataset: { tab: next } });
+  render();
+  const v = $('#view');
+  v.classList.remove('slide-l', 'slide-r'); void v.offsetWidth; // reinicia la animación
+  v.classList.add(dir > 0 ? 'slide-l' : 'slide-r');
+}
+document.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  swipeFrom = e.touches.length === 1 && !isOpen() && !e.target.closest('input, textarea, select, [contenteditable], #pomo-full, [data-noswipe]')
+    && t.clientX > SWIPE.edge && t.clientX < innerWidth - SWIPE.edge
+    ? { x: t.clientX, y: t.clientY, t: Date.now(), left: canScrollX(e.target, -1), right: canScrollX(e.target, 1) } : null;
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  const s = swipeFrom; swipeFrom = null;
+  if (!s || isOpen()) return;
+  const t = e.changedTouches[0], dx = t.clientX - s.x, dy = t.clientY - s.y;
+  if (Math.abs(dx) < SWIPE.dist || Math.abs(dx) < SWIPE.ratio * Math.abs(dy) || Date.now() - s.t > SWIPE.ms || (dx < 0 ? s.left : s.right)) return;
+  swipeTab(dx < 0 ? 1 : -1);
+}, { passive: true });
+document.addEventListener('touchcancel', () => { swipeFrom = null; }, { passive: true });
+
 // Pulsación larga en un hábito de Inicio (`data-hold`) = «no toca». Se cancela al soltar o al desplazar; el clic que sigue a una pulsación larga se descarta.
 let holdTimer = null, held = false;
 const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; };

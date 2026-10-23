@@ -58,7 +58,7 @@ body {
   margin: 0; min-height: 100dvh; background: var(--base); color: var(--text);
   font: 1rem/1.45 var(--font); -webkit-font-smoothing: antialiased;
   padding-top: env(safe-area-inset-top);
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: contain; overscroll-behavior-x: none; /* sin «atrás» del navegador al deslizar entre pestañas */
 }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; }
@@ -84,7 +84,7 @@ small, .muted { color: var(--subtext0); }
 .icon:active { background: var(--surface0); }
 
 /* Contenido */
-#view { padding: 16px 16px calc(150px + env(safe-area-inset-bottom)); display: grid; gap: 16px; }
+#view { overflow-x: clip; padding: 16px 16px calc(150px + env(safe-area-inset-bottom)); display: grid; gap: 16px; }
 .card { background: var(--mantle); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
 .card-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
 .card-h h3 { font-size: 1.05rem; font-weight: 600; }
@@ -763,6 +763,13 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
   .pop { animation: pop .18s ease-out; }
 }
 @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+/* Deslizar entre pestañas (app.js `swipeTab`): la pantalla nueva entra desde el lado del que viene el dedo. */
+@keyframes slide-l { from { transform: translateX(36px); opacity: .4; } }
+@keyframes slide-r { from { transform: translateX(-36px); opacity: .4; } }
+@media (prefers-reduced-motion: no-preference) {
+  #view.slide-l { animation: slide-l .18s ease-out; }
+  #view.slide-r { animation: slide-r .18s ease-out; }
+}
 
 /* ── Color por sección ── Un solo bloque: cada componente usa `var(--sec)`, que por defecto es `--accent`.
    Para volver a un solo acento basta BORRAR este bloque (`app.js` pone `data-sec` en <body> al pintar). */
