@@ -50,7 +50,9 @@ try:
             hexes = [page.evaluate("t => getComputedStyle(document.documentElement).getPropertyValue(t).trim()", t) for _, t, _ in ARCS]
             check(f'{name} usa los tres colores de sección', all(h.lower() in text.lower() for h in hexes), hexes)
             check(f'{name} ya no usa el lavanda antiguo de la palomita', '#9aa7f5' not in text.lower())
-        check('el fondo del manifiesto sigue siendo el del tema oscuro', man['background_color'].lower() == '#111317' and man['theme_color'].lower() == '#111317')
+        surf1 = page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--surface1').trim()").lower()
+        check('el fondo de la pantalla de carga es el gris azulado de las tarjetas (--surface1), más claro que el negro', man['background_color'].lower() == surf1 == '#2a2e36', (man['background_color'], surf1))
+        check('la barra del sistema (theme_color) sigue siendo la del tema oscuro, igual que --base', man['theme_color'].lower() == '#111317')
         b.close()
 finally:
     srv.terminate()

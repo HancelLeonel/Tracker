@@ -8,7 +8,7 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#111317",
+  "background_color": "#2a2e36",
   "theme_color": "#111317",
   "share_target": { "action": "./", "method": "GET", "params": { "title": "title", "text": "text", "url": "url" } },
   "icons": [
