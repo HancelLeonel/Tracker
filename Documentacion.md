@@ -61,7 +61,7 @@ index.html              Estructura: barra superior, contenido, barra inferior, d
 manifest.webmanifest    Nombre, colores e iconos de la PWA
 sw.js                   Service worker (funcionamiento offline)
 css/style.css           Estilos y tema Grafito (variables CSS)
-icons/                  Iconos (SVG y PNG, incluido maskable para Android)
+icons/                  Iconos (SVG y PNG, incluido maskable para Android) y generar.py que los crea: el logo es un aro con los colores de las secciones
 js/
   app.js                Arranque, pestañas, repintado y despacho de acciones
   util.js               Fechas, periodos, formato de moneda, helpers
