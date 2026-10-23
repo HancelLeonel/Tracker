@@ -174,7 +174,9 @@ Estado: probado en Chromium de escritorio con teléfono simulado; **falta valida
 ## Flujo de trabajo y Git
 
 - Rama `main`, remoto `origin` = `https://github.com/HancelLeonel/Tracker.git`.
-- **Haz commit y `push` solo cuando el usuario lo pida** (el 17 oct se comprobó que el `push` a `origin main` funciona desde esta máquina). Nunca lo hagas por iniciativa propia: publicar en `main` actualiza la app que el usuario usa en el teléfono.
+- **Publica automáticamente** (decidido el 23 oct 2026): al terminar un cambio, con la suite `tests/run_all.py` en verde y la documentación al día, haz commit y `push` a `origin main` **sin pedir permiso**, para que el usuario lo pruebe en el teléfono (el `push` funciona desde esta máquina). **Pregunta antes solo si falta confirmar algo importante**: una decisión de diseño o de datos que el usuario no ha tomado, una acción destructiva o que pueda perder datos (subir la versión de la base, borrar o migrar datos), o pruebas en rojo. Nunca publiques con la suite fallando.
+- **Un commit por cambio y siempre reversible**: cada cambio de comportamiento va en su propio commit (no mezcles cambios independientes, y las reglas de este archivo van aparte) para poder deshacerlo con `git revert <hash>` si al probarlo en el teléfono hay errores. **No reescribas la historia** (`reset --hard`, `push --force`, `rebase` de lo ya publicado): se revierte con un commit nuevo. Al publicar, di el hash del commit y cómo revertirlo.
+- Recuerda que por el service worker lo publicado se ve en la **segunda apertura** (o tocando «Actualizar»).
 - Mensajes de commit en español, con resumen + lista de cambios, y la línea `Co-Authored-By` indicada por el entorno.
 - Mantén [Documentacion.md](Documentacion.md) y este archivo al día cuando cambie el comportamiento o las reglas.
 
