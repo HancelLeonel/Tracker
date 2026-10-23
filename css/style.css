@@ -459,11 +459,45 @@ button.li:active { background: var(--surface0); }
 .th-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
 .th-row .dot { flex: none; width: 44px; height: 44px; max-width: none; border-radius: 50%; display: grid; place-items: center; }
 .today-habits > .btn { justify-self: start; }
+/* Franja de resumen: tres chips con lo de hoy; cada uno lleva a su sección. */
+.home-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.home-chip { display: grid; align-content: center; justify-items: center; gap: 2px; min-height: 64px; padding: 8px 6px; border-radius: var(--r-ctl); background: var(--surface0); color: inherit; text-align: center; }
+.home-chip b { font-size: 1.3rem; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--sec); max-width: 100%; }
+.home-chip b.neg { color: var(--red); }
+.home-chip b.chip-txt { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-chip b .i { width: 1.3rem; height: 1.3rem; stroke: var(--sec); }
+.home-chip small { font-size: .78rem; color: var(--subtext1); }
+/* Título de bloque con el punto de color de su sección. */
+.home-h { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; font-weight: 650; }
+.home-h::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--sec); }
+.th-more { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px 4px; border-top: 1px solid var(--line); color: var(--subtext1); text-align: left; }
+.th-more span { flex: 1; }
+.th-more .i { stroke: var(--subtext1); }
+.th-name { display: grid; gap: 0; }
+.th-name small { font-size: .75rem; font-weight: 400; }
+.th-row .dot { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.inbox-fold { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 8px 14px; border-radius: var(--r-ctl); background: var(--surface0); color: inherit; text-align: left; }
+.inbox-fold .home-h { flex: 1; }
+.inbox-tools { display: flex; align-items: center; }
+.home-quote { display: block; padding: 0 0 0 14px; border-left: 2px solid var(--sec); text-align: left; color: inherit; }
+.home-quote blockquote { margin: 0; }
+.home-quote p { font-size: .95rem; line-height: 1.45; text-wrap: pretty; color: var(--subtext1); }
+.home-quote footer { margin-top: 8px; color: var(--subtext0); font-size: .85rem; }
+.home-quote footer::before { content: '— '; }
+/* «Hoy»: hábitos de hoy, todos a la vista; cada casilla se marca en el sitio. */
+.today-habits { display: grid; gap: 10px; }
+.th-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.th-head h3 { font-size: 1.15rem; font-weight: 650; }
+.th-count { font-variant-numeric: tabular-nums; color: var(--subtext1); }
+.th-rows { display: grid; }
+.th-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 0; border-top: 1px solid var(--line); }
+.th-rows .th-row:first-child { border-top: 0; }
+.th-row .h-ic { width: 34px; height: 34px; border-radius: 10px; }
+.th-row .h-ic .i { width: 1.15rem; height: 1.15rem; }
+.th-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.th-row .dot { flex: none; width: 44px; height: 44px; max-width: none; border-radius: 50%; display: grid; place-items: center; }
+.today-habits > .btn { justify-self: start; }
 /* Pagos en una línea y accesos de dinero. */
-.home-quick { display: grid; gap: 10px; }
-.home-line { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px; border-radius: var(--r-ctl); background: var(--surface0); color: inherit; text-align: left; }
-.home-line span { flex: 1; min-width: 0; }
-.home-line.neg { color: var(--red); } .home-line.neg .i { stroke: var(--red); }
 .tile { display: grid; gap: 8px; align-content: start; min-height: 108px; padding: 14px; text-align: left; color: inherit; background: var(--mantle); border: 1px solid var(--line); border-radius: var(--radius); }
 .tile:active { background: var(--surface0); }
 .tile-n { font-size: 2rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
@@ -471,6 +505,7 @@ button.li:active { background: var(--surface0); }
 .tile-n.tile-txt { font-size: 1.15rem; line-height: 1.25; letter-spacing: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .tile .bar { margin-top: auto; }
 .today { display: grid; gap: 10px; }
+.card.today { gap: 8px; }
 .today .count { margin-left: 4px; padding: 1px 7px; border-radius: 99px; background: var(--surface1); color: var(--text); letter-spacing: 0; }
 .trows { display: grid; }
 .trow { display: flex; align-items: center; gap: 2px; border-top: 1px solid var(--line); }
@@ -732,3 +767,7 @@ button.star { display: grid; place-items: center; width: 44px; height: 44px; }
 body[data-sec="money"] { --sec: var(--teal); }
 body[data-sec="habits"] { --sec: var(--yellow); }
 body[data-sec="lists"] { --sec: var(--blue); }
+/* En Inicio cada bloque lleva el color de su sección (la franja, los títulos y las barras). */
+#today-habits, .hc-habits { --sec: var(--yellow); }
+#today-tasks, .hc-lists { --sec: var(--blue); }
+.hc-money { --sec: var(--teal); }

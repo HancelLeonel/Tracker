@@ -36,6 +36,7 @@ try:
         rows = lambda: q.locator('.inbox .qn')
         pick = lambda i: (rows().nth(i).click(), q.wait_for_timeout(60))
 
+        q.evaluate("import('/js/state.js').then(async st => { (st.S.settings.collapsed ??= {}).inboxOpen = true; await st.saveSettings(); st.hooks.render(); })"); q.wait_for_timeout(60)
         # ---- grupos y una lista para archivar
         seed("""const gs = [{ id: 'gl', name: 'Enlaces', color: 'blue', icon: 'link', fields: [{ id: 'u', name: 'Enlace', type: 'url', list: true }, { id: 'd', name: 'Descripción', type: 'long' }] },
                        { id: 'ga', name: 'Apuntes', color: 'mauve', icon: 'note', fields: [{ id: 'c', name: 'Contenido', type: 'long' }] },

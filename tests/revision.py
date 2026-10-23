@@ -91,8 +91,8 @@ try:
         raw(f"""await db.commit({{ put: {{ bills: [{{ id: 'bm', title: 'Internet', amount: 300, freq: 'monthly', day: 1, start: '{start}', card: null, active: true, paid: {{}} }},
           {{ id: 'bo', title: 'Seguro', amount: 100, freq: 'once', dueDate: '{D(-3)}', start: '{start}', card: null, active: true, paid: {{}} }}] }} }});""")
         q.reload(); q.wait_for_selector('#view .home')
-        tile = q.locator('.home-line').inner_text()
-        check('Inicio cuenta pagos vencidos, no vencimientos (2 pagos aunque Internet debe varios meses)', '2' in tile and 'pagos vencidos' in tile, tile)
+        tile = q.locator('.home-chip.hc-money').inner_text()
+        check('Inicio cuenta pagos vencidos, no vencimientos (2 pagos aunque Internet debe varios meses)', tile.split() == ['2', 'Pagos', 'vencidos'], tile)
         go('money', '[data-act=sub][data-sub=bills]')
         rows = q.locator('.card.alert .bill')
         check('en Vencidos, una fila por pago (la más antigua) con cuántos vencimientos más hay', rows.count()==2 and 'vencimientos más' in q.locator('.card.alert').inner_text(), q.locator('.card.alert').inner_text())

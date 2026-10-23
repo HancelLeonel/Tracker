@@ -115,6 +115,7 @@ const actions = {
   tab: el => {
     if ($('#dlg').open) $('#dlg').close(); // tocado desde la hoja «Más»
     if (el.dataset.tab === S.tab) { S.listId = null; S.noteGroup = null; } // tocar la sección activa vuelve a su vista general (sale de una lista o grupo abierto)
+    S.homeJust = null; // al volver a tocar Inicio, lo recién marcado se ordena (baja a «hechos»)
     S.tab = el.dataset.tab; if (S.tab === 'home') home.nextQuote(); S.habitsSort = false; S.listEdit = false; S.inboxSel = null; window.scrollTo(0, 0);
   },
   // Hoja con los destinos que no caben en la barra inferior.
@@ -125,7 +126,20 @@ const actions = {
   ...money.actions, ...bills.actions, ...reports.actions, ...purchases.actions, ...habits.actions, ...lists.actions, ...home.actions, ...inbox.actions, ...pomodoro.actions, ...gym.actions, ...notes.actions, ...data.actions, ...sync.actions,
 };
 
+// Pulsación larga en un hábito de Inicio (`data-hold`) = «no toca». Se cancela al soltar o al desplazar; el clic que sigue a una pulsación larga se descarta.
+let holdTimer = null, held = false;
+const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; };
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('[data-hold]');
+  held = false;
+  if (el) holdTimer = setTimeout(() => { held = true; holdTimer = null; home.hold(el); }, 500);
+});
+['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, cancelHold));
+document.addEventListener('scroll', cancelHold, true);
+document.addEventListener('contextmenu', e => { if (e.target.closest('[data-hold]')) e.preventDefault(); });
+
 document.addEventListener('click', async e => {
+  if (held && e.target.closest('[data-hold]')) { held = false; return; }
   const pill = e.target.closest('[data-slotpill]');
   if (pill) return habits.goSlot(pill);
   const el = e.target.closest('[data-act]');

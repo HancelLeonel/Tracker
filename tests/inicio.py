@@ -81,7 +81,7 @@ try:
         go2('home')
 
         # ---- estado vacío de cada parte
-        check('sin datos: hábitos y tareas lo dicen con calma y no hay línea de pagos', 'Crea tu primer hábito' in home_txt() and q.locator('.home-line').count()==0 and 'Nada pendiente para hoy' in home_txt(), home_txt())
+        check('sin datos: hábitos y tareas lo dicen con calma y los pagos están al día', 'Crea tu primer hábito' in home_txt() and 'Pagos al día' in q.locator('.home-chip.hc-money').inner_text() and 'Nada pendiente para hoy' in home_txt(), home_txt())
         check('Inicio ya no tiene el botón grande de Nuevo gasto (el gasto rápido está en la tarjeta de botones)', q.locator('.quick-exp').count()==0 and q.locator('.tile-acts [data-act=new-exp]').is_visible())
         q.click('.tile-acts [data-act=new-exp]'); q.wait_for_timeout(120)
         check('gasto rápido sin cuentas avisa en vez de abrir un formulario roto', not q.evaluate("document.querySelector('#dlg').open") and 'cuenta' in q.locator('#toast').inner_text())
@@ -89,19 +89,20 @@ try:
         # ---- hábitos de hoy
         seed("""const t = ut.today();
           for (const [i, n] of ['Agua', 'Leer', 'Correr'].entries()) { const h = { id: 'h' + i, name: n, color: 'blue', icon: 'drop', slot: '', order: i + 1, dates: i < 2 ? { [t]: 1 } : {} }; st.S.habits.push(h); await st.saveHabit(h); }""")
-        check('«Hoy»: 2 de 3 con barra', '2 de 3' in q.locator('#today-habits').inner_text() and q.locator('#today-habits .bar i').get_attribute('style').startswith('width:66'), q.locator('#today-habits').inner_text())
+        check('Hábitos: falta 1 de 3, con barra al 66 %', 'Falta 1' in q.locator('#today-habits').inner_text() and q.locator('#today-habits .bar i').get_attribute('style').startswith('width:66'), q.locator('#today-habits').inner_text())
 
         # ---- pagos: solo se muestran vencidos o los que vencen en los próximos 3 días
         D = lambda n: __import__('datetime').date.today().__add__(__import__('datetime').timedelta(days=n)).isoformat()
         bill = lambda id, title, n: f"const b = {{ id: '{id}', title: '{title}', amount: 100, freq: 'once', day: null, dueDate: '{D(n)}', start: '2020-01-01', card: null, active: true, paid: {{}} }}; st.S.bills.push(b); await st.saveBill(b);"
-        pt = lambda: q.locator('.home-line')
-        check('sin pagos registrados: no hay línea de pagos', pt().count()==0)
+        pt = lambda: q.locator('.home-chip.hc-money')
+        ok_ = lambda: 'Pagos al día' in pt().inner_text()
+        check('sin pagos registrados: «Pagos al día»', ok_(), pt().inner_text())
         seed(bill('b1', 'Seguro', 45))
-        check('un pago a 45 días: no se muestra', pt().count()==0)
+        check('un pago a 45 días: sigue al día', ok_() and 'Seguro' not in pt().inner_text())
         seed(bill('b2', 'Internet', 5))
-        check('un pago a 5 días tampoco se muestra', pt().count()==0)
+        check('un pago a 5 días tampoco se muestra', ok_(), pt().inner_text())
         seed(bill('b2b', 'Cable', 4))
-        check('a 4 días todavía no', pt().count()==0)
+        check('a 4 días todavía no', ok_())
         seed(bill('b2c', 'Gimnasio mensual', 3))
         check('a 3 días sí: título y fecha', 'Gimnasio mensual' in pt().inner_text() and 'vence el' in pt().inner_text(), pt().inner_text())
         seed(bill('b3', 'Luz', 1))
@@ -109,10 +110,10 @@ try:
         seed(bill('b3b', 'Agua hoy', 0))
         check('uno de hoy: «vence hoy»', 'Agua hoy' in pt().inner_text() and 'vence hoy' in pt().inner_text(), pt().inner_text())
         seed(bill('b4', 'Agua potable', -2))
-        check('pago vencido: la línea sale en rojo con «1 pago vencido»', '1 pago vencido' in pt().inner_text() and 'neg' in pt().get_attribute('class'), pt().inner_text())
+        check('pago vencido: el chip dice «1 Pago vencido» con el número en rojo', pt().inner_text().split() == ['1', 'Pago', 'vencido'] and pt().locator('b.neg').count() == 1, pt().inner_text())
         seed(bill('b5', 'Gas', -1))
-        check('varios vencidos: plural', '2 pagos vencidos' in pt().inner_text(), pt().inner_text())
-        q.click('.home-line'); q.wait_for_timeout(100)
+        check('varios vencidos: plural, con el número una sola vez', pt().inner_text().split() == ['2', 'Pagos', 'vencidos'], pt().inner_text())
+        q.click('.home-chip.hc-money'); q.wait_for_timeout(100)
         check('tocar la tarjeta de pagos abre Finanzas › Pagos', q.locator('#topbar h1').inner_text()=='Pagos' and 'Vencidos' in q.locator('#view').inner_text(), q.locator('#topbar h1').inner_text())
         go2('home')
 
@@ -124,7 +125,7 @@ try:
         rows = lambda: [r.split('\n')[0].strip() for r in q.locator('.trow .t-text').all_inner_texts()]
         check('solo tareas pendientes con fecha de hoy o vencida, de listas activas, la más vieja primero', rows()==['Pagar parqueo','Comprar leche'], rows())
         check('cada tarea dice cuándo vence y de qué lista es', 'Venció el' in q.locator('.trow').first.inner_text() and 'Súper' in q.locator('.trow').first.inner_text() and 'Vence hoy' in q.locator('.trow').nth(1).inner_text(), q.locator('.trow').first.inner_text())
-        check('encabezado con el conteo', '2' in q.locator('#today-tasks .overline').inner_text())
+        check('encabezado con el conteo', '2' in q.locator('#today-tasks .home-h').inner_text())
         q.click('.trow:has-text("Comprar leche") .chk'); q.wait_for_timeout(120)
         check('la casilla tacha la tarea en el sitio y baja el conteo a 1', q.locator('.trow:has-text("Comprar leche")').get_attribute('class').split().count('done')==1 and q.locator('#today-tasks .count').inner_text().strip()=='1', q.locator('#today-tasks .count').inner_text())
         ok = q.evaluate("import('/js/state.js').then(st => { const i = st.S.lists.find(l => l.id === 'L1').items.find(i => i.id === 'i1'); return i.done === true && /^\\d{4}-\\d{2}-\\d{2}$/.test(i.doneAt); })")
@@ -136,8 +137,8 @@ try:
         q.click('.trow .chk'); q.wait_for_timeout(120); go2('home')
         check('sin tareas pendientes vuelve el mensaje tranquilo', 'Nada pendiente para hoy' in home_txt() and q.locator('#today-tasks .count').count()==0)
         seed(f"""const l = st.S.lists.find(l => l.id === 'L1'); for (let k = 0; k < 8; k++) l.items.push({{ id: 'm' + k, text: 'Mucha ' + k, done: false, due: '{D(0)}' }}); await st.saveList(l);""")
-        check('más de 6 tareas: se muestran 6 y un enlace al resto', len(rows())==6 and 'Ver 2 más' in home_txt(), (len(rows()), home_txt()[-80:]))
-        q.click('text=Ver 2 más en Listas'); q.wait_for_timeout(80)
+        check('más de 3 tareas: se muestran 3 y un enlace al resto', len(rows())==3 and 'más en Listas' in home_txt(), (len(rows()), home_txt()[-80:]))
+        q.click('#today-tasks >> text=más en Listas'); q.wait_for_timeout(80)
         check('«Ver más» lleva a Listas', q.locator('#topbar h1').inner_text()=='Listas')
         go2('home')
 

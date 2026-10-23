@@ -141,6 +141,10 @@ export function goSlot(el) {
   car.scrollTo({ left: i * stepOf(car), behavior: 'smooth' });
 }
 
+// En listas densas (Inicio) un toque alterna hecho ↔ sin marcar y «no toca» se pone con pulsación larga: así un doble toque nunca lo marca sin querer.
+export function markDay(h, d) { if (h.dates[d]) delete h.dates[d]; else h.dates[d] = 1; }
+export function skipDay(h, d) { if (isSkip(h, d)) delete h.dates[d]; else h.dates[d] = SKIP; }
+
 export function setDay(h, d) {
   const n = nextState(h.dates[d]);
   if (n) h.dates[d] = n; else delete h.dates[d];

@@ -34,7 +34,8 @@ try:
         notes = lambda: [t.strip().split('\n')[0] for t in q.locator('.qn .qn-text').all_inner_texts()]
         add = lambda t: (q.locator('#qn-new').fill(t), q.locator('#qn-new').press('Enter'), q.wait_for_timeout(120))
 
-        # ---- anotar rápido
+        # ---- anotar rápido (la Bandeja arranca plegada; aquí se deja abierta para probar sus filas)
+        q.evaluate("import('/js/state.js').then(async st => { (st.S.settings.collapsed ??= {}).inboxOpen = true; await st.saveSettings(); st.hooks.render(); })"); q.wait_for_timeout(60)
         check('sin notas rápidas no hay bandeja', q.locator('.inbox').count()==0)
         check('el campo de nota rápida está en Inicio', q.locator('#qn-new').is_visible())
         add('Pedir presupuesto del techo')
@@ -44,7 +45,7 @@ try:
         check('también con el botón; la más nueva primero', notes()==['Idea para el viaje','Llamar a Ana el martes','Pedir presupuesto del techo'], notes())
         q.locator('#qn-new').press('Enter'); q.wait_for_timeout(80)
         check('un campo vacío no agrega nada', len(notes())==3)
-        check('el encabezado cuenta las notas', '3' in q.locator('.inbox .overline').inner_text())
+        check('el encabezado cuenta las notas', '3' in q.locator('.inbox .home-h').inner_text())
         q.screenshot(path=OUT+'inbox.png', full_page=True)
 
         # ---- persistencia, respaldo

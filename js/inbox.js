@@ -1,6 +1,6 @@
 import * as db from './db.js';
 import { $, esc, uid, toast, pl } from './util.js';
-import { S, saveInbox, saveNote, saveList } from './state.js';
+import { S, saveInbox, saveNote, saveList, saveSettings } from './state.js';
 import { modal } from './ui.js';
 import { icon } from './icons.js';
 import { safeUrl } from './notes.js';
@@ -31,6 +31,10 @@ const picking = () => S.inboxSel instanceof Set;
 export function inboxSection() {
   if (!S.inbox.length) { S.inboxSel = null; return ''; }
   const sel = picking() ? S.inboxSel : null;
+  // Plegada por defecto (una línea con el conteo); se recuerda en `settings.collapsed.inboxOpen` (ajuste del dispositivo). Al seleccionar siempre se ve.
+  if (!sel && !S.settings.collapsed?.inboxOpen) {
+    return `<button class="inbox-fold" data-act="inbox-fold" aria-expanded="false"><span class="home-h">Bandeja</span><span class="muted">${pl(S.inbox.length, 'pendiente')}</span>${icon('right')}</button>`;
+  }
   if (sel) [...sel].forEach(id => { if (!S.inbox.some(q => q.id === id)) sel.delete(id); });
   const shown = sel || S.inboxAll ? S.inbox : S.inbox.slice(0, SHOWN), extra = S.inbox.length - shown.length;
   const row = q => sel
@@ -39,8 +43,8 @@ export function inboxSection() {
     : `<button class="qn" data-act="qn-open" data-id="${q.id}"><span class="qn-text">${esc(q.text)}</span><small class="muted">${ago(q.t)}</small></button>`;
   return `
     <section class="today inbox">
-      <div class="inbox-h"><h3 class="overline">Bandeja <span class="count">${S.inbox.length}</span></h3>
-        ${sel ? '' : S.inbox.length > 1 ? '<button class="btn ghost sm" data-act="qn-select">Seleccionar</button>' : ''}</div>
+      <div class="inbox-h"><h3 class="home-h">Bandeja <span class="count">${S.inbox.length}</span></h3>
+        ${sel ? '' : `<span class="inbox-tools">${S.inbox.length > 1 ? '<button class="btn ghost sm" data-act="qn-select">Seleccionar</button>' : ''}<button class="btn ghost sm" data-act="inbox-fold">Ocultar</button></span>`}</div>
       <div class="trows">${shown.map(row).join('')}</div>
       ${sel ? `<div class="qn-bar"><button class="btn sm ghost" data-act="qn-cancel">Cancelar</button><span class="spacer"></span>
           <button class="btn sm" data-act="qn-pick-all">${sel.size === S.inbox.length ? 'Ninguna' : 'Todas'}</button>
@@ -218,6 +222,11 @@ export async function addQuick(text) {
 }
 
 export const actions = {
+  async 'inbox-fold'() {
+    const c = S.settings.collapsed ??= {};
+    if (c.inboxOpen) delete c.inboxOpen; else c.inboxOpen = true;
+    await saveSettings();
+  },
   async 'qn-add'(el) {
     const input = el.closest('form').elements.text;
     S.focusQn = true; // el repintado devuelve el foco para seguir anotando

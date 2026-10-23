@@ -50,7 +50,7 @@ try:
         page.screenshot(path=OUT+'h_skip.png', full_page=True)
         go('home'); page.wait_for_timeout(100)
         tile = page.locator('#today-habits').inner_text().replace('\n',' ')
-        check('«Hoy» en Inicio tampoco cuenta el que no toca (0 de 1)', '0 de 1' in tile, tile)
+        check('Inicio tampoco cuenta el que no toca (falta 1, no 2)', 'Falta 1' in tile, tile)
         go('habits')
         dot('Agua').click(); page.wait_for_timeout(100); dot('Agua').click(); page.wait_for_timeout(100)
         check('si ninguno toca hoy: «Hoy 0/0» sin romperse', 'Hoy 0/0' in txt() and page.locator('.progress-ring .bar i').get_attribute('style').replace(' ','').startswith('width:0'), txt()[:60])

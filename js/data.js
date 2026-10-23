@@ -6,7 +6,7 @@ import { icon, HABIT_ICONS, NOTE_ICONS } from './icons.js';
 import { COLORS, SLOT_KEYS } from './habits.js';
 import { FREQS as TPL_FREQS } from './lists.js';
 import { FIELD_TYPES } from './notes.js';
-import { HOME_BLOCKS, HOME_TILES } from './home.js';
+import { HOME_BLOCKS } from './home.js';
 import { sanitizeRoutines, sanitizeWorkouts, sanitizeExercises } from './gym.js';
 import { fileSize } from './ui.js';
 
@@ -79,8 +79,7 @@ export function dataView(extra = '') {
 const ORDERS = {
   tabs: { title: 'Orden de las secciones', lists: [{ key: 'tabOrder', items: TABS }] },
   home: { title: 'Orden de Inicio', lists: [
-    { key: 'homeOrder', label: 'Secciones (el saludo va siempre arriba)', items: HOME_BLOCKS },
-    { key: 'tileOrder', label: 'Tarjetas (se ven de dos en dos)', items: HOME_TILES }] },
+    { key: 'homeOrder', label: 'Secciones (el saludo, el resumen y «Hábitos» van siempre arriba)', items: HOME_BLOCKS }] },
 };
 
 function orderForm(kind) {
