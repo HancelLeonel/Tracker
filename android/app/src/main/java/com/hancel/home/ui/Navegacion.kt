@@ -37,6 +37,11 @@ import com.hancel.home.Deps
 import com.hancel.home.ui.ajustes.AjustesScreen
 import com.hancel.home.ui.ajustes.AjustesViewModel
 import com.hancel.home.ui.comun.BarraSeccion
+import com.hancel.home.ui.finanzas.CuentaScreen
+import com.hancel.home.ui.finanzas.CuentaViewModel
+import com.hancel.home.ui.finanzas.FinanzasAcciones
+import com.hancel.home.ui.finanzas.FinanzasScreen
+import com.hancel.home.ui.finanzas.FinanzasViewModel
 import com.hancel.home.ui.comun.vm
 
 /** Destinos de la barra inferior. */
@@ -103,7 +108,15 @@ private fun androidx.navigation.NavDestination.hierarchy(): List<String> {
 private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, deps: Deps) {
     val ajustes = { nav.navigate("ajustes") }
     composable(Tab.INICIO.route) { Seccion("pantalla-inicio", "Inicio", ajustes) }
-    composable(Tab.FINANZAS.route) { Seccion("pantalla-finanzas", "Finanzas", ajustes) }
+    composable(Tab.FINANZAS.route) {
+        val model = vm { FinanzasViewModel(deps.dinero, deps.ajustes, deps.hoy) }
+        FinanzasScreen(model, FinanzasAcciones(onAjustes = ajustes, onCuenta = { nav.navigate("finanzas/cuenta/$it") }))
+    }
+    composable("finanzas/cuenta/{id}") { e ->
+        val id = e.arguments?.getString("id").orEmpty()
+        val model = vm(id) { CuentaViewModel(id, deps.dinero, deps.hoy) }
+        CuentaScreen(model, onBack = { nav.popBackStack() }, onMove = {})
+    }
     composable(Tab.LISTAS.route) { Seccion("pantalla-listas", "Listas", ajustes) }
     composable("ajustes") {
         val model = vm { AjustesViewModel(deps.respaldo, deps.clock) }

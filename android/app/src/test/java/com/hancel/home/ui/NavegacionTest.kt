@@ -1,6 +1,7 @@
 package com.hancel.home.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -8,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.hancel.home.ui.finanzas.sembrarCuentas
 import com.hancel.home.ui.tema.HomeTheme
 import org.junit.Rule
 import org.junit.Test
@@ -36,6 +38,19 @@ class NavegacionTest {
         rule.onNodeWithTag("pantalla-ajustes").assertIsDisplayed()
         rule.onNodeWithContentDescription("Volver").performClick()
         rule.onNodeWithTag("pantalla-inicio").assertIsDisplayed()
+    }
+
+    @Test fun cuenta_abre_su_detalle_y_vuelve_a_finanzas() {
+        val deps = depsDePrueba()
+        deps.sembrarCuentas()
+        rule.setContent { HomeTheme { HomeRoot(deps) } }
+        rule.onNodeWithText("Finanzas").performClick()
+        rule.esperar { rule.onAllNodes(hasContentDescription("Ver movimientos de Banco")).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithContentDescription("Ver movimientos de Banco").performClick()
+        rule.onNodeWithTag("pantalla-cuenta").assertIsDisplayed()
+        rule.esperarTexto("Total")
+        rule.onNodeWithContentDescription("Volver").performClick()
+        rule.onNodeWithTag("pantalla-finanzas").assertIsDisplayed()
     }
 
     @Test fun estado_se_conserva_al_recrear() {
