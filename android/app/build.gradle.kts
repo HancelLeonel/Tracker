@@ -22,6 +22,11 @@ android {
     }
     testOptions { unitTests.isIncludeAndroidResources = true }
 }
+// Las pruebas de interfaz necesitan el manifiesto de prueba de Compose, que solo va en debug; release compila el
+// mismo código, así que sus pruebas unitarias solo repetirían las de debug (y fallarían sin ese manifiesto).
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) { it.enableUnitTest = false }
+}
 kotlin { jvmToolchain(21) }
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
