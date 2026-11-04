@@ -46,6 +46,28 @@ android {
 androidComponents {
     beforeVariants(selector().withBuildType("release")) { it.enableUnitTest = false }
 }
+// RestauracionTest arranca la actividad real y la destruye; Robolectric no desprende su ventana y lo que queda vivo en
+// la JVM deja a Compose «ocupado» en las clases que corren después (fallan por tiempo en setContent). Por eso corre
+// en su propia JVM: testDebugUnitTest la excluye y la ejecuta enseguida, así `./gradlew test` sigue cubriendo todo.
+afterEvaluate {
+    val base = tasks.named<Test>("testDebugUnitTest")
+    val aparte = tasks.register<Test>("testRestauracion") {
+        description = "Pruebas de restauración tras matar el proceso, en una JVM propia."
+        group = "verification"
+        testClassesDirs = base.get().testClassesDirs
+        classpath = base.get().classpath
+        javaLauncher.set(base.get().javaLauncher)
+        jvmArgs(base.get().allJvmArgs.filter { it.startsWith("-X") || it.startsWith("--add") })
+        systemProperties(base.get().systemProperties)
+        filter.includeTestsMatching("*.RestauracionTest")
+        dependsOn(base.get().dependsOn)
+    }
+    base.configure {
+        filter.excludeTestsMatching("*.RestauracionTest")
+        filter.isFailOnNoMatchingTests = false
+        finalizedBy(aparte)
+    }
+}
 kotlin { jvmToolchain(21) }
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
