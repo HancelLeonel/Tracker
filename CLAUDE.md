@@ -38,6 +38,20 @@ No hay Node. Para validar cualquier cambio de interfaz se usa Playwright (Chromi
 
 Cada módulo de vista exporta su vista, sus formularios y un objeto `actions`; `app.js` los une. Los datos se cargan **completos en memoria** al abrir; cada cambio se guarda en IndexedDB y se repinta la vista entera con `innerHTML`.
 
+## App nativa «Home» (en construcción, `android/`)
+
+Kotlin + Compose + Room que reemplazará a esta PWA (solo Finanzas, Listas e Inicio). Spec: [docs/superpowers/specs/2026-11-03-app-nativa-android-design.md](docs/superpowers/specs/2026-11-03-app-nativa-android-design.md) · Plan: [docs/superpowers/plans/2026-11-03-app-nativa-android.md](docs/superpowers/plans/2026-11-03-app-nativa-android.md).
+
+```fish
+cd android; and ./gradlew test                          # JUnit (:core) + Robolectric (:app)
+./gradlew :app:assembleRelease                          # APK firmado
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+- `JAVA_HOME` = JDK 21 de `~/Library/Java/JavaVirtualMachines` (`/usr/libexec/java_home -v 21`); SDK en `~/Library/Android/sdk` (`adb` en `platform-tools`).
+- **La PWA no se toca mientras se construye Home.** La llave `~/.android/home-release.jks` y `android/paridad/local/` (respaldo real del usuario) **nunca se suben**.
+- Las reglas de dinero viven en `:core` como funciones puras, traducción 1:1 de `state.js`; montos en centavos `Long`.
+
 ## Reglas que no hay que romper
 
 **Dinero**
