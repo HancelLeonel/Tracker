@@ -132,7 +132,14 @@ class Ledger(val accounts: List<Account>, val moves: List<Move>) {
     private val reservedAll: Map<CatKey, Long> by lazy { computeReserved(null) }
 
     /** Categoría → dinero apartado para pagar tarjetas (todas las tarjetas juntas). */
-    fun reservedMap(exclude: Move? = null): Map<CatKey, Long> = if (exclude == null) reservedAll else computeReserved(exclude)
+    /** Lo apartado sin el último movimiento excluido (el que se edita): el formulario lo consulta en cada tecla. */
+    @Volatile private var lastExcluded: Pair<Move, Map<CatKey, Long>>? = null
+
+    fun reservedMap(exclude: Move? = null): Map<CatKey, Long> {
+        if (exclude == null) return reservedAll
+        lastExcluded?.let { (m, r) -> if (m == exclude) return r }
+        return computeReserved(exclude).also { lastExcluded = exclude to it }
+    }
 
     private fun computeReserved(exclude: Move?): Map<CatKey, Long> {
         val out = LinkedHashMap<CatKey, Long>()

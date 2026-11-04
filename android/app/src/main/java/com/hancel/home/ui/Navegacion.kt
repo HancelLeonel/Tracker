@@ -40,6 +40,13 @@ import com.hancel.home.ui.ajustes.AjustesViewModel
 import com.hancel.home.ui.comun.BarraSeccion
 import com.hancel.home.ui.ajustes.TiposScreen
 import com.hancel.home.ui.ajustes.TiposViewModel
+import android.net.Uri
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.hancel.home.core.CatKey
+import com.hancel.home.core.MoveType
+import com.hancel.home.ui.finanzas.GastoFormScreen
+import com.hancel.home.ui.finanzas.GastoViewModel
 import com.hancel.home.ui.finanzas.CategoriaFormScreen
 import com.hancel.home.ui.finanzas.CategoriaFormViewModel
 import com.hancel.home.ui.finanzas.CuentaFormScreen
@@ -129,8 +136,21 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
                 onEditCuenta = { nav.navigate("form/cuenta/$it") },
                 onNuevaCategoria = { nav.navigate("form/categoria/$it") },
                 onEditCategoria = { nav.navigate("form/categoria/${it.acc}/${it.cat}") },
+                onGasto = { preset, card -> nav.navigate(rutaGasto(preset = preset, card = card)) },
+                onEditMove = { m -> if (m.type == MoveType.EXPENSE) nav.navigate(rutaGasto(id = m.id)) },
             ),
         )
+    }
+    composable(
+        "form/gasto?id={id}&acc={acc}&cat={cat}&card={card}",
+        arguments = listOf("id", "acc", "cat", "card").map { n -> navArgument(n) { type = NavType.StringType; nullable = true; defaultValue = null } },
+    ) { e ->
+        val a = e.arguments
+        val id = a?.getString("id")
+        val preset = a?.getString("acc")?.let { acc -> a.getString("cat")?.let { CatKey(acc, it) } }
+        val card = a?.getString("card")
+        val model = vm(e.id) { h -> GastoViewModel(h, deps.dinero, deps.ajustes, deps.hoy, deps.clock, id, preset, card) }
+        GastoFormScreen(model, onDone = { nav.popBackStack() })
     }
     composable("form/cuenta") {
         val model = vm { h -> CuentaFormViewModel(h, deps.dinero, null) }
@@ -155,7 +175,7 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
     composable("finanzas/cuenta/{id}") { e ->
         val id = e.arguments?.getString("id").orEmpty()
         val model = vm(id) { CuentaViewModel(id, deps.dinero, deps.hoy) }
-        CuentaScreen(model, onBack = { nav.popBackStack() }, onMove = {})
+        CuentaScreen(model, onBack = { nav.popBackStack() }, onMove = { m -> if (m.type == MoveType.EXPENSE) nav.navigate(rutaGasto(id = m.id)) })
     }
     composable(Tab.LISTAS.route) { Seccion("pantalla-listas", "Listas", ajustes) }
     composable("ajustes") {
@@ -166,6 +186,16 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
         val model = vm { TiposViewModel(deps.dinero) }
         TiposScreen(model, onBack = { nav.popBackStack() })
     }
+}
+
+/** Ruta del formulario de gasto: nuevo (con categoría o tarjeta ya elegidas) o para editar `id`. */
+fun rutaGasto(id: String? = null, preset: CatKey? = null, card: String? = null): String {
+    val q = listOfNotNull(
+        id?.let { "id=${Uri.encode(it)}" },
+        preset?.let { "acc=${Uri.encode(it.acc)}&cat=${Uri.encode(it.cat)}" },
+        card?.let { "card=${Uri.encode(it)}" },
+    )
+    return "form/gasto" + if (q.isEmpty()) "" else "?" + q.joinToString("&")
 }
 
 /** Pantalla provisional de una sección (se reemplaza en las tareas siguientes). */

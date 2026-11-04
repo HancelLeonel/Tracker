@@ -30,7 +30,8 @@ fun CampoMonto(
     imeAction: ImeAction = ImeAction.Next,
 ) {
     var text by rememberSaveable { mutableStateOf(value?.let(::editMoney) ?: "") }
-    LaunchedEffect(value) { if (parseMoney(text) != value) text = value?.let(::editMoney) ?: "" }
+    // Vacío y 0 valen lo mismo (un campo vacío es «sin monto»): así escribir «0» o «0.» no se borra solo.
+    LaunchedEffect(value) { if ((parseMoney(text) ?: 0) != (value ?: 0)) text = value?.let(::editMoney) ?: "" }
     val invalid = text.isNotBlank() && parseMoney(text) == null
     OutlinedTextField(
         value = text,

@@ -84,5 +84,13 @@ class LedgerTarjetasTest {
         Ledger(accs, moves).let { it.reservedMap(); it.totals() } // calentamiento
         val ms = measureTimeMillis { Ledger(accs, moves).let { it.reservedMap(); it.totals() } }
         assertTrue("reservedMap + totals tardó $ms ms", ms < 300)
+
+        // Al editar un gasto el formulario pregunta lo libre de cada categoría muchas veces por tecla: lo apartado
+        // sin ese gasto se calcula una vez, no en cada consulta.
+        val l = Ledger(accs, moves)
+        val editing = moves[30_000]
+        l.availWithout(editing, CatKey("b", "c1"))
+        val edit = measureTimeMillis { repeat(200) { i -> l.availWithout(editing, CatKey("b", "c${i % 20 + 1}")) } }
+        assertTrue("200 consultas de lo libre al editar tardaron $edit ms", edit < 300)
     }
 }
