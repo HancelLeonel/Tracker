@@ -58,6 +58,8 @@ import com.hancel.home.ui.listas.ListasScreen
 import com.hancel.home.ui.listas.ListasViewModel
 import com.hancel.home.ui.listas.NuevaListaScreen
 import com.hancel.home.ui.listas.NuevaListaViewModel
+import com.hancel.home.ui.listas.PlantillaFormScreen
+import com.hancel.home.ui.listas.PlantillaViewModel
 import com.hancel.home.ui.finanzas.FlujoViewModel
 import com.hancel.home.ui.finanzas.GastoFormScreen
 import com.hancel.home.ui.finanzas.PagoTarjetaFormScreen
@@ -222,15 +224,25 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
         CuentaScreen(model, onBack = { nav.popBackStack() }, onMove = { m -> nav.navigate(rutaMovimiento(m, ledger)) })
     }
     composable(Tab.LISTAS.route) {
-        val model = vm { ListasViewModel(deps.listas, deps.ajustes, deps.hoy) }
+        val model = vm { ListasViewModel(deps.listas, deps.ajustes, deps.hoy, deps.clock) }
         ListasScreen(
             model,
             ListasAcciones(
                 onAjustes = ajustes,
                 onAbrir = { nav.navigate("listas/lista/${Uri.encode(it)}") },
                 onNueva = { nav.navigate("form/lista") },
+                onPlantilla = { id -> nav.navigate("form/plantilla" + (id?.let { "?id=${Uri.encode(it)}" } ?: "")) },
             ),
         )
+    }
+    composable(
+        "form/plantilla?id={id}&lista={lista}",
+        arguments = listOf("id", "lista").map { n -> navArgument(n) { type = NavType.StringType; nullable = true; defaultValue = null } },
+    ) { e ->
+        val id = e.arguments?.getString("id")
+        val lista = e.arguments?.getString("lista")
+        val model = vm(e.id) { h -> PlantillaViewModel(h, deps.listas, id, lista) }
+        PlantillaFormScreen(model, onDone = { nav.popBackStack() })
     }
     composable("form/lista") {
         val model = vm { h -> NuevaListaViewModel(h, deps.listas, deps.hoy, deps.clock) }
@@ -241,7 +253,7 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
     composable("listas/lista/{id}") { e ->
         val id = e.arguments?.getString("id").orEmpty()
         val model = vm(id) { ListaViewModel(id, deps.listas, deps.hoy, deps.clock) }
-        ListaScreen(model, onBack = { nav.popBackStack() })
+        ListaScreen(model, onBack = { nav.popBackStack() }, onComoPlantilla = { nav.navigate("form/plantilla?lista=${Uri.encode(it)}") })
     }
     composable("ajustes") {
         val model = vm { AjustesViewModel(deps.respaldo, deps.clock) }

@@ -4,6 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hancel.home.Hoy
 import com.hancel.home.core.ListDoc
+import java.time.Clock
+import com.hancel.home.core.toggle
+import com.hancel.home.core.newList
+import com.hancel.home.core.newId
+import com.hancel.home.core.dueInfo
+import com.hancel.home.core.byName
+import com.hancel.home.core.agenda
+import com.hancel.home.core.Template
+import com.hancel.home.core.Task
+import com.hancel.home.core.DueInfo
+import com.hancel.home.core.Bucket
 import com.hancel.home.core.ListSort
 import com.hancel.home.core.Progress
 import com.hancel.home.core.lateCount
@@ -37,11 +48,45 @@ fun buildListas(lists: List<ListDoc>, sort: ListSort, today: LocalDate) = Listas
     today = today,
 )
 
-class ListasViewModel(private val listas: ListasRepo, private val ajustes: Ajustes, hoy: Hoy) : ViewModel() {
+/** Una plantilla como tarjeta: cuántos elementos, cuándo se usó por última vez y si ya toca repetirla. */
+data class FilaPlantilla(val t: Template, val count: Int, val lastUsed: LocalDate?, val due: DueInfo?)
+
+fun buildPlantillas(ts: List<Template>, lists: List<ListDoc>, today: LocalDate) = ts.sortedWith(compareBy(byName) { it.name }).map { t ->
+    FilaPlantilla(t, t.items.count { !it.head }, lists.filter { it.tplId == t.id }.maxOfOrNull { it.created }, dueInfo(t, lists, today))
+}
+
+class ListasViewModel(private val listas: ListasRepo, private val ajustes: Ajustes, private val hoy: Hoy, private val clock: Clock) : ViewModel() {
     // «Hoy» entra al combine: si cambia el día con la app abierta, las vencidas se recalculan.
     val state: StateFlow<ListasState?> = combine(listas.lists, ajustes.portable, hoy.flow) { ls, s, today ->
         withContext(Dispatchers.Default) { buildListas(ls, s.listSort, today) }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val plantillas: StateFlow<List<FilaPlantilla>?> = combine(listas.templates, listas.lists, hoy.flow) { ts, ls, today ->
+        withContext(Dispatchers.Default) { buildPlantillas(ts, ls, today) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Tareas con fecha agrupadas. «Hoy» sale de `hoy.flow`, que se refresca al volver a la app (Review Focus 3). */
+    val agenda: StateFlow<Map<Bucket, List<Task>>?> = combine(listas.lists, hoy.flow) { ls, today ->
+        withContext(Dispatchers.Default) { agenda(ls, today) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Marca (o desmarca, para «Deshacer») una tarea de la Agenda: lee la lista al día y guarda solo ese cambio. */
+    fun toggleTask(listId: String, itemId: String) {
+        viewModelScope.launch {
+            val l = listas.lists.first().firstOrNull { it.id == listId } ?: return@launch
+            listas.saveList(l.toggle(itemId, hoy.flow.value))
+        }
+    }
+
+    /** «Crear lista» de una plantilla: con el nombre por defecto («Súper · 3 nov»), y se abre. */
+    fun createFrom(tplId: String, onCreated: (String) -> Unit) {
+        viewModelScope.launch {
+            val t = listas.templates.first().firstOrNull { it.id == tplId } ?: return@launch
+            val l = newList(t, null, hoy.flow.value, clock.millis(), listas.lists.first(), ::newId)
+            listas.saveList(l)
+            onCreated(l.id)
+        }
+    }
 
     /**
      * La primera vez que se elige Manual se toma como orden propio el que se estaba viendo (`seedOrder`). Primero se

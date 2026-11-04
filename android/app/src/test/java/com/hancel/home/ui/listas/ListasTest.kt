@@ -59,7 +59,7 @@ class ListasTest {
     private fun SemanticsNodeInteraction.tocar() = performSemanticsAction(SemanticsActions.OnClick)
 
     private fun abrir() {
-        val vm = modelos.crear { ListasViewModel(deps.listas, deps.ajustes, deps.hoy) }
+        val vm = modelos.crear { ListasViewModel(deps.listas, deps.ajustes, deps.hoy, deps.clock) }
         rule.setContent { HomeTheme { ListasScreen(vm, ListasAcciones(onAbrir = { abierta = it })) } }
     }
 

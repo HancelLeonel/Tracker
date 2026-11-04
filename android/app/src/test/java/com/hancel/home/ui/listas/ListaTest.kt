@@ -167,18 +167,15 @@ class ListaTest {
         rule.esperar { doc()!!.archived == null }
     }
 
-    @Test fun guardar_como_plantilla() {
-        deps.lista("l", "Súper · 3 nov", items = listOf(ListItem("h", "Frutas", head = true), ListItem("a", "Manzanas", done = true), ListItem("x", "Pilas", extra = true)))
-        abrir()
-        rule.esperarTexto("Manzanas")
+    @Test fun guardar_como_plantilla_abre_el_editor() {
+        tres()
+        var desde: String? = null
+        val vm = modelos.crear { ListaViewModel("l", deps.listas, deps.hoy, deps.clock) }
+        rule.setContent { HomeTheme { ListaScreen(vm, onBack = {}, onComoPlantilla = { desde = it }) } }
+        rule.esperarTexto("Café")
         rule.onNodeWithContentDescription("Opciones de la lista").performClick()
         rule.onNodeWithText("Guardar como plantilla").performClick()
-        rule.esperar { bloquear { deps.listas.templates.first() }.isNotEmpty() }
-        val t = bloquear { deps.listas.templates.first() }.single()
-        assertEquals("Súper", t.name)
-        assertEquals(listOf("Frutas", "Manzanas"), t.items.map { it.text })
-        assertTrue(t.items.first().head)
-        rule.esperarTexto("Plantilla «Súper» guardada.")
+        rule.esperar { desde == "l" }
     }
 
     @Test fun fijar_ordenar_por_fecha_y_renombrar() {

@@ -40,8 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -79,10 +77,9 @@ import com.hancel.home.ui.comun.DialogoFecha
 import com.hancel.home.ui.tema.colorNegativo
 
 @Composable
-fun ListaScreen(vm: ListaViewModel, onBack: () -> Unit) {
+fun ListaScreen(vm: ListaViewModel, onBack: () -> Unit, onComoPlantilla: (String) -> Unit = {}) {
     val s by vm.state.collectAsStateWithLifecycle()
     val gone by vm.gone.collectAsStateWithLifecycle()
-    val message by vm.message.collectAsStateWithLifecycle()
     var menu by remember { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf<String?>(null) } // texto del nombre mientras se cambia
     var editing by rememberSaveable { mutableStateOf<String?>(null) } // id del elemento que se edita en su fila
@@ -90,9 +87,7 @@ fun ListaScreen(vm: ListaViewModel, onBack: () -> Unit) {
     var quitar by rememberSaveable { mutableStateOf<String?>(null) }
     var fecha by rememberSaveable { mutableStateOf<String?>(null) }
     var borrar by rememberSaveable { mutableStateOf(false) }
-    val snack = remember { SnackbarHostState() }
     LaunchedEffect(gone) { if (gone) onBack() }
-    LaunchedEffect(message) { message?.let { snack.showSnackbar(it); vm.messageShown() } }
     val st = s
     val l = st?.doc
     val editable = l != null && l.archived == null
@@ -110,14 +105,13 @@ fun ListaScreen(vm: ListaViewModel, onBack: () -> Unit) {
                             trailingIcon = { if (l!!.sortDue) Icon(Icons.Filled.Check, contentDescription = "Activado") },
                         )
                         DropdownMenuItem(text = { Text("Renombrar") }, onClick = { menu = false; renaming = l!!.name })
-                        DropdownMenuItem(text = { Text("Guardar como plantilla") }, onClick = { menu = false; vm.saveAsTemplate() })
+                        DropdownMenuItem(text = { Text("Guardar como plantilla") }, onClick = { menu = false; onComoPlantilla(l!!.id) })
                         DropdownMenuItem(text = { Text("Eliminar lista") }, onClick = { menu = false; borrar = true })
                     }
                 }
             }
         },
         bottomBar = { if (editable) BarraAgregar(vm::add) },
-        snackbarHost = { SnackbarHost(snack) },
     ) { p ->
         if (st == null || l == null) return@Scaffold
         val muted = MaterialTheme.colorScheme.onSurfaceVariant

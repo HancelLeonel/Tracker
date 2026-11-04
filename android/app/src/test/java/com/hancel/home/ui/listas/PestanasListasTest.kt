@@ -38,7 +38,7 @@ class PestanasListasTest {
 
     @Test fun pestanas_caben_en_360dp() {
         deps.lista("v", "Vieja", archived = LocalDate.of(2026, 11, 1))
-        val vm = modelos.crear { ListasViewModel(deps.listas, deps.ajustes, deps.hoy) }
+        val vm = modelos.crear { ListasViewModel(deps.listas, deps.ajustes, deps.hoy, deps.clock) }
         rule.setContent {
             val d = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(d.density, fontScale = 1.15f)) {

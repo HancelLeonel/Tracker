@@ -45,6 +45,27 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
+import com.hancel.home.core.itemMeta
+import com.hancel.home.core.fmtDate
+import com.hancel.home.core.Task
+import com.hancel.home.core.MetaTone
+import com.hancel.home.core.Freq
+import com.hancel.home.core.DueInfo
+import com.hancel.home.core.Bucket
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Button
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
@@ -70,6 +91,8 @@ data class ListasAcciones(
     val onAjustes: () -> Unit = {},
     val onAbrir: (String) -> Unit = {},
     val onNueva: (() -> Unit)? = null,
+    /** Editor de plantillas: null para una nueva, o el id de la que se edita. */
+    val onPlantilla: ((String?) -> Unit)? = null,
 )
 
 private val SORTS = listOf(ListSort.RECENT to "Recientes", ListSort.DUE to "Por fecha", ListSort.MANUAL to "Manual")
@@ -80,6 +103,7 @@ fun ListasScreen(vm: ListasViewModel, a: ListasAcciones) {
     val s by vm.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var menu by remember { mutableStateOf(false) }
+    val snack = remember { SnackbarHostState() }
     val st = s
     Scaffold(
         Modifier.testTag("pantalla-listas"),
@@ -101,7 +125,10 @@ fun ListasScreen(vm: ListasViewModel, a: ListasAcciones) {
         },
         floatingActionButton = {
             if (tab == 0 && a.onNueva != null) FloatingActionButton(onClick = a.onNueva) { Icon(Icons.Filled.Add, contentDescription = "Nueva lista") }
+            val nueva = a.onPlantilla
+            if (tab == 2 && nueva != null) FloatingActionButton(onClick = { nueva(null) }) { Icon(Icons.Filled.Add, contentDescription = "Nueva plantilla") }
         },
+        snackbarHost = { SnackbarHost(snack) },
     ) { p ->
         if (st == null) return@Scaffold
         Column(Modifier.fillMaxSize().padding(p)) {
@@ -124,8 +151,8 @@ fun ListasScreen(vm: ListasViewModel, a: ListasAcciones) {
             }
             when (tab) {
                 0 -> Activas(st, vm, a)
-                1 -> Vacio("Aquí verás las tareas con fecha de todas tus listas.")
-                2 -> Vacio("Aquí verás tus plantillas.")
+                1 -> AgendaTab(vm, snack, a)
+                2 -> PlantillasTab(vm, a)
                 else -> Archivadas(st, vm, a)
             }
         }
@@ -133,13 +160,17 @@ fun ListasScreen(vm: ListasViewModel, a: ListasAcciones) {
 }
 
 @Composable
-private fun Vacio(text: String) {
-    Text(text, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun Vacio(text: String, hint: String? = null, action: (@Composable () -> Unit)? = null) {
+    Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text, style = MaterialTheme.typography.bodyLarge)
+        hint?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        action?.invoke()
+    }
 }
 
 @Composable
 private fun Activas(st: ListasState, vm: ListasViewModel, a: ListasAcciones) {
-    if (st.activas.isEmpty()) return Vacio("Aún no tienes listas. Toca + para crear una.")
+    if (st.activas.isEmpty()) return Vacio("Aún no tienes listas.", "Toca + para crear una, vacía o a partir de una plantilla.")
     val manual = st.sort == ListSort.MANUAL
     // Copia local mientras se arrastra: se mueve en vivo y al soltar se guarda; cuando la base responde, vuelve a mandar.
     var filas by remember(st.activas) { mutableStateOf(st.activas) }
@@ -198,7 +229,7 @@ private fun TarjetaLista(f: FilaLista, today: LocalDate, modifier: Modifier, onC
 
 @Composable
 private fun Archivadas(st: ListasState, vm: ListasViewModel, a: ListasAcciones) {
-    if (st.archivadas.isEmpty()) return Vacio("No hay listas archivadas. Al finalizar una lista llega aquí.")
+    if (st.archivadas.isEmpty()) return Vacio("No hay listas archivadas.", "Al finalizar una lista llega aquí.")
     var borrar by rememberSaveable { mutableStateOf<String?>(null) }
     LazyColumn(
         Modifier.fillMaxSize().testTag("lista-archivadas"),
@@ -228,6 +259,114 @@ private fun TarjetaArchivada(l: ListDoc, today: LocalDate, onOpen: () -> Unit, o
             }
             TextButton(onClick = onRestore) { Text("Restaurar") }
             IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = "Eliminar ${l.name}") }
+        }
+    }
+}
+
+// ---------- Agenda ----------
+
+@Composable
+private fun AgendaTab(vm: ListasViewModel, snack: SnackbarHostState, a: ListasAcciones) {
+    val ag by vm.agenda.collectAsStateWithLifecycle()
+    val groups = ag ?: return
+    val scope = rememberCoroutineScope()
+    if (groups.isEmpty()) return Vacio(
+        "No hay tareas con fecha.",
+        "Toca el icono de calendario de un elemento de cualquier lista para ponerle una fecha límite y aquí las verás juntas.",
+    )
+    val today = vm.state.collectAsStateWithLifecycle().value?.today ?: return
+    LazyColumn(
+        Modifier.fillMaxSize().testTag("lista-agenda"),
+        contentPadding = PaddingValues(start = 8.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+    ) {
+        groups.forEach { (b, tasks) ->
+            item(key = "b-${b.name}") {
+                Text(
+                    "${b.label} · ${tasks.size}", Modifier.padding(start = 8.dp, top = 16.dp, bottom = 4.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (b == Bucket.LATE) colorNegativo() else MaterialTheme.colorScheme.primary,
+                )
+            }
+            items(tasks, key = { "${it.list.id}/${it.item.id}" }) { t ->
+                FilaTarea(t, today, onCheck = {
+                    vm.toggleTask(t.list.id, t.item.id)
+                    scope.launch {
+                        snack.currentSnackbarData?.dismiss()
+                        if (snack.showSnackbar("Tarea hecha", "Deshacer", duration = SnackbarDuration.Short) == SnackbarResult.ActionPerformed) {
+                            vm.toggleTask(t.list.id, t.item.id)
+                        }
+                    }
+                }, onOpen = { a.onAbrir(t.list.id) })
+            }
+        }
+    }
+}
+
+/** Tarea con fecha (taskRow de la PWA): la casilla la marca y el texto abre su lista. */
+@Composable
+fun FilaTarea(t: Task, today: LocalDate, onCheck: () -> Unit, onOpen: () -> Unit) {
+    val m = itemMeta(t.item, today)
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier.size(48.dp).clickable(role = Role.Checkbox, onClick = onCheck)
+                .semantics { contentDescription = "Marcar como hecha: ${t.item.text}" },
+            contentAlignment = Alignment.Center,
+        ) { Checkbox(false, onCheckedChange = null) }
+        Column(Modifier.weight(1f).clickable(onClickLabel = "Abrir la lista", onClick = onOpen).padding(vertical = 8.dp, horizontal = 4.dp)) {
+            Text(t.item.text, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                (m?.let { it.text + " · " } ?: "") + t.list.name, style = MaterialTheme.typography.bodySmall,
+                color = if (m?.tone == MetaTone.NEG) colorNegativo() else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+// ---------- Plantillas ----------
+
+@Composable
+private fun PlantillasTab(vm: ListasViewModel, a: ListasAcciones) {
+    val ps by vm.plantillas.collectAsStateWithLifecycle()
+    val rows = ps ?: return
+    if (rows.isEmpty()) return Vacio(
+        "Aún no tienes plantillas.",
+        "Una plantilla es una lista que repites (el súper, la limpieza semanal…). De ahí creas una lista nueva cada vez y le agregas lo extra.",
+    ) { a.onPlantilla?.let { f -> Button(onClick = { f(null) }) { Text("Crear la primera") } } }
+    LazyColumn(
+        Modifier.fillMaxSize().testTag("lista-plantillas"),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        items(rows, key = { it.t.id }) { f ->
+            TarjetaPlantilla(f, onEdit = { a.onPlantilla?.invoke(f.t.id) }, onCreate = { vm.createFrom(f.t.id, a.onAbrir) })
+        }
+    }
+}
+
+@Composable
+private fun TarjetaPlantilla(f: FilaPlantilla, onEdit: () -> Unit, onCreate: () -> Unit) {
+    val meta = buildList {
+        add(pl(f.count, "elemento"))
+        if (f.t.freq != Freq.NONE) add(f.t.freq.label)
+        f.lastUsed?.let { add("última vez ${fmtDate(it)}") }
+    }.joinToString(" · ")
+    Card(
+        onClick = onEdit, modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(f.t.name, style = MaterialTheme.typography.titleMedium)
+            Text(meta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            f.due?.let { d ->
+                Text(
+                    d.text(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary,
+                    fontWeight = if (d == DueInfo.Now) FontWeight.Bold else null,
+                )
+            }
+            FilledTonalButton(
+                onClick = onCreate, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Crear lista de ${f.t.name}" },
+            ) { Icon(Icons.Filled.Add, null); Spacer(Modifier.width(8.dp)); Text("Crear lista") }
         }
     }
 }

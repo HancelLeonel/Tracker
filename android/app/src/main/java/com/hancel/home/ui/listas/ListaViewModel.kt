@@ -13,7 +13,6 @@ import com.hancel.home.core.newId
 import com.hancel.home.core.progress
 import com.hancel.home.core.sections
 import com.hancel.home.core.sink
-import com.hancel.home.core.templateFromList
 import com.hancel.home.core.toggle
 import com.hancel.home.data.ListasRepo
 import kotlinx.coroutines.NonCancellable
@@ -70,8 +69,6 @@ class ListaViewModel(
     private val _gone = MutableStateFlow(false)
     /** La lista se eliminó o se finalizó: la pantalla vuelve atrás. */
     val gone: StateFlow<Boolean> = _gone
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message
 
     val state: StateFlow<ListaState?> = combine(local.filterNotNull(), hoy.flow, ::buildLista)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -129,15 +126,6 @@ class ListaViewModel(
     fun togglePinned() = change { it.copy(pinned = !it.pinned) }
     fun toggleSortDue() = change { it.copy(sortDue = !it.sortDue) }
 
-    fun saveAsTemplate() {
-        val l = local.value ?: return
-        val t = templateFromList(l, ::newId)
-        viewModelScope.launch {
-            listas.saveTemplate(t)
-            _message.value = "Plantilla «${t.name}» guardada."
-        }
-    }
-
     fun finish() {
         val l = local.value ?: return
         if (!l.isDone()) return
@@ -153,6 +141,4 @@ class ListaViewModel(
         pending++ // ya no se acepta nada de la base: la pantalla se va
         viewModelScope.launch { withContext(NonCancellable) { saving.withLock { listas.deleteList(listId) } }; _gone.value = true }
     }
-
-    fun messageShown() { _message.value = null }
 }
