@@ -38,6 +38,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -131,14 +134,26 @@ private fun Total(s: FinanzasState, a: FinanzasAcciones) {
 @Composable
 fun AccionesRapidas(a: FinanzasAcciones) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        FilledTonalButton(onClick = { a.onGasto?.invoke(null, null) }, enabled = a.onGasto != null, modifier = Modifier.weight(1f)) {
-            Icon(Icons.Filled.Remove, null); Spacer(Modifier.width(4.dp)); Text("Gasto")
-        }
-        FilledTonalButton(onClick = { a.onIngreso?.invoke() }, enabled = a.onIngreso != null, modifier = Modifier.weight(1f)) {
-            Icon(Icons.Filled.Add, null); Spacer(Modifier.width(4.dp)); Text("Ingreso")
-        }
-        FilledTonalButton(onClick = { a.onMover?.invoke() }, enabled = a.onMover != null, modifier = Modifier.weight(1f)) {
-            Icon(Icons.AutoMirrored.Filled.CompareArrows, null); Spacer(Modifier.width(4.dp)); Text("Mover")
+        Accion("Gasto", Icons.Filled.Remove, a.onGasto?.let { f -> { f(null, null) } })
+        Accion("Ingreso", Icons.Filled.Add, a.onIngreso)
+        Accion("Mover", Icons.AutoMirrored.Filled.CompareArrows, a.onMover)
+    }
+}
+
+/**
+ * Botón de acción rápida con el icono arriba y el texto debajo: con el icono al lado y el relleno lateral de un
+ * botón normal, en un teléfono angosto con letra grande el texto se partía en dos líneas.
+ */
+@Composable
+private fun RowScope.Accion(text: String, icon: ImageVector, onClick: (() -> Unit)?) {
+    FilledTonalButton(
+        onClick = { onClick?.invoke() }, enabled = onClick != null, modifier = Modifier.weight(1f),
+        shape = MaterialTheme.shapes.medium,
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, null)
+            Text(text, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
         }
     }
 }
