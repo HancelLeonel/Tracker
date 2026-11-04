@@ -49,6 +49,11 @@ import androidx.navigation.navArgument
 import com.hancel.home.core.CatKey
 import com.hancel.home.core.MoveType
 import com.hancel.home.ui.finanzas.FlujoFormScreen
+import com.hancel.home.ui.listas.ListasAcciones
+import com.hancel.home.ui.listas.ListasScreen
+import com.hancel.home.ui.listas.ListasViewModel
+import com.hancel.home.ui.listas.NuevaListaScreen
+import com.hancel.home.ui.listas.NuevaListaViewModel
 import com.hancel.home.ui.finanzas.FlujoViewModel
 import com.hancel.home.ui.finanzas.GastoFormScreen
 import com.hancel.home.ui.finanzas.PagoTarjetaFormScreen
@@ -207,7 +212,28 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
         val ledger by deps.dinero.ledger.collectAsStateWithLifecycle(null)
         CuentaScreen(model, onBack = { nav.popBackStack() }, onMove = { m -> nav.navigate(rutaMovimiento(m, ledger)) })
     }
-    composable(Tab.LISTAS.route) { Seccion("pantalla-listas", "Listas", ajustes) }
+    composable(Tab.LISTAS.route) {
+        val model = vm { ListasViewModel(deps.listas, deps.ajustes, deps.hoy) }
+        ListasScreen(
+            model,
+            ListasAcciones(
+                onAjustes = ajustes,
+                onAbrir = { nav.navigate("listas/lista/${Uri.encode(it)}") },
+                onNueva = { nav.navigate("form/lista") },
+            ),
+        )
+    }
+    composable("form/lista") {
+        val model = vm { h -> NuevaListaViewModel(h, deps.listas, deps.hoy, deps.clock) }
+        NuevaListaScreen(model, onBack = { nav.popBackStack() }, onCreated = { id ->
+            nav.navigate("listas/lista/${Uri.encode(id)}") { popUpTo("form/lista") { inclusive = true } }
+        })
+    }
+    composable("listas/lista/{id}") { e ->
+        val id = e.arguments?.getString("id").orEmpty()
+        val lista by deps.listas.lists.collectAsStateWithLifecycle(null)
+        ListaProvisional(lista?.firstOrNull { it.id == id }?.name.orEmpty(), onBack = { nav.popBackStack() })
+    }
     composable("ajustes") {
         val model = vm { AjustesViewModel(deps.respaldo, deps.clock) }
         AjustesScreen(model, onBack = { nav.popBackStack() }, onTipos = { nav.navigate("ajustes/tipos") })
@@ -244,6 +270,14 @@ fun rutaGasto(id: String? = null, preset: CatKey? = null, card: String? = null):
 }
 
 /** Pantalla provisional de una sección (se reemplaza en las tareas siguientes). */
+/** Detalle de lista mientras se construye (Tarea 18). */
+@Composable
+private fun ListaProvisional(name: String, onBack: () -> Unit) {
+    Scaffold(Modifier.testTag("pantalla-lista"), topBar = { com.hancel.home.ui.comun.BarraVolver(name, onBack) }) { p ->
+        Box(Modifier.fillMaxSize().padding(p))
+    }
+}
+
 @Composable
 private fun Seccion(tag: String, title: String, onAjustes: () -> Unit) {
     Scaffold(topBar = { BarraSeccion(title, onAjustes) }) { p ->

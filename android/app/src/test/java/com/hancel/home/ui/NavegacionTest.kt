@@ -117,6 +117,21 @@ class NavegacionTest {
         rule.esperarTexto("Editar pago de Visa")
     }
 
+    @Test fun nueva_lista_abre_su_detalle_y_volver_regresa_a_listas() {
+        val deps = depsDePrueba()
+        rule.setContent { HomeTheme { HomeRoot(deps) } }
+        rule.onNodeWithText("Listas").performClick()
+        rule.esperar { rule.onAllNodes(hasContentDescription("Nueva lista")).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithContentDescription("Nueva lista").performClick()
+        rule.esperarTexto("Lista · 3 nov")
+        rule.onNodeWithText("Crear").performClick()
+        rule.esperar { rule.onAllNodes(hasTestTag("pantalla-lista")).fetchSemanticsNodes().isNotEmpty() }
+        rule.esperarTexto("Lista · 3 nov")
+        rule.onNodeWithContentDescription("Volver").performClick()
+        rule.esperar { rule.onAllNodes(hasTestTag("lista-listas")).fetchSemanticsNodes().isNotEmpty() }
+        rule.esperarTexto("0/0")
+    }
+
     @Test fun estado_se_conserva_al_recrear() {
         val deps = depsDePrueba()
         val tester = StateRestorationTester(rule)
