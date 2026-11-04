@@ -52,7 +52,7 @@ Todos los montos son **centavos en `Long`** (`Q 12.50` = `1250`). Se formatean c
 | `templates` | `id`, `name`, `freq: '' \| weekly \| biweekly \| monthly` |
 | `template_items` | `templateId` (FK, cascada), `position`, `text`, `head`, `dueIn: Int?` (0–365) |
 
-Ajustes en **DataStore** (preferencias): `listSort` (`recent \| due \| manual`), `listManualSeeded`, `lastKind`, cuentas plegadas.
+Ajustes en **DataStore** (preferencias): `listSort` (`recent \| due \| manual`), `listManualSeeded`, `lastKind`, `lastFrom`, `lastIncomeTo`, cuentas plegadas.
 
 Las tarjetas de crédito conservan la forma actual: una cuenta `CREDIT` con **una sola categoría** cuyo saldo es la deuda (≤ 0).
 
@@ -63,7 +63,7 @@ Los ids siguen siendo `String` (se conservan los de la PWA; los nuevos con `UUID
 - `effects(move)`: lista de `(acc, cat, delta)`.
   - Gasto con `cardId` → solo `(card, cat0, -total)`.
   - Si no, cada parte con `+amount` (ingreso) o `-amount`, y en una transferencia además `(to, +total)`.
-- `balanceWithout(move, key)`, `cardPending(cardId, exclude)` (recorrido por `date` y luego `t`; un pago resta primero de la categoría de origen y luego de las de mayor pendiente; un ingreso a la tarjeta, de las de mayor pendiente), `reservedMap(exclude)`, `availWithout(move, key)`, `allocatePayment(card, amount, exclude)`, `totals()` (efectivo, deuda, neto).
+- `balanceWithout(move, key)`, `cardPending(cardId, exclude)` (recorrido por `date` y luego `t`; un pago resta primero de la categoría de origen y luego de las de mayor pendiente; un ingreso a la tarjeta, de las de mayor pendiente), `reservedMap(exclude)`, `availWithout(move, key)`, `totals()` (efectivo, deuda, neto). (`allocatePayment` no se traduce: solo lo usaba Pagos pendientes.)
 - **Lo apartado no se guarda**: se deriva del historial cada vez que cambia el `Flow` de movimientos. Desaparecen `S.rev`/`bump()` y la caché manual.
 - `saveMove(old, new)` y `deleteMove(m)` corren en **una transacción de Room**: revierten los efectos de `old`, aplican los de `new` y escriben el movimiento con sus partes. Es el **único** lugar que cambia `balance`, salvo el formulario de categoría (ajuste manual del saldo).
 - Disponible para gastar = saldo − apartado.
@@ -105,7 +105,7 @@ Los ids siguen siendo `String` (se conservan los de la PWA; los nuevos con `UUID
     - «Permitir saldo negativo» ofrece todas las categorías y pide confirmación al pasarse de lo libre; abre marcada si el gasto ya dejaba un saldo negativo.
     - Al editar no se re-reparte.
     - Las categorías de tarjetas no aparecen en los selectores de gasto ni de mover.
-  - Pagar tarjeta usa `allocatePayment`.
+  - Pagar tarjeta propone una fila por categoría con lo pendiente de `cardPending` (orden alfabético por «Cuenta / Categoría»); sin pendientes, una fila con la primera categoría normal y la deuda. Permite agregar o quitar filas; avisa «más de lo que debes» y «una categoría quedará en negativo».
 - **Listas**:
   - Pestañas superiores **Listas · Agenda · Plantillas · Archivadas** (con contador).
   - **Listas**: fijar, orden Reciente / Por fecha / Manual; en manual se reordena **arrastrando** dentro de su grupo (fijadas / no fijadas).
@@ -121,7 +121,7 @@ Los ids siguen siendo `String` (se conservan los de la PWA; los nuevos con `UUID
 ### Importar el respaldo de la PWA (una vez)
 
 - Acepta `app: 'tracker'` o `'mi-quincena'`, `version` 2 o la actual, archivo `.json` o `.json.txt` (selector de archivos del sistema).
-- **Toma**: `accounts` (con `cats` → `categories`), `moves` (`parts`, `to`, `card`, `kind`, `title`, `note`, `date`, `t`, `total`), `templates`, `lists`, `settings.types` (→ `kinds`), `settings.listSort`, `settings.listManualSeeded`, `settings.lastKind`.
+- **Toma**: `accounts` (con `cats` → `categories`), `moves` (`parts`, `to`, `card`, `kind`, `title`, `note`, `date`, `t`, `total`), `templates`, `lists`, `settings.types` (→ `kinds`), `settings.listSort`, `settings.listManualSeeded`, `settings.lastKind`, `settings.lastFrom`, `settings.lastIncomeTo`.
 - **Ignora**: todo lo demás, incluidos `files`, `bill`, `color`, `order` de cuentas, hábitos, notas, bandeja, pagos, compras, gimnasio, Pomodoro, tema, fuente y `collapsed`.
 - **Validación** con el mismo rigor que `validateImport`. Ante un error se muestra el motivo y no se toca nada.
 - **Conversión a centavos**: `round(x × 100)` para cada `balance`, `amount`, `total` y `limit`. Si en un movimiento `Σ parts ≠ total` tras redondear, **`total := Σ parts`** (las partes son las que movieron los saldos; así la deuda de la tarjeta y el destino de un «mover» siguen cuadrando).
