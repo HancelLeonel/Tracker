@@ -75,6 +75,14 @@ fun dayLabel(d: LocalDate, today: LocalDate): String = when (d) {
     else -> fmtDate(d)
 }
 
+private val DIAS = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
+
+/** «Martes» (como `toLocaleDateString('es-GT', { weekday: 'long' })` con mayúscula inicial). */
+fun weekdayName(d: LocalDate): String = DIAS[d.dayOfWeek.value - 1]
+
+/** Línea de fecha de Inicio: «Martes · 3 nov». */
+fun homeDate(d: LocalDate): String = "${weekdayName(d)} · ${fmtDate(d)}"
+
 fun greeting(hour: Int): String = when {
     hour < 12 -> "Buenos días"
     hour < 19 -> "Buenas tardes"

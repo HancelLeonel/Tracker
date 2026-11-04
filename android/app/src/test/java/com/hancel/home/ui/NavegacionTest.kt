@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.hancel.home.ui.finanzas.sembrarCuentas
+import com.hancel.home.ui.listas.lista
 import com.hancel.home.ui.tema.HomeTheme
 import org.junit.Rule
 import org.junit.Test
@@ -130,6 +131,25 @@ class NavegacionTest {
         rule.onNodeWithContentDescription("Volver").performClick()
         rule.esperar { rule.onAllNodes(hasTestTag("lista-listas")).fetchSemanticsNodes().isNotEmpty() }
         rule.esperarTexto("0/0")
+    }
+
+    @Test fun botones_de_inicio_abren_formularios_y_ver_mas_abre_la_agenda() {
+        val deps = depsDePrueba()
+        deps.sembrarCuentas()
+        val hoy = deps.hoy.flow.value
+        deps.lista("l", "Casa", items = (1..4).map { com.hancel.home.core.ListItem("$it", "Tarea $it", due = hoy) })
+        rule.setContent { HomeTheme { HomeRoot(deps) } }
+        rule.esperarTexto("Tarea 1")
+        for ((boton, titulo) in listOf("Gasto" to "Nuevo gasto", "Ingreso" to "Ingreso", "Mover" to "Mover dinero")) {
+            rule.onNodeWithText(boton).performClick()
+            rule.esperar { rule.onAllNodes(hasText("Guardar")).fetchSemanticsNodes().isNotEmpty() }
+            rule.esperarTexto(titulo, substring = false)
+            rule.onNodeWithContentDescription("Volver").performClick()
+            rule.esperar { rule.onAllNodes(hasTestTag("pantalla-inicio")).fetchSemanticsNodes().isNotEmpty() }
+        }
+        rule.onNodeWithText("Ver 1 más en Listas").performClick()
+        rule.esperar { rule.onAllNodes(hasTestTag("lista-agenda")).fetchSemanticsNodes().isNotEmpty() }
+        rule.esperarTexto("Hoy · 4")
     }
 
     @Test fun estado_se_conserva_al_recrear() {

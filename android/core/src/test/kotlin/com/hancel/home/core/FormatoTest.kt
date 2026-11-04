@@ -61,4 +61,10 @@ class FormatoTest {
             listOf("Éxito", "ahorro", "Cuenta 10", "Cuenta 2").sortedWith(byName),
         )
     }
+
+    @Test fun dia_de_la_semana_con_mayuscula() {
+        assertEquals("Martes", weekdayName(java.time.LocalDate.of(2026, 11, 3)))
+        assertEquals("Domingo", weekdayName(java.time.LocalDate.of(2026, 11, 8)))
+        assertEquals("Martes · 3 nov", homeDate(java.time.LocalDate.of(2026, 11, 3)))
+    }
 }

@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -51,7 +52,12 @@ import androidx.navigation.navArgument
 import com.hancel.home.core.CatKey
 import com.hancel.home.core.MoveType
 import com.hancel.home.ui.finanzas.FlujoFormScreen
+import com.hancel.home.ui.inicio.InicioAcciones
+import com.hancel.home.ui.inicio.InicioScreen
+import com.hancel.home.ui.inicio.InicioViewModel
 import com.hancel.home.ui.listas.ListaScreen
+import com.hancel.home.ui.listas.PESTANA_AGENDA
+import com.hancel.home.ui.listas.PedidoPestana
 import com.hancel.home.ui.listas.ListaViewModel
 import com.hancel.home.ui.listas.ListasAcciones
 import com.hancel.home.ui.listas.ListasScreen
@@ -96,6 +102,7 @@ fun NavHostController.irATab(tab: Tab) = navigate(tab.route) {
 @Composable
 fun HomeRoot(deps: Deps) {
     val nav = rememberNavController()
+    val pedido = remember { PedidoPestana() }
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
 
@@ -134,7 +141,7 @@ fun HomeRoot(deps: Deps) {
             nav, startDestination = Tab.INICIO.route,
             modifier = Modifier.padding(bottom = pad.calculateBottomPadding()).consumeWindowInsets(PaddingValues(bottom = pad.calculateBottomPadding())),
         ) {
-            grafo(nav, deps)
+            grafo(nav, deps, pedido)
         }
     }
 }
@@ -145,9 +152,22 @@ private fun androidx.navigation.NavDestination.hierarchy(): List<String> {
     return listOf(r.substringBefore('/').substringBefore('?'))
 }
 
-private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, deps: Deps) {
+private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, deps: Deps, pedido: PedidoPestana) {
     val ajustes = { nav.navigate("ajustes") }
-    composable(Tab.INICIO.route) { Seccion("pantalla-inicio", "Inicio", ajustes) }
+    composable(Tab.INICIO.route) {
+        val model = vm { InicioViewModel(deps.listas, deps.hoy, deps.clock) }
+        InicioScreen(
+            model,
+            InicioAcciones(
+                onAjustes = ajustes,
+                onAbrirLista = { nav.navigate("listas/lista/${Uri.encode(it)}") },
+                onAgenda = { pedido.tab = PESTANA_AGENDA; nav.irATab(Tab.LISTAS) },
+                onGasto = { preset, card -> nav.navigate(rutaGasto(preset = preset, card = card)) },
+                onIngreso = { nav.navigate("form/flujo/ingreso") },
+                onMover = { nav.navigate("form/flujo/mover") },
+            ),
+        )
+    }
     composable(Tab.FINANZAS.route) {
         val model = vm { FinanzasViewModel(deps.dinero, deps.ajustes, deps.hoy) }
         val ledger by deps.dinero.ledger.collectAsStateWithLifecycle(null)
@@ -233,6 +253,7 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
                 onNueva = { nav.navigate("form/lista") },
                 onPlantilla = { id -> nav.navigate("form/plantilla" + (id?.let { "?id=${Uri.encode(it)}" } ?: "")) },
             ),
+            pedido,
         )
     }
     composable(
@@ -288,12 +309,4 @@ fun rutaGasto(id: String? = null, preset: CatKey? = null, card: String? = null):
         card?.let { "card=${Uri.encode(it)}" },
     )
     return "form/gasto" + if (q.isEmpty()) "" else "?" + q.joinToString("&")
-}
-
-/** Pantalla provisional de una sección (se reemplaza en las tareas siguientes). */
-@Composable
-private fun Seccion(tag: String, title: String, onAjustes: () -> Unit) {
-    Scaffold(topBar = { BarraSeccion(title, onAjustes) }) { p ->
-        Box(Modifier.fillMaxSize().padding(p).testTag(tag))
-    }
 }

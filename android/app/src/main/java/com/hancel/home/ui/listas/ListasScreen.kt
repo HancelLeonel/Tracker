@@ -37,6 +37,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.launch
 import com.hancel.home.core.itemMeta
 import com.hancel.home.core.fmtDate
@@ -86,6 +89,11 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.time.LocalDate
 
+/** Pestaña que otra pantalla pide abrir en Listas (0 Listas, 1 Agenda, 2 Plantillas, 3 Archivo). */
+class PedidoPestana { var tab by mutableStateOf<Int?>(null) }
+
+const val PESTANA_AGENDA = 1
+
 /** Lo que se puede hacer desde Listas. */
 data class ListasAcciones(
     val onAjustes: () -> Unit = {},
@@ -99,9 +107,11 @@ private val SORTS = listOf(ListSort.RECENT to "Recientes", ListSort.DUE to "Por 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ListasScreen(vm: ListasViewModel, a: ListasAcciones) {
+fun ListasScreen(vm: ListasViewModel, a: ListasAcciones, pedido: PedidoPestana? = null) {
     val s by vm.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    // Otra pantalla (Inicio › «Ver N más») puede pedir una pestaña: se atiende una vez y se borra.
+    LaunchedEffect(pedido?.tab) { pedido?.tab?.let { tab = it; pedido.tab = null } }
     var menu by remember { mutableStateOf(false) }
     val snack = remember { SnackbarHostState() }
     val st = s
@@ -304,16 +314,20 @@ private fun AgendaTab(vm: ListasViewModel, snack: SnackbarHostState, a: ListasAc
 
 /** Tarea con fecha (taskRow de la PWA): la casilla la marca y el texto abre su lista. */
 @Composable
-fun FilaTarea(t: Task, today: LocalDate, onCheck: () -> Unit, onOpen: () -> Unit) {
-    val m = itemMeta(t.item, today)
+fun FilaTarea(t: Task, today: LocalDate, onCheck: () -> Unit, onOpen: () -> Unit, done: Boolean = false) {
+    val m = if (done) null else itemMeta(t.item, today)
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(48.dp).clickable(role = Role.Checkbox, onClick = onCheck)
                 .semantics { contentDescription = "Marcar como hecha: ${t.item.text}" },
             contentAlignment = Alignment.Center,
-        ) { Checkbox(false, onCheckedChange = null) }
+        ) { Checkbox(done, onCheckedChange = null) }
         Column(Modifier.weight(1f).clickable(onClickLabel = "Abrir la lista", onClick = onOpen).padding(vertical = 8.dp, horizontal = 4.dp)) {
-            Text(t.item.text, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                t.item.text, style = MaterialTheme.typography.bodyLarge, color = if (done) muted else Color.Unspecified,
+                textDecoration = if (done) TextDecoration.LineThrough else null,
+            )
             Text(
                 (m?.let { it.text + " · " } ?: "") + t.list.name, style = MaterialTheme.typography.bodySmall,
                 color = if (m?.tone == MetaTone.NEG) colorNegativo() else MaterialTheme.colorScheme.onSurfaceVariant,
