@@ -2,6 +2,8 @@ package com.hancel.home.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -49,6 +51,8 @@ import androidx.navigation.navArgument
 import com.hancel.home.core.CatKey
 import com.hancel.home.core.MoveType
 import com.hancel.home.ui.finanzas.FlujoFormScreen
+import com.hancel.home.ui.listas.ListaScreen
+import com.hancel.home.ui.listas.ListaViewModel
 import com.hancel.home.ui.listas.ListasAcciones
 import com.hancel.home.ui.listas.ListasScreen
 import com.hancel.home.ui.listas.ListasViewModel
@@ -122,7 +126,12 @@ fun HomeRoot(deps: Deps) {
             }
         },
     ) { pad ->
-        NavHost(nav, startDestination = Tab.INICIO.route, modifier = Modifier.padding(bottom = pad.calculateBottomPadding())) {
+        // consumeWindowInsets: la barra inferior ya ocupa ese espacio, así imePadding() dentro de una pantalla (el campo
+        // para agregar de una lista) solo sube lo que el teclado tapa de más y no deja un hueco del alto de la barra.
+        NavHost(
+            nav, startDestination = Tab.INICIO.route,
+            modifier = Modifier.padding(bottom = pad.calculateBottomPadding()).consumeWindowInsets(PaddingValues(bottom = pad.calculateBottomPadding())),
+        ) {
             grafo(nav, deps)
         }
     }
@@ -231,8 +240,8 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
     }
     composable("listas/lista/{id}") { e ->
         val id = e.arguments?.getString("id").orEmpty()
-        val lista by deps.listas.lists.collectAsStateWithLifecycle(null)
-        ListaProvisional(lista?.firstOrNull { it.id == id }?.name.orEmpty(), onBack = { nav.popBackStack() })
+        val model = vm(id) { ListaViewModel(id, deps.listas, deps.hoy, deps.clock) }
+        ListaScreen(model, onBack = { nav.popBackStack() })
     }
     composable("ajustes") {
         val model = vm { AjustesViewModel(deps.respaldo, deps.clock) }
@@ -270,14 +279,6 @@ fun rutaGasto(id: String? = null, preset: CatKey? = null, card: String? = null):
 }
 
 /** Pantalla provisional de una sección (se reemplaza en las tareas siguientes). */
-/** Detalle de lista mientras se construye (Tarea 18). */
-@Composable
-private fun ListaProvisional(name: String, onBack: () -> Unit) {
-    Scaffold(Modifier.testTag("pantalla-lista"), topBar = { com.hancel.home.ui.comun.BarraVolver(name, onBack) }) { p ->
-        Box(Modifier.fillMaxSize().padding(p))
-    }
-}
-
 @Composable
 private fun Seccion(tag: String, title: String, onAjustes: () -> Unit) {
     Scaffold(topBar = { BarraSeccion(title, onAjustes) }) { p ->

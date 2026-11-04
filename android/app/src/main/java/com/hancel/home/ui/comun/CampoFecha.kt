@@ -2,6 +2,7 @@ package com.hancel.home.ui.comun
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -26,11 +27,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-/**
- * Fecha de calendario. El DatePicker de Material trabaja en milisegundos UTC, así que la conversión se hace siempre
- * en UTC: una fecha local nunca se corre un día por la zona horaria.
- */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Campo de fecha de calendario: tocarlo abre `DialogoFecha`. */
 @Composable
 fun CampoFecha(value: LocalDate, onChange: (LocalDate) -> Unit, modifier: Modifier = Modifier, label: String = "Fecha") {
     var open by rememberSaveable { mutableStateOf(false) }
@@ -47,17 +44,29 @@ fun CampoFecha(value: LocalDate, onChange: (LocalDate) -> Unit, modifier: Modifi
         // Capa encima del campo: tocar en cualquier parte abre el selector (un campo de solo lectura no siempre avisa del toque).
         Box(Modifier.matchParentSize().clickable(onClickLabel = "Elegir") { open = true })
     }
-    if (open) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = value.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
-        DatePickerDialog(
-            onDismissRequest = { open = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let { onChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
-                    open = false
-                }) { Text("Aceptar") }
-            },
-            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancelar") } },
-        ) { DatePicker(state) }
-    }
+    if (open) DialogoFecha(value, onPick = { onChange(it); open = false }, onDismiss = { open = false })
+}
+
+/**
+ * Selector de fecha en un diálogo. Con `onClear` aparece «Quitar fecha» (fechas límite opcionales de Listas).
+ * El DatePicker trabaja en milisegundos UTC: la conversión se hace en UTC para que la fecha no se corra un día.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DialogoFecha(initial: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit, onClear: (() -> Unit)? = null) {
+    val state = rememberDatePickerState(initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { onPick(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) } ?: onDismiss()
+            }) { Text("Aceptar") }
+        },
+        dismissButton = {
+            Row {
+                if (onClear != null) TextButton(onClick = onClear) { Text("Quitar fecha") }
+                TextButton(onClick = onDismiss) { Text("Cancelar") }
+            }
+        },
+    ) { DatePicker(state) }
 }
