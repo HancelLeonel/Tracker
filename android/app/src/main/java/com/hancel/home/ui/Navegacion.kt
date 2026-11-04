@@ -17,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -37,6 +38,12 @@ import com.hancel.home.Deps
 import com.hancel.home.ui.ajustes.AjustesScreen
 import com.hancel.home.ui.ajustes.AjustesViewModel
 import com.hancel.home.ui.comun.BarraSeccion
+import com.hancel.home.ui.ajustes.TiposScreen
+import com.hancel.home.ui.ajustes.TiposViewModel
+import com.hancel.home.ui.finanzas.CategoriaFormScreen
+import com.hancel.home.ui.finanzas.CategoriaFormViewModel
+import com.hancel.home.ui.finanzas.CuentaFormScreen
+import com.hancel.home.ui.finanzas.CuentaFormViewModel
 import com.hancel.home.ui.finanzas.CuentaScreen
 import com.hancel.home.ui.finanzas.CuentaViewModel
 import com.hancel.home.ui.finanzas.FinanzasAcciones
@@ -66,6 +73,9 @@ fun HomeRoot(deps: Deps) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
+
+    // Una instalación nueva recibe los tipos de gasto de siempre (un respaldo importado trae los suyos).
+    LaunchedEffect(Unit) { deps.dinero.seedKindsIfEmpty() }
 
     // «Hoy» se recalcula al volver a la app y cuando el sistema avisa que cambió el día.
     LifecycleResumeEffect(Unit) { deps.hoy.refresh(); onPauseOrDispose { } }
@@ -110,7 +120,37 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
     composable(Tab.INICIO.route) { Seccion("pantalla-inicio", "Inicio", ajustes) }
     composable(Tab.FINANZAS.route) {
         val model = vm { FinanzasViewModel(deps.dinero, deps.ajustes, deps.hoy) }
-        FinanzasScreen(model, FinanzasAcciones(onAjustes = ajustes, onCuenta = { nav.navigate("finanzas/cuenta/$it") }))
+        FinanzasScreen(
+            model,
+            FinanzasAcciones(
+                onAjustes = ajustes,
+                onCuenta = { nav.navigate("finanzas/cuenta/$it") },
+                onNuevaCuenta = { nav.navigate("form/cuenta") },
+                onEditCuenta = { nav.navigate("form/cuenta/$it") },
+                onNuevaCategoria = { nav.navigate("form/categoria/$it") },
+                onEditCategoria = { nav.navigate("form/categoria/${it.acc}/${it.cat}") },
+            ),
+        )
+    }
+    composable("form/cuenta") {
+        val model = vm { h -> CuentaFormViewModel(h, deps.dinero, null) }
+        CuentaFormScreen(model, onDone = { nav.popBackStack() })
+    }
+    composable("form/cuenta/{id}") { e ->
+        val id = e.arguments?.getString("id").orEmpty()
+        val model = vm(id) { h -> CuentaFormViewModel(h, deps.dinero, id) }
+        CuentaFormScreen(model, onDone = { nav.popBackStack() })
+    }
+    composable("form/categoria/{acc}") { e ->
+        val acc = e.arguments?.getString("acc").orEmpty()
+        val model = vm(acc) { h -> CategoriaFormViewModel(h, deps.dinero, acc, null) }
+        CategoriaFormScreen(model, onDone = { nav.popBackStack() })
+    }
+    composable("form/categoria/{acc}/{cat}") { e ->
+        val acc = e.arguments?.getString("acc").orEmpty()
+        val cat = e.arguments?.getString("cat").orEmpty()
+        val model = vm("$acc/$cat") { h -> CategoriaFormViewModel(h, deps.dinero, acc, cat) }
+        CategoriaFormScreen(model, onDone = { nav.popBackStack() })
     }
     composable("finanzas/cuenta/{id}") { e ->
         val id = e.arguments?.getString("id").orEmpty()
@@ -121,6 +161,10 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
     composable("ajustes") {
         val model = vm { AjustesViewModel(deps.respaldo, deps.clock) }
         AjustesScreen(model, onBack = { nav.popBackStack() }, onTipos = { nav.navigate("ajustes/tipos") })
+    }
+    composable("ajustes/tipos") {
+        val model = vm { TiposViewModel(deps.dinero) }
+        TiposScreen(model, onBack = { nav.popBackStack() })
     }
 }
 

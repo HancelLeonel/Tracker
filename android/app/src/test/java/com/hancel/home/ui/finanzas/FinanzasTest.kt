@@ -31,14 +31,11 @@ class FinanzasTest {
     private val deps = depsDePrueba(reloj)
     private val hoy = LocalDate.of(2026, 11, 3)
 
-    private val store = androidx.lifecycle.ViewModelStore()
-    private inline fun <reified T : androidx.lifecycle.ViewModel> modelo(crossinline f: () -> T): T =
-        androidx.lifecycle.ViewModelProvider(store, object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST") override fun <V : androidx.lifecycle.ViewModel> create(modelClass: Class<V>) = f() as V
-        })[T::class.java]
+    private val modelos = com.hancel.home.ui.Modelos()
+    private inline fun <reified T : androidx.lifecycle.ViewModel> modelo(crossinline f: () -> T): T = modelos.crear(f)
 
     /** Los modelos van en un ViewModelStore que se limpia: si no, sus corrutinas siguen vivas en la prueba siguiente. */
-    @org.junit.After fun cerrar() = store.clear()
+    @org.junit.After fun cerrar() = modelos.limpiar()
 
     private fun abrir(onCuenta: (String) -> Unit = {}) {
         val vm = modelo { FinanzasViewModel(deps.dinero, deps.ajustes, deps.hoy) }

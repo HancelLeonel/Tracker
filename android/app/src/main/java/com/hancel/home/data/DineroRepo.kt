@@ -6,6 +6,8 @@ import com.hancel.home.core.Kind
 import com.hancel.home.core.Ledger
 import com.hancel.home.core.Move
 import com.hancel.home.core.applyEffects
+import com.hancel.home.core.newId
+import com.hancel.home.core.respaldo.DEFAULT_KINDS
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -58,6 +60,14 @@ class DineroRepo(private val db: HomeDb) {
     }
 
     suspend fun deleteAccount(id: String) = dao.deleteAccount(id)
+
+    /** La cuenta tal como está guardada ahora (para editarla sin pisar cambios hechos en otra pantalla). */
+    suspend fun account(id: String): Account? = loadAccounts().firstOrNull { it.id == id }
+
+    /** Una base sin tipos de gasto (instalación nueva) recibe los de la PWA. */
+    suspend fun seedKindsIfEmpty() = db.withTransaction {
+        if (dao.kinds().isEmpty()) DEFAULT_KINDS.forEach { dao.upsertKind(Kind(newId(), it).entity()) }
+    }
     suspend fun saveKind(k: Kind) = dao.upsertKind(k.entity())
     suspend fun deleteKind(id: String) = dao.deleteKind(id)
 }

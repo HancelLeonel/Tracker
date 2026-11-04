@@ -23,6 +23,13 @@ fun money(cents: Long): String {
  * la coma es decimal si le siguen 1 o 2 dígitos, y el punto es decimal si aparece una sola vez.
  * Redondea a centavos (mitad hacia arriba). Devuelve null si no es un número.
  */
+/** Monto para un campo de texto: sin «Q» ni separador de miles, y sin «.00» si es entero ("500", "12.50", "-30"). */
+fun editMoney(cents: Long): String {
+    val a = Math.abs(cents)
+    val n = if (a % 100 == 0L) "${a / 100}" else "${a / 100}.${(a % 100).toString().padStart(2, '0')}"
+    return if (cents < 0) "-$n" else n
+}
+
 fun parseMoney(text: String): Long? {
     var s = text.replace(" ", "").replace(" ", "").replace('−', '-').trim()
     if (s.isEmpty()) return null

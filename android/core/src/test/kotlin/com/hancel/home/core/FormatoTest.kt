@@ -25,6 +25,15 @@ class FormatoTest {
         assertEquals(1200L, parseMoney(" 12 "))
     }
 
+    @Test fun editMoney_para_campos_de_texto() {
+        assertEquals("500", editMoney(50000))
+        assertEquals("12.50", editMoney(1250))
+        assertEquals("0.05", editMoney(5))
+        assertEquals("-30", editMoney(-3000))
+        assertEquals("1250.75", editMoney(125075))
+        for (c in listOf(0L, 5L, 1250L, -3000L, 125075L)) assertEquals(c, parseMoney(editMoney(c)))
+    }
+
     @Test fun parseMoney_invalido_es_null() {
         assertNull(parseMoney(""))
         assertNull(parseMoney("abc"))

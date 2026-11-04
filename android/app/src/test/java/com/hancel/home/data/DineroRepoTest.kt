@@ -36,6 +36,19 @@ class DineroRepoTest {
         Move(id, 1, MoveType.EXPENSE, d, "x", "", null, card, null, parts.sumOf { it.amount }, parts.toList())
     private suspend fun saldo(k: CatKey) = repo.ledger.first().category(k)!!.balance
 
+    @Test fun siembra_tipos_solo_si_no_hay() = runTest {
+        repo.seedKindsIfEmpty()
+        assertEquals(listOf("Comida", "Transporte", "Servicios", "Suscripciones", "Salud", "Ocio", "Hogar", "Otros"), repo.kinds.first().map { it.name })
+        repo.deleteKind(repo.kinds.first().first().id)
+        repo.seedKindsIfEmpty()
+        assertEquals(7, repo.kinds.first().size)
+    }
+
+    @Test fun cuenta_por_id() = runTest {
+        assertEquals("Banco", repo.account("banco")!!.name)
+        assertEquals(null, repo.account("nada"))
+    }
+
     @Test fun guardar_gasto_cuadra_saldos() = runTest {
         repo.saveMove(gasto("g", Part(comida, 1500), Part(renta, 500)))
         assertEquals(48500, saldo(comida))

@@ -63,3 +63,14 @@ fun androidx.compose.ui.test.junit4.ComposeTestRule.verEnLista(tag: String, text
 
 private fun androidx.compose.ui.test.junit4.ComposeTestRule.onAllNodesWithText(text: String, substring: Boolean) =
     onAllNodes(androidx.compose.ui.test.hasText(text, substring = substring), useUnmergedTree = true)
+
+/** Crea modelos en un ViewModelStore propio: `limpiar()` (en @After) cancela sus corrutinas, como al cerrar la pantalla. */
+class Modelos {
+    val store = androidx.lifecycle.ViewModelStore()
+    var n = 0
+    inline fun <reified T : androidx.lifecycle.ViewModel> crear(crossinline f: () -> T): T =
+        androidx.lifecycle.ViewModelProvider(store, object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST") override fun <V : androidx.lifecycle.ViewModel> create(modelClass: Class<V>) = f() as V
+        })["m${n++}", T::class.java]
+    fun limpiar() = store.clear()
+}
