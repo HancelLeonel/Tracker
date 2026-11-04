@@ -10,6 +10,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.hancel.home.core.ListItem
 import com.hancel.home.ui.Modelos
@@ -67,6 +69,15 @@ class ListaTest {
         assertTrue(y("Arroz") < y("Beans"))
     }
 
+    @Test fun tocar_el_texto_marca_como_en_la_pwa() {
+        tres()
+        abrir()
+        rule.esperarTexto("Beans")
+        rule.onNodeWithText("Beans").performClick()
+        rule.esperar { item("Beans").done }
+        rule.onNode(hasSetTextAction() and hasText("Beans")).assertDoesNotExist() // no abre la edición
+    }
+
     @Test fun marcar_dos_seguidas_no_pierde_ninguna() {
         tres()
         abrir()
@@ -112,12 +123,13 @@ class ListaTest {
         tres()
         abrir()
         rule.esperarTexto("Beans")
-        rule.onNodeWithText("Beans").performClick()
+        rule.onNodeWithText("Beans").performTouchInput { longClick() } // pulsación larga: editar
         rule.onNode(hasSetTextAction() and hasText("Beans")).performTextReplacement("Frijoles")
         rule.onNodeWithContentDescription("Guardar cambios").performClick()
         rule.esperar { doc()!!.items.any { it.text == "Frijoles" } }
         rule.esperarTexto("Frijoles")
-        rule.onNodeWithText("Frijoles").performClick()
+        assertFalse(item("Frijoles").done)
+        rule.onNodeWithText("Frijoles").performTouchInput { longClick() }
         rule.onNodeWithContentDescription("Quitar Frijoles").performClick()
         rule.esperarTexto("¿Quitar este elemento de la lista?")
         rule.onNodeWithText("Quitar").performClick()

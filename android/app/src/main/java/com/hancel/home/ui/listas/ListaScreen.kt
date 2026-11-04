@@ -1,6 +1,7 @@
 package com.hancel.home.ui.listas
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -61,6 +61,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDecoration
@@ -221,22 +223,24 @@ private fun Encabezado(text: String, count: String? = null) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FilaElemento(i: ListItem, today: java.time.LocalDate, editable: Boolean, onToggle: () -> Unit, onEdit: () -> Unit, onDate: () -> Unit) {
     val meta = itemMeta(i, today)
     val due = i.due
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-        val check = Modifier.size(48.dp)
-        if (editable) Box(
-            check.toggleable(i.done, role = Role.Checkbox, onValueChange = { onToggle() }).semantics { contentDescription = "Marcar ${i.text}" },
-            contentAlignment = Alignment.Center,
-        ) { Checkbox(i.done, onCheckedChange = null) }
-        else Box(check, contentAlignment = Alignment.Center) { Checkbox(i.done, onCheckedChange = null, enabled = false) }
-        Column(
-            Modifier.weight(1f).then(if (editable) Modifier.clickable(onClickLabel = "Editar", onClick = onEdit) else Modifier)
-                .padding(vertical = 10.dp, horizontal = 4.dp),
-        ) {
+    // Como en la PWA: tocar cualquier parte de la fila marca o desmarca; la pulsación larga edita el texto.
+    // El calendario es un botón propio dentro de la fila, así que su toque no marca.
+    val row = if (editable) Modifier
+        .combinedClickable(
+            role = Role.Checkbox, onClickLabel = if (i.done) "Desmarcar" else "Marcar", onLongClickLabel = "Editar",
+            onLongClick = onEdit, onClick = onToggle,
+        )
+        .semantics { contentDescription = "Marcar ${i.text}"; toggleableState = ToggleableState(i.done) }
+    else Modifier
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).then(row), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { Checkbox(i.done, onCheckedChange = null, enabled = editable) }
+        Column(Modifier.weight(1f).padding(vertical = 10.dp, horizontal = 4.dp)) {
             Text(
                 i.text, style = MaterialTheme.typography.bodyLarge,
                 color = if (i.done) muted else Color.Unspecified,
