@@ -1,0 +1,38 @@
+{
+  "app": "tracker", "version": 3, "exportedAt": "2026-11-03T20:00:00.000Z", "includesFiles": true,
+  "settings": {
+    "types": [{ "id": "k1", "name": "Comida" }, { "id": "k2", "name": "Transporte" }],
+    "lastKind": "k1", "lastFrom": "banco|comida", "lastIncomeTo": "banco|renta", "listSort": "manual", "listManualSeeded": true,
+    "theme": "light", "font": "jetbrains", "collapsed": { "banco": true }, "pomo": { "cfg": {} }
+  },
+  "habits": [{ "id": "h1", "name": "Leer", "dates": {} }],
+  "accounts": [
+    { "id": "banco", "name": "Banco", "order": 0, "type": "normal", "limit": 0,
+      "cats": [{ "id": "comida", "name": "Comida", "balance": 485.5 }, { "id": "renta", "name": "Renta", "balance": 200 }] },
+    { "id": "visa", "name": "Visa", "order": 1, "type": "credit", "limit": 1000, "cats": [{ "id": "deuda", "name": "Deuda", "balance": -45 }] }
+  ],
+  "moves": [
+    { "id": "g1", "t": 1, "type": "expense", "date": "2026-11-01", "title": "Almuerzo", "note": "", "kind": "k1", "total": 14.5,
+      "parts": [{ "acc": "banco", "cat": "comida", "amount": 14.5 }], "files": ["f1"], "bill": "b1" },
+    { "id": "g2", "t": 2, "type": "expense", "date": "2026-11-02", "title": "Súper", "kind": "k1", "card": "visa", "total": 45,
+      "parts": [{ "acc": "banco", "cat": "comida", "amount": 45 }], "files": [] },
+    { "id": "x1", "t": 3, "type": "transfer", "date": "2026-11-02", "note": "Ahorro", "total": 10,
+      "parts": [{ "acc": "banco", "cat": "comida", "amount": 10 }], "to": { "acc": "banco", "cat": "renta" } },
+    { "id": "i1", "t": 4, "type": "income", "date": "2026-11-03", "note": "", "total": 0.21,
+      "parts": [{ "acc": "banco", "cat": "renta", "amount": 0.105 }, { "acc": "banco", "cat": "comida", "amount": 0.105 }] },
+    { "id": "old", "t": 5, "type": "expense", "date": "2026-10-01", "title": "Viejo", "total": 5,
+      "parts": [{ "acc": "banco", "cat": "borrada", "amount": 5 }] }
+  ],
+  "bills": [{ "id": "b1", "title": "Luz", "freq": "monthly" }],
+  "templates": [
+    { "id": "t1", "name": "Súper", "color": "blue", "freq": "biweekly",
+      "items": [{ "text": "Cocina", "head": true }, { "text": "Leche", "dueIn": 3 }, { "text": "Pan" }, { "text": "Raro", "dueIn": 900 }] }
+  ],
+  "lists": [
+    { "id": "l1", "name": "Súper · 1 nov", "tplId": "t1", "color": "blue", "created": "2026-11-01", "t": 10, "pinned": true, "order": 0,
+      "items": [{ "id": "a", "text": "Cocina", "head": true }, { "id": "b", "text": "Leche", "done": true, "doneAt": "2026-11-02", "due": "2026-11-04" },
+                { "id": "c", "text": "Pan", "done": false }, { "id": "d", "text": "Extra", "done": false, "extra": true }] },
+    { "id": "l2", "name": "Vieja", "created": "2026-09-01", "t": 1, "archived": "2026-09-10", "sortDue": true, "items": [{ "id": "z", "text": "x", "done": true }] }
+  ],
+  "files": [{ "id": "f1", "mime": "image/png", "name": "r.png", "data": "data:image/png;base64,AA==" }]
+}
