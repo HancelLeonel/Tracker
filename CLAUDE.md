@@ -51,6 +51,9 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 - `JAVA_HOME` = JDK 21 de `~/Library/Java/JavaVirtualMachines` (`/usr/libexec/java_home -v 21`); SDK en `~/Library/Android/sdk` (`adb` en `platform-tools`).
 - **La PWA no se toca mientras se construye Home.** La llave `~/.android/home-release.jks` y `android/paridad/local/` (respaldo real del usuario) **nunca se suben**.
 - Las reglas de dinero viven en `:core` como funciones puras, traducción 1:1 de `state.js`; montos en centavos `Long`.
+- **Firma**: `signingConfigs.release` lee `HOME_STORE_FILE`, `HOME_STORE_PASSWORD`, `HOME_KEY_ALIAS` y `HOME_KEY_PASSWORD` de `~/.gradle/gradle.properties` (fuera del repo; sin ellas release sale sin firmar). Perder la llave o su contraseña impide actualizar la app instalada: el usuario guarda una copia fuera de la Mac. Release usa R8 (`isMinifyEnabled` + `isShrinkResources`).
+- **Versión**: antes de cada APK que se instale encima de otro, sube `home.versionCode` (y `home.versionName`) en `android/gradle.properties`; Android rechaza instalar un `versionCode` menor.
+- **Instalar**: depuración inalámbrica en el teléfono → `adb pair <ip:puerto> <código>` y `adb connect <ip:puerto>` → `adb install -r`. Las pruebas unitarias solo corren en debug (`./gradlew test`).
 
 ## Reglas que no hay que romper
 

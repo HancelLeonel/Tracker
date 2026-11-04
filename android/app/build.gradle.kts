@@ -15,6 +15,25 @@ android {
         versionCode = (project.findProperty("home.versionCode") as String).toInt()
         versionName = project.findProperty("home.versionName") as String
     }
+    // La firma se lee de ~/.gradle/gradle.properties (fuera del repo). Sin esas propiedades release sale sin firmar.
+    val firma = listOf("HOME_STORE_FILE", "HOME_STORE_PASSWORD", "HOME_KEY_ALIAS", "HOME_KEY_PASSWORD")
+        .associateWith { project.findProperty(it) as String? }
+    signingConfigs {
+        if (firma.values.all { it != null }) create("release") {
+            storeFile = file(firma.getValue("HOME_STORE_FILE")!!)
+            storePassword = firma["HOME_STORE_PASSWORD"]
+            keyAlias = firma["HOME_KEY_ALIAS"]
+            keyPassword = firma["HOME_KEY_PASSWORD"]
+        }
+    }
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            signingConfig = signingConfigs.findByName("release")
+        }
+    }
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
