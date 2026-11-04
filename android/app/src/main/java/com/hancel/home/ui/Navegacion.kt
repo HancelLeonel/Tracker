@@ -35,6 +35,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import com.hancel.home.Deps
+import com.hancel.home.core.Ledger
+import com.hancel.home.core.Move
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hancel.home.ui.ajustes.AjustesScreen
 import com.hancel.home.ui.ajustes.AjustesViewModel
 import com.hancel.home.ui.comun.BarraSeccion
@@ -45,7 +48,11 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.hancel.home.core.CatKey
 import com.hancel.home.core.MoveType
+import com.hancel.home.ui.finanzas.FlujoFormScreen
+import com.hancel.home.ui.finanzas.FlujoViewModel
 import com.hancel.home.ui.finanzas.GastoFormScreen
+import com.hancel.home.ui.finanzas.PagoTarjetaFormScreen
+import com.hancel.home.ui.finanzas.PagoTarjetaViewModel
 import com.hancel.home.ui.finanzas.GastoViewModel
 import com.hancel.home.ui.finanzas.CategoriaFormScreen
 import com.hancel.home.ui.finanzas.CategoriaFormViewModel
@@ -127,6 +134,7 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
     composable(Tab.INICIO.route) { Seccion("pantalla-inicio", "Inicio", ajustes) }
     composable(Tab.FINANZAS.route) {
         val model = vm { FinanzasViewModel(deps.dinero, deps.ajustes, deps.hoy) }
+        val ledger by deps.dinero.ledger.collectAsStateWithLifecycle(null)
         FinanzasScreen(
             model,
             FinanzasAcciones(
@@ -137,7 +145,10 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
                 onNuevaCategoria = { nav.navigate("form/categoria/$it") },
                 onEditCategoria = { nav.navigate("form/categoria/${it.acc}/${it.cat}") },
                 onGasto = { preset, card -> nav.navigate(rutaGasto(preset = preset, card = card)) },
-                onEditMove = { m -> if (m.type == MoveType.EXPENSE) nav.navigate(rutaGasto(id = m.id)) },
+                onIngreso = { nav.navigate("form/flujo/ingreso") },
+                onMover = { nav.navigate("form/flujo/mover") },
+                onPagarTarjeta = { nav.navigate("form/pago/${Uri.encode(it)}") },
+                onEditMove = { m -> nav.navigate(rutaMovimiento(m, ledger)) },
             ),
         )
     }
@@ -151,6 +162,24 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
         val card = a?.getString("card")
         val model = vm(e.id) { h -> GastoViewModel(h, deps.dinero, deps.ajustes, deps.hoy, deps.clock, id, preset, card) }
         GastoFormScreen(model, onDone = { nav.popBackStack() })
+    }
+    composable(
+        "form/flujo/{type}?id={id}",
+        arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true; defaultValue = null }),
+    ) { e ->
+        val type = if (e.arguments?.getString("type") == "mover") MoveType.TRANSFER else MoveType.INCOME
+        val id = e.arguments?.getString("id")
+        val model = vm(e.id) { h -> FlujoViewModel(h, deps.dinero, deps.ajustes, deps.hoy, deps.clock, type, id) }
+        FlujoFormScreen(model, onDone = { nav.popBackStack() })
+    }
+    composable(
+        "form/pago/{card}?id={id}",
+        arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true; defaultValue = null }),
+    ) { e ->
+        val card = e.arguments?.getString("card").orEmpty()
+        val id = e.arguments?.getString("id")
+        val model = vm(e.id) { h -> PagoTarjetaViewModel(h, deps.dinero, deps.hoy, deps.clock, card, id) }
+        PagoTarjetaFormScreen(model, onDone = { nav.popBackStack() })
     }
     composable("form/cuenta") {
         val model = vm { h -> CuentaFormViewModel(h, deps.dinero, null) }
@@ -175,7 +204,8 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
     composable("finanzas/cuenta/{id}") { e ->
         val id = e.arguments?.getString("id").orEmpty()
         val model = vm(id) { CuentaViewModel(id, deps.dinero, deps.hoy) }
-        CuentaScreen(model, onBack = { nav.popBackStack() }, onMove = { m -> if (m.type == MoveType.EXPENSE) nav.navigate(rutaGasto(id = m.id)) })
+        val ledger by deps.dinero.ledger.collectAsStateWithLifecycle(null)
+        CuentaScreen(model, onBack = { nav.popBackStack() }, onMove = { m -> nav.navigate(rutaMovimiento(m, ledger)) })
     }
     composable(Tab.LISTAS.route) { Seccion("pantalla-listas", "Listas", ajustes) }
     composable("ajustes") {
@@ -185,6 +215,21 @@ private fun androidx.navigation.NavGraphBuilder.grafo(nav: NavHostController, de
     composable("ajustes/tipos") {
         val model = vm { TiposViewModel(deps.dinero) }
         TiposScreen(model, onBack = { nav.popBackStack() })
+    }
+}
+
+/**
+ * Formulario para editar un movimiento según su tipo. Una transferencia hacia una tarjeta es su pago (como en la PWA,
+ * que abre payCardForm); si el ledger aún no cargó se trata como mover dinero.
+ */
+fun rutaMovimiento(m: Move, l: Ledger?): String {
+    val id = Uri.encode(m.id)
+    val to = m.to
+    return when (m.type) {
+        MoveType.EXPENSE -> rutaGasto(id = m.id)
+        MoveType.INCOME -> "form/flujo/ingreso?id=$id"
+        MoveType.TRANSFER ->
+            if (to != null && l?.account(to.acc)?.isCredit == true) "form/pago/${Uri.encode(to.acc)}?id=$id" else "form/flujo/mover?id=$id"
     }
 }
 

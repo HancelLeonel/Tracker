@@ -3,6 +3,7 @@ package com.hancel.home.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -82,6 +83,38 @@ class NavegacionTest {
         rule.onNodeWithText("Tipos de gasto").performClick()
         rule.esperarTexto("Suscripciones")
         rule.onNodeWithTag("pantalla-tipos").assertIsDisplayed()
+    }
+
+    @Test fun botones_de_finanzas_abren_sus_formularios() {
+        val deps = depsDePrueba()
+        deps.sembrarCuentas()
+        rule.setContent { HomeTheme { HomeRoot(deps) } }
+        rule.onNodeWithText("Finanzas").performClick()
+        rule.esperarTexto("Ingreso")
+        for ((boton, titulo) in listOf("Gasto" to "Nuevo gasto", "Ingreso" to "Ingreso", "Mover" to "Mover dinero")) {
+            rule.onNodeWithText(boton).performClick()
+            rule.esperar { rule.onAllNodes(hasText("Guardar")).fetchSemanticsNodes().isNotEmpty() }
+            rule.esperarTexto(titulo, substring = false)
+            rule.onNodeWithContentDescription("Volver").performClick()
+            rule.esperar { rule.onAllNodes(hasTestTag("lista-finanzas")).fetchSemanticsNodes().isNotEmpty() }
+        }
+        rule.verEnLista("lista-finanzas", "Pagar tarjeta")
+        rule.onNodeWithText("Pagar tarjeta").performClick()
+        rule.esperarTexto("Pagar Visa")
+    }
+
+    @Test fun tocar_un_pago_de_tarjeta_abre_su_formulario() {
+        val deps = depsDePrueba()
+        deps.sembrarCuentas()
+        bloquear {
+            deps.dinero.saveMove(com.hancel.home.core.Move("p", 1, com.hancel.home.core.MoveType.TRANSFER, deps.hoy.flow.value, "", "Abono",
+                null, null, com.hancel.home.core.CatKey("visa", "deuda"), 1000, listOf(com.hancel.home.core.Part(com.hancel.home.ui.finanzas.COMIDA, 1000))))
+        }
+        rule.setContent { HomeTheme { HomeRoot(deps) } }
+        rule.onNodeWithText("Finanzas").performClick()
+        rule.verEnLista("lista-finanzas", "Abono")
+        rule.onNodeWithText("Abono").performClick()
+        rule.esperarTexto("Editar pago de Visa")
     }
 
     @Test fun estado_se_conserva_al_recrear() {
